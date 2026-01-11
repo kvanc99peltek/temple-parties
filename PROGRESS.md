@@ -12,8 +12,8 @@
 ### Days 1-2: Frontend + Backend Basics
 - [x] Initialize Next.js 14 project with TypeScript & Tailwind
 - [x] Start development server (running on http://localhost:3000)
-- [ ] Create first React component (PartyCard)
-- [ ] Display hardcoded parties on homepage
+- [x] Create first React component (PartyCard)
+- [x] Display hardcoded parties on homepage (using arrays and .map())
 - [ ] Set up Python FastAPI backend
 - [ ] Create `/api/parties` endpoint with hardcoded data
 - [ ] Connect frontend to backend API
@@ -137,12 +137,15 @@
 
 ## Current Status
 
-**Today's Progress (Jan 8):**
+**Today's Progress (Jan 10):**
 - ✅ Next.js 14 project initialized
 - ✅ TypeScript configured
 - ✅ Tailwind CSS installed
 - ✅ Dev server running on http://localhost:3000
-- 🔄 **Next:** Create PartyCard component
+- ✅ Created PartyCard component with props
+- ✅ Learned about arrays and .map() function
+- ✅ Displaying 3 parties from hardcoded array
+- 🔄 **Next:** Set up Python FastAPI backend
 
 **Development Server Status:**
 - Frontend: http://localhost:3000 (running)
@@ -175,6 +178,14 @@ These features are in the PRD but we'll skip for initial launch:
 ---
 
 ## Daily Standup Notes
+
+### Jan 10, 2026
+- Created PartyCard component with TypeScript interfaces
+- Learned React props (using props object instead of destructuring)
+- Implemented arrays and .map() to display multiple parties
+- Successfully displaying 3 hardcoded parties on homepage
+- **Concepts learned:** Arrays in TypeScript, .map() function, key prop for React lists
+- **Next session:** Set up Python FastAPI backend with hardcoded data
 
 ### Jan 8, 2026
 - Initialized Next.js project

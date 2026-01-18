@@ -8,6 +8,8 @@ export interface Party {
   day: 'friday' | 'saturday';
   doorsOpen: string;
   address: string;
+  latitude: number;
+  longitude: number;
   goingCount: number;
 }
 

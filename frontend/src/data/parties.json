@@ -1,32 +1,38 @@
 [
   {
     "id": "party-1",
-    "title": "Sigma Chi House Party",
-    "host": "Sigma Chi",
+    "title": "Welcome Back Party",
+    "host": "Alpha Beta Sigma Epilison",
     "category": "Frat Party",
     "day": "friday",
     "doorsOpen": "10 PM",
-    "address": "1234 N Broad St, Philadelphia, PA 19122",
+    "address": "1722 W Montgomery Avenue, Philadelphia, PA 19122",
+    "latitude": 39.98113795301062,
+    "longitude": -75.16322365617779,
     "goingCount": 67
   },
   {
     "id": "party-2",
-    "title": "Live Band Night",
-    "host": "The Venue Crew",
+    "title": "Just Another Band Show",
+    "host": "Mountain Clouds",
     "category": "House Show",
     "day": "friday",
     "doorsOpen": "9 PM",
-    "address": "456 Cecil B Moore Ave, Philadelphia, PA 19121",
+    "address": "1645 N 16th Street, Philadelphia, PA 19121",
+    "latitude": 39.98433258678322,
+    "longitude": -75.15859800200509,
     "goingCount": 52
   },
   {
     "id": "party-3",
-    "title": "Late Night Kickback",
-    "host": "Diamond Street Collective",
+    "title": "2016 Party",
+    "host": "Diddy",
     "category": "House Party",
-    "day": "saturday",
+    "day": "friday",
     "doorsOpen": "11 PM",
     "address": "789 W Diamond St, Philadelphia, PA 19122",
+    "latitude": 39.9880,
+    "longitude": -75.1590,
     "goingCount": 34
   },
   {
@@ -37,6 +43,8 @@
     "day": "saturday",
     "doorsOpen": "9 PM",
     "address": "321 N 15th St, Philadelphia, PA 19102",
+    "latitude": 39.9580,
+    "longitude": -75.1650,
     "goingCount": 45
   },
   {
@@ -44,9 +52,11 @@
     "title": "Basement Beats",
     "host": "Underground Collective",
     "category": "House Party",
-    "day": "friday",
+    "day": "saturday",
     "doorsOpen": "11 PM",
     "address": "567 W Norris St, Philadelphia, PA 19122",
+    "latitude": 39.9830,
+    "longitude": -75.1610,
     "goingCount": 38
   }
 ]

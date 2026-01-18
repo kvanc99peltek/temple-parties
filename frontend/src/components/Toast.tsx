@@ -21,11 +21,11 @@ export default function Toast({ message, isVisible, onClose }: ToastProps) {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-      <div className="bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg border border-gray-700 flex items-center gap-2">
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 animate-slide-up" style={{ zIndex: 10001 }}>
+      <div className="bg-zinc-900 text-white px-6 py-3 rounded-full shadow-lg shadow-purple-500/20 border border-purple-500/30 flex items-center gap-2">
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-cherry-400"
+          className="h-5 w-5 text-purple-500"
           viewBox="0 0 20 20"
           fill="currentColor"
         >

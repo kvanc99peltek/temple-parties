@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
   // Initialize with initial value (for SSR compatibility)
   const [storedValue, setStoredValue] = useState<T>(initialValue);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [, setIsHydrated] = useState(false);
 
   // Sync with localStorage after mount
   useEffect(() => {

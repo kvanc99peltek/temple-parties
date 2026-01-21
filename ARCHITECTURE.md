@@ -818,4 +818,34 @@ await toggleGoing(partyId);
 
 ---
 
+## Bug Fixes
+
+### Share Prompt for Non-Authenticated Users (January 2026)
+
+**Issue:** When a non-logged-in user clicked "Going" on a party, the share/invite modal did not appear, even though it worked correctly for authenticated users.
+
+**Root Cause:** In `page.tsx`, the `handleGoingClick` function had an unnecessary authentication check that prevented the modal from showing for anonymous users:
+
+```typescript
+// Before (broken)
+if (!wasGoing && isAuthenticated) {
+  setShowModal(true);
+}
+```
+
+**Fix:** Removed the `isAuthenticated` condition so the share prompt appears for all users:
+
+```typescript
+// After (fixed)
+if (!wasGoing) {
+  setShowModal(true);
+}
+```
+
+**File Changed:** `frontend/src/app/page.tsx` (lines 119-122)
+
+**Impact:** The share prompt now correctly appears for both authenticated and non-authenticated users when they mark themselves as "going" to a party.
+
+---
+
 **Last Updated:** January 21, 2026

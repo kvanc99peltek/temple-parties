@@ -113,20 +113,14 @@ export default function Home() {
 
   // Handle going button click
   const handleGoingClick = useCallback(async (partyId: string) => {
-    if (!isAuthenticated) {
-      setPendingAction('going');
-      setPendingPartyId(partyId);
-      setShowLoginModal(true);
-      return;
-    }
-
+    const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
 
-    // Only show invite modal when marking as going (not un-going)
-    if (!isGoing(partyId)) {
+    // Show invite modal when marking as going (not un-going)
+    if (!wasGoing) {
       setShowModal(true);
     }
-  }, [isAuthenticated, toggleGoing, isGoing]);
+  }, [toggleGoing, isGoing]);
 
   // Handle share
   const handleShare = useCallback(async () => {

@@ -195,3 +195,22 @@ async def toggle_going(party_id: str, user: dict = Depends(require_auth)):
         supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
 
         return {"going": True, "goingCount": new_count}
+
+
+@router.post("/{party_id}/going/anonymous")
+async def increment_going_anonymous(party_id: str):
+    """
+    Increment going count for anonymous users.
+    No user tracking - just increments the count.
+    """
+    # Check if party exists
+    party_result = supabase.table("parties").select("*").eq("id", party_id).execute()
+
+    if not party_result.data:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    party = party_result.data[0]
+    new_count = party["going_count"] + 1
+    supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
+
+    return {"going": True, "goingCount": new_count}

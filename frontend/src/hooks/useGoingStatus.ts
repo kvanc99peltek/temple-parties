@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { partiesApi } from '@/services/api';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface PartyCounts {
   [partyId: string]: number;
@@ -19,34 +18,39 @@ interface UseGoingStatusReturn {
   isLoading: boolean;
 }
 
+// LocalStorage key for anonymous going parties
+const STORAGE_KEY = 'temple_parties_going';
+
+// Helper functions for localStorage
+const getLocalGoingParties = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const setLocalGoingParties = (parties: string[]) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(parties));
+};
+
 /**
  * Custom hook to manage user's going status and party counts
  * Uses API for persistence and Supabase realtime for live updates
+ * Supports anonymous users via localStorage
  */
 export function useGoingStatus(): UseGoingStatusReturn {
-  const { isAuthenticated } = useAuth();
   const [goingParties, setGoingParties] = useState<string[]>([]);
   const [partyCounts, setPartyCounts] = useState<PartyCounts>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch user's going parties on mount and when auth changes
+  // Load going parties from localStorage on mount
   useEffect(() => {
-    const fetchGoingParties = async () => {
-      if (!isAuthenticated) {
-        setGoingParties([]);
-        return;
-      }
-
-      try {
-        const parties = await partiesApi.getUserGoingParties();
-        setGoingParties(parties);
-      } catch (error) {
-        console.error('Failed to fetch going parties:', error);
-      }
-    };
-
-    fetchGoingParties();
-  }, [isAuthenticated]);
+    setGoingParties(getLocalGoingParties());
+  }, []);
 
   // Subscribe to realtime updates for party going counts
   useEffect(() => {
@@ -86,20 +90,22 @@ export function useGoingStatus(): UseGoingStatusReturn {
 
   // Toggle going status for a party
   const toggleGoing = useCallback(async (partyId: string): Promise<void> => {
-    if (!isAuthenticated) {
+    // Check if already going
+    const currentGoing = getLocalGoingParties();
+    if (currentGoing.includes(partyId)) {
+      // Already going - can't un-go
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await partiesApi.toggleGoing(partyId);
+      // Add to going locally first (optimistic update)
+      const newGoing = [...currentGoing, partyId];
+      setLocalGoingParties(newGoing);
+      setGoingParties(newGoing);
 
-      // Update local state immediately
-      if (result.going) {
-        setGoingParties(prev => [...prev, partyId]);
-      } else {
-        setGoingParties(prev => prev.filter(id => id !== partyId));
-      }
+      // Call anonymous increment endpoint (works for all users)
+      const result = await partiesApi.incrementGoingAnonymous(partyId);
 
       // Update count from response
       setPartyCounts(prev => ({
@@ -108,10 +114,14 @@ export function useGoingStatus(): UseGoingStatusReturn {
       }));
     } catch (error) {
       console.error('Failed to toggle going status:', error);
+      // Revert local state on error
+      const revertedGoing = getLocalGoingParties().filter(id => id !== partyId);
+      setLocalGoingParties(revertedGoing);
+      setGoingParties(revertedGoing);
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, []);
 
   return {
     goingParties,

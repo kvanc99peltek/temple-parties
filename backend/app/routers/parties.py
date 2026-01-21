@@ -70,6 +70,16 @@ async def get_parties(
     return [db_to_response(party) for party in result.data]
 
 
+@router.get("/user/going", response_model=List[str])
+async def get_user_going_parties(user: dict = Depends(require_auth)):
+    """
+    Get list of party IDs that the current user is going to.
+    """
+    result = supabase.table("party_going").select("party_id").eq("user_id", user["id"]).execute()
+
+    return [row["party_id"] for row in result.data]
+
+
 @router.get("/{party_id}", response_model=PartyResponse)
 async def get_party(party_id: str):
     """
@@ -185,13 +195,3 @@ async def toggle_going(party_id: str, user: dict = Depends(require_auth)):
         supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
 
         return {"going": True, "goingCount": new_count}
-
-
-@router.get("/user/going", response_model=List[str])
-async def get_user_going_parties(user: dict = Depends(require_auth)):
-    """
-    Get list of party IDs that the current user is going to.
-    """
-    result = supabase.table("party_going").select("party_id").eq("user_id", user["id"]).execute()
-
-    return [row["party_id"] for row in result.data]

@@ -1,0 +1,467 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Fonts */
+@font-face {
+  font-family: 'Bitcount Prop Single';
+  src: url('./fonts/BitcountPropSingle-VariableFont_CRSV,ELSH,ELXP,slnt,wght.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Basement Grotesque';
+  src: url('./fonts/BasementGrotesque-Black_v1.202.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat Alternates';
+  src: url('./fonts/MontserratAlternates-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat Alternates';
+  src: url('./fonts/MontserratAlternates-Black.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/Montserrat-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #f5f5f5;
+  /* New color system */
+  --pink-primary: #FA4693;
+  --pink-light: #FB6BA8;
+  --pink-dark: #E83A82;
+  --green-success: #10B981;
+  --green-dark: #059669;
+  --gold-highlight: #FFD666;
+  --gold-dark: #E6C05C;
+  --card-bg: #202023;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for webkit browsers - Purple theme */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(250, 70, 147, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(250, 70, 147, 0.5);
+}
+
+/* Focus visible styles for accessibility - Pink */
+:focus-visible {
+  outline: 2px solid #FA4693;
+  outline-offset: 2px;
+}
+
+/* Button tap highlight on mobile */
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Leaflet Map Custom Styles */
+.leaflet-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background: #1a1a1a;
+}
+
+/* New V2 marker styles with host name + going count - Pink theme */
+.custom-party-marker {
+  background: transparent;
+  border: none;
+}
+
+.marker-bubble {
+  background: rgba(250, 70, 147, 0.9);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 8px 12px;
+  min-width: 90px;
+  max-width: 140px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(250, 70, 147, 0.4);
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.marker-bubble.hyped {
+  background: #FFD666;
+  border: none;
+  box-shadow: 0 4px 16px rgba(255, 214, 102, 0.5);
+  animation: marker-pulse 2s ease-in-out infinite;
+}
+
+.marker-bubble.going {
+  background: linear-gradient(to right, #0084FF, #FA4693);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(250, 70, 147, 0.4);
+}
+
+.host-name {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  color: white;
+  margin-bottom: 2px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.marker-bubble.hyped .host-name {
+  color: #000000;
+}
+
+.going-count-text {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.2;
+}
+
+.marker-bubble.hyped .going-count-text {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.marker-pin-v2 {
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 16px solid rgba(250, 70, 147, 0.9);
+  margin: 0 auto;
+}
+
+.marker-pin-v2.hyped {
+  border-top-color: #FFD666;
+}
+
+.marker-pin-v2.going {
+  border-top-color: #FA4693;
+}
+
+@keyframes marker-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 16px rgba(255, 214, 102, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 24px rgba(255, 214, 102, 0.7);
+  }
+}
+
+/* Temple University campus label - Pink theme */
+.temple-label-icon {
+  background: transparent;
+  border: none;
+  pointer-events: none;
+}
+
+.campus-label {
+  background: rgba(250, 70, 147, 0.15);
+  border: 1px solid rgba(250, 70, 147, 0.5);
+  color: #FA4693;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 0 10px rgba(250, 70, 147, 0.3);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
+/* Dark popup styles */
+.party-popup-dark .leaflet-popup-content-wrapper {
+  background: #202023;
+  border-radius: 16px;
+  padding: 0;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  border: none;
+  overflow: hidden;
+}
+
+.party-popup-dark .leaflet-popup-content {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.party-popup-dark .leaflet-popup-tip {
+  background: #202023;
+  border-left: 1px solid rgba(250, 70, 147, 0.3);
+  border-bottom: 1px solid rgba(250, 70, 147, 0.3);
+}
+
+.party-popup-dark .leaflet-popup-close-button {
+  color: #888;
+  font-size: 18px;
+  padding: 6px 8px;
+  top: 2px;
+  right: 2px;
+}
+
+.party-popup-dark .leaflet-popup-close-button:hover {
+  color: #fff;
+}
+
+/* Popup content styling */
+.popup-content {
+  min-width: 240px;
+  padding: 16px 16px 12px 16px;
+}
+
+.popup-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px !important;
+}
+
+.popup-category-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  background: #FA4693;
+  color: #ffffff;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.popup-hyped-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  background: #FFD666;
+  color: #000000;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(255, 214, 102, 0.4);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.popup-title {
+  font-family: 'Basement Grotesque', sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  color: #ffffff;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  margin: 0 0 4px 0 !important;
+}
+
+.popup-host {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 4px 0 !important;
+  line-height: 1.5;
+}
+
+.popup-host-by {
+  font-weight: 400;
+}
+
+.popup-host-name {
+  font-weight: 500;
+}
+
+.popup-details-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 !important;
+}
+
+.popup-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.popup-time-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.popup-buttons {
+  display: flex;
+  margin: 0;
+}
+
+.popup-going-btn {
+  flex: 1;
+  height: 49px;
+  border-radius: 0 0 0 12px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #FA4693;
+  color: white;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.popup-going-btn:hover {
+  opacity: 0.9;
+}
+
+.popup-going-btn:active {
+  transform: scale(0.98);
+}
+
+.popup-going-btn.going {
+  background: linear-gradient(to right, #0084FF, #FA4693);
+  cursor: default;
+}
+
+.popup-going-btn.going:hover {
+  opacity: 1;
+}
+
+.popup-check-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.popup-navigate-btn {
+  flex: 1;
+  height: 49px;
+  border-radius: 0 0 12px 0;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #FFD666;
+  color: black;
+  text-transform: uppercase;
+}
+
+.popup-navigate-btn:hover {
+  opacity: 0.9;
+}
+
+.popup-navigate-btn:active {
+  transform: scale(0.98);
+}
+
+/* Leaflet controls dark theme */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.leaflet-control-zoom a {
+  background: #1f1f1f !important;
+  color: #f5f5f5 !important;
+  border: none !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #2a2a2a !important;
+}
+
+.leaflet-control-zoom-in {
+  border-radius: 8px 8px 0 0 !important;
+}
+
+.leaflet-control-zoom-out {
+  border-radius: 0 0 8px 8px !important;
+}
+
+/* Attribution dark theme */
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.6) !important;
+  color: #888 !important;
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: #aaa !important;
+}

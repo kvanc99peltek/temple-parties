@@ -54,7 +54,7 @@ export default function ProfileModal({ isOpen, onClose, username, partyCount, on
       onClick={handleBackdropClick}
       style={{ zIndex: 10000 }}
     >
-      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-purple-500/30 border border-purple-500/30 animate-scale-in relative">
+      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-[#FA4693]/30 border border-[#FA4693]/30 animate-scale-in relative">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -75,7 +75,7 @@ export default function ProfileModal({ isOpen, onClose, username, partyCount, on
 
         {/* Avatar */}
         <div className="flex justify-center mb-4">
-          <div className="w-20 h-20 rounded-full bg-purple-500 flex items-center justify-center">
+          <div className="w-20 h-20 rounded-full bg-[#FA4693] flex items-center justify-center">
             <span className="text-3xl font-bold text-white">
               {username.charAt(0).toUpperCase()}
             </span>

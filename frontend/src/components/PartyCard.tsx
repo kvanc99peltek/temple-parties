@@ -33,44 +33,46 @@ export default function PartyCard({
   };
 
   return (
-    <div className="bg-zinc-900 rounded-2xl p-4 sm:p-5 mb-3 sm:mb-4 border border-zinc-800 shadow-xl transition-all duration-200 hover:border-purple-500/40 hover:shadow-purple-500/20 hover:-translate-y-1 animate-slide-up-fade">
-      {/* Category Badge + HYPED */}
-      <div className="flex items-center gap-2 mb-2 sm:mb-3">
-        <span className="inline-block px-2.5 py-1 text-[10px] sm:text-xs font-semibold uppercase bg-purple-500/15 border border-purple-500/30 text-purple-500 rounded-full">
-          {category}
-        </span>
-        {isHyped && (
-          <span className="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-bold uppercase tracking-wide bg-gradient-to-r from-amber-500 to-orange-500 text-black rounded-lg shadow-gold-glow animate-pulse-glow">
-            HYPED
+    <div className="bg-[#202023] rounded-t-2xl rounded-b-[12px] mb-3 sm:mb-4 overflow-hidden shadow-xl transition-all duration-200 hover:shadow-[#FA4693]/20 hover:-translate-y-1 animate-slide-up-fade">
+      {/* Content area with padding */}
+      <div className="p-5 sm:p-6">
+        {/* Category Badge + HYPED */}
+        <div className="flex items-center gap-2 mb-4 sm:mb-5">
+          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-medium uppercase bg-[#FA4693] text-white rounded-full font-montserrat-alt">
+            {category}
           </span>
-        )}
+          {isHyped && (
+            <span className="inline-block px-2.5 py-1 text-[10px] sm:text-xs font-medium uppercase tracking-wide bg-[#FFD666] text-black rounded-lg shadow-gold-glow animate-pulse-glow font-montserrat-alt">
+              HYPED
+            </span>
+          )}
+        </div>
+
+        {/* Title */}
+        <h2 className="text-xl sm:text-3xl font-black text-white mb-1 sm:mb-2 tracking-tight font-basement leading-none">
+          {title}
+        </h2>
+
+        {/* Host */}
+        <p className="text-white/50 text-sm sm:text-base mb-1 font-helvetica">
+          <span className="font-normal">by </span>
+          <span className="font-medium">{host}</span>
+        </p>
+
+        {/* Address + Time Row */}
+        <div className="flex items-center gap-4 text-white/50 text-sm sm:text-sm font-helvetica font-normal">
+          <span>{address.split(',')[0]}</span>
+          <div className="flex items-center gap-1.5">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{doorsOpen}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Title */}
-      <h2 className="text-lg sm:text-xl font-semibold text-white mb-1.5 sm:mb-2 tracking-tight font-georgia">
-        {title}
-      </h2>
-
-      {/* Host */}
-      <p className="text-gray-400 text-sm sm:text-base mb-2 sm:mb-3">
-        Hosted by {host}
-      </p>
-
-      {/* Address */}
-      <p className="text-gray-500 text-xs sm:text-sm mb-1.5 sm:mb-2">
-        {address.split(',')[0]}
-      </p>
-
-      {/* Time Row */}
-      <div className="flex items-center gap-1.5 sm:gap-2 text-gray-500 text-xs sm:text-sm mb-3 sm:mb-4">
-        <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>Doors Open {doorsOpen}</span>
-      </div>
-
-      {/* Buttons Row */}
-      <div className="flex gap-2 sm:gap-3">
+      {/* Buttons Row - flush with card edges, no gap */}
+      <div className="flex">
         <GoingButton
           partyId={id}
           currentCount={goingCount}
@@ -79,9 +81,9 @@ export default function PartyCard({
         />
         <button
           onClick={handleNavigate}
-          className="flex-1 py-2.5 sm:py-3 px-3 sm:px-4 rounded-xl font-semibold text-sm sm:text-base border-2 border-amber-500 text-amber-500 hover:bg-amber-500 hover:text-black active:scale-95 transition-all duration-200"
+          className="flex-1 h-[49px] rounded-br-[12px] rounded-tl-none rounded-tr-none rounded-bl-none font-bold text-lg uppercase bg-[#FFD666] text-black hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
         >
-          Navigate
+          NAVIGATE
         </button>
       </div>
     </div>

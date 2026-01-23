@@ -31,24 +31,24 @@ export default function BottomNav({ activeView, onViewChange }: BottomNavProps) 
           onClick={() => onViewChange('home')}
           className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
             activeView === 'home'
-              ? 'text-purple-500'
+              ? 'text-[#FA4693]'
               : 'text-gray-600 hover:text-gray-400'
           }`}
         >
           <HomeIcon className="w-6 h-6 mb-1" />
-          <span className={`text-xs ${activeView === 'home' ? 'font-semibold' : 'font-medium'}`}>Home</span>
+          <span className={`text-xs font-helvetica font-medium`}>Home</span>
         </button>
 
         <button
           onClick={() => onViewChange('map')}
           className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
             activeView === 'map'
-              ? 'text-purple-500'
+              ? 'text-[#FA4693]'
               : 'text-gray-600 hover:text-gray-400'
           }`}
         >
           <MapIcon className="w-6 h-6 mb-1" />
-          <span className={`text-xs ${activeView === 'map' ? 'font-semibold' : 'font-medium'}`}>Map</span>
+          <span className={`text-xs font-helvetica font-medium`}>Map</span>
         </button>
       </div>
     </nav>

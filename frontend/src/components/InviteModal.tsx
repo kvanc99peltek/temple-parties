@@ -52,7 +52,7 @@ export default function InviteModal({ isOpen, onClose, onShare }: InviteModalPro
       onClick={handleBackdropClick}
       style={{ zIndex: 10000 }}
     >
-      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-purple-500/30 border border-purple-500/30 animate-scale-in relative">
+      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-[#FA4693]/30 border border-[#FA4693]/30 animate-scale-in relative">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -93,7 +93,7 @@ export default function InviteModal({ isOpen, onClose, onShare }: InviteModalPro
         {/* Share button */}
         <button
           onClick={handleShare}
-          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-400 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40"
+          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

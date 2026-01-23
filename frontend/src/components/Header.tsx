@@ -11,14 +11,14 @@ export default function Header({ onAddPartyClick, onAccountClick, isAuthenticate
   return (
     <header className="bg-black pt-6 pb-4">
       <div className="max-w-xl mx-auto px-4 sm:px-6 flex items-start justify-between">
-        <h1 className="text-3xl sm:text-4xl font-bold leading-none tracking-tight bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent font-helvetica">
+        <h1 className="text-3xl sm:text-4xl font-medium leading-none tracking-tight text-white font-bitcount">
           TEMPLE<br />PARTIES
         </h1>
         <div className="flex items-center gap-2">
           {/* Add Party Button */}
           <button
             onClick={onAddPartyClick}
-            className="text-white hover:text-purple-500 hover:bg-purple-500/20 transition-all duration-200 p-2 rounded-full hover:scale-110 active:scale-95"
+            className="text-white hover:text-[#FA4693] hover:bg-[#FA4693]/20 transition-all duration-200 p-2 rounded-full hover:scale-110 active:scale-95"
             aria-label="Add a party"
           >
             <svg
@@ -42,19 +42,19 @@ export default function Header({ onAddPartyClick, onAccountClick, isAuthenticate
             onClick={onAccountClick}
             className={`transition-all duration-200 p-2 rounded-full hover:scale-110 active:scale-95 ${
               isAuthenticated
-                ? 'bg-purple-500 hover:bg-purple-400'
-                : 'text-white hover:text-purple-500 hover:bg-purple-500/20'
+                ? 'bg-[#FA4693] hover:bg-[#FB6BA8]'
+                : 'text-white hover:text-[#FA4693] hover:bg-[#FA4693]/20'
             }`}
             aria-label={isAuthenticated ? 'Account' : 'Sign in'}
           >
             {isAuthenticated && username ? (
-              <span className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center text-white font-semibold text-base sm:text-lg">
+              <span className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-white font-semibold text-lg sm:text-xl">
                 {username.charAt(0).toUpperCase()}
               </span>
             ) : (
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 sm:h-7 sm:w-7"
+                className="h-8 w-8 sm:h-9 sm:w-9"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"

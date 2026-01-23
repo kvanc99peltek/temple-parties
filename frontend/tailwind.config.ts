@@ -26,27 +26,30 @@ const config: Config = {
         },
         // New Temple color system
         temple: {
-          purple: '#A855F7',
-          'purple-light': '#B869F8',
-          'purple-dark': '#9333EA',
+          pink: '#FA4693',
+          'pink-light': '#FB6BA8',
+          'pink-dark': '#E83A82',
           green: '#10B981',
           'green-dark': '#059669',
-          gold: '#F59E0B',
-          'gold-dark': '#D97706',
-          orange: '#F97316',
-          pink: '#EC4899',
-          'pink-dark': '#DB2777',
+          gold: '#FFD666',
+          'gold-dark': '#E6C05C',
+          card: '#202023',
         },
       },
       boxShadow: {
-        'purple-glow': '0 4px 20px rgba(168, 85, 247, 0.3)',
-        'purple-glow-lg': '0 8px 30px rgba(168, 85, 247, 0.4)',
+        'pink-glow': '0 4px 20px rgba(250, 70, 147, 0.3)',
+        'pink-glow-lg': '0 8px 30px rgba(250, 70, 147, 0.4)',
         'green-glow': '0 4px 16px rgba(16, 185, 129, 0.4)',
-        'gold-glow': '0 0 15px rgba(245, 158, 11, 0.5)',
+        'gold-glow': '0 0 15px rgba(255, 214, 102, 0.5)',
       },
       fontFamily: {
+        'bitcount': ['"Bitcount Prop Single"', 'sans-serif'],
+        'basement': ['"Basement Grotesque"', 'sans-serif'],
+        'montserrat-alt': ['"Montserrat Alternates"', 'sans-serif'],
+        'montserrat': ['Montserrat', 'sans-serif'],
+        'helvetica': ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
         logo: ['Garamond', 'Georgia', 'Times New Roman', 'serif'],
-        georgia: ['Georgia', 'Times New Roman', 'serif'],  // Add this
+        georgia: ['Georgia', 'Times New Roman', 'serif'],
         sans: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
       },
       keyframes: {
@@ -67,8 +70,8 @@ const config: Config = {
           '50%': { opacity: '0.8' },
         },
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 15px rgba(245, 158, 11, 0.4)' },
-          '50%': { boxShadow: '0 0 25px rgba(245, 158, 11, 0.7)' },
+          '0%, 100%': { boxShadow: '0 0 15px rgba(255, 214, 102, 0.4)' },
+          '50%': { boxShadow: '0 0 25px rgba(255, 214, 102, 0.7)' },
         },
         'slide-up-fade': {
           'from': { opacity: '0', transform: 'translateY(20px)' },

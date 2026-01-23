@@ -120,7 +120,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
       onClick={handleBackdropClick}
       style={{ zIndex: 10000 }}
     >
-      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-purple-500/30 border border-purple-500/30 animate-scale-in relative max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-[#FA4693]/30 border border-[#FA4693]/30 animate-scale-in relative max-h-[90vh] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -155,7 +155,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
                 if (errors.title) setErrors(prev => ({ ...prev, title: '' }));
               }}
               placeholder="e.g., Sigma Chi House Party"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
               maxLength={50}
             />
             {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
@@ -174,7 +174,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
                 if (errors.host) setErrors(prev => ({ ...prev, host: '' }));
               }}
               placeholder="e.g., Sigma Chi"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
               maxLength={30}
             />
             {errors.host && <p className="text-red-400 text-sm mt-1">{errors.host}</p>}
@@ -193,7 +193,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
                 if (errors.address) setErrors(prev => ({ ...prev, address: '' }));
               }}
               placeholder="e.g., 1234 N Broad St"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
             />
             {errors.address && <p className="text-red-400 text-sm mt-1">{errors.address}</p>}
           </div>
@@ -207,7 +207,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
                 onClick={() => setDay('friday')}
                 className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-all duration-200 ${
                   day === 'friday'
-                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30'
+                    ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/30'
                     : 'bg-zinc-800 text-gray-400 hover:bg-zinc-700'
                 }`}
               >
@@ -218,7 +218,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
                 onClick={() => setDay('saturday')}
                 className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-all duration-200 ${
                   day === 'saturday'
-                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30'
+                    ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/30'
                     : 'bg-zinc-800 text-gray-400 hover:bg-zinc-700'
                 }`}
               >
@@ -233,7 +233,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
             <select
               value={doorsOpen}
               onChange={(e) => setDoorsOpen(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors appearance-none cursor-pointer"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors appearance-none cursor-pointer"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -255,7 +255,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none transition-colors appearance-none cursor-pointer"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors appearance-none cursor-pointer"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -274,7 +274,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
           {/* Submit button */}
           <button
             type="submit"
-            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-purple-500 hover:bg-purple-400 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40 transition-all duration-200 active:scale-95 mt-6"
+            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40 transition-all duration-200 active:scale-95 mt-6"
           >
             Add Party
           </button>

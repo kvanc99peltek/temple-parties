@@ -8,32 +8,32 @@ interface DayTabsProps {
 }
 
 export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturdayDate }: DayTabsProps) {
-  // Extract just the day number from the date string (e.g., "1/17" -> "17")
-  const fridayNum = fridayDate.split('/')[1];
-  const saturdayNum = saturdayDate.split('/')[1];
+  // fridayDate and saturdayDate are already just the day numbers (e.g., "21", "22")
+  const fridayNum = fridayDate;
+  const saturdayNum = saturdayDate;
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
       <div className="flex gap-2">
         <button
           onClick={() => onDayChange('friday')}
-          className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-semibold text-base sm:text-lg rounded-xl transition-all duration-200 font-georgia ${
+          className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat-alt ${
             selectedDay === 'friday'
-              ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-              : 'bg-transparent text-gray-600 border border-zinc-800 hover:text-gray-400 hover:bg-purple-500/5'
+              ? 'bg-[#FA4693] text-white'
+              : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
           }`}
         >
           Fri {fridayNum}
         </button>
         <button
           onClick={() => onDayChange('saturday')}
-          className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-semibold text-base sm:text-lg rounded-xl transition-all duration-200 font-georgia ${
+          className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat-alt ${
             selectedDay === 'saturday'
-              ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25'
-              : 'bg-transparent text-gray-600 border border-zinc-800 hover:text-gray-400 hover:bg-purple-500/5'
+              ? 'bg-[#FA4693] text-white'
+              : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
           }`}
         >
-          Sat {saturdayNum}
+          SAT {saturdayNum}
         </button>
       </div>
     </div>

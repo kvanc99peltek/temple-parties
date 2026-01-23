@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from typing import Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.user import UserCreate, UserUpdate, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
@@ -36,9 +39,11 @@ async def require_auth(authorization: Optional[str] = Header(None)) -> dict:
 
 
 @router.post("/signup")
-async def signup(data: UserCreate):
+@limiter.limit("5/minute")
+async def signup(request: Request, data: UserCreate):
     """
     Initiate signup by sending magic link to @temple.edu email.
+    Rate limited to 5 requests per minute per IP.
     """
     email = data.email.lower()
 
@@ -65,15 +70,24 @@ async def signup(data: UserCreate):
 
 
 @router.post("/set-username")
-async def set_username(data: UserUpdate, user: dict = Depends(require_auth)):
+@limiter.limit("10/minute")
+async def set_username(request: Request, data: UserUpdate, user: dict = Depends(require_auth)):
     """
     Set username after magic link verification.
     Creates or updates user in our user_profiles table.
+    Rate limited to 10 requests per minute per IP.
     """
-    if len(data.username) < 2:
+    # Trim whitespace and validate
+    username = data.username.strip()
+    if len(username) < 2:
         raise HTTPException(
             status_code=400,
             detail="Username must be at least 2 characters"
+        )
+    if len(username) > 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Username must be 50 characters or less"
         )
 
     try:
@@ -83,17 +97,17 @@ async def set_username(data: UserUpdate, user: dict = Depends(require_auth)):
         if existing.data:
             # Update existing profile
             result = supabase.table("user_profiles").update({
-                "username": data.username
+                "username": username
             }).eq("id", user["id"]).execute()
         else:
             # Create new profile
             result = supabase.table("user_profiles").insert({
                 "id": user["id"],
-                "username": data.username,
+                "username": username,
                 "is_admin": False
             }).execute()
 
-        return {"message": "Username set successfully", "username": data.username}
+        return {"message": "Username set successfully", "username": username}
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

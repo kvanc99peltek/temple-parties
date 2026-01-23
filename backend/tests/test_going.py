@@ -10,6 +10,14 @@ import uuid
 from tests.conftest import create_mock_auth_response, create_mock_db_response
 
 
+def create_mock_count_response(data: list, count: int):
+    """Helper to create a mock database response with count."""
+    mock_response = Mock()
+    mock_response.data = data
+    mock_response.count = count
+    return mock_response
+
+
 class TestToggleGoing:
     """Tests for POST /parties/{party_id}/going endpoint."""
 
@@ -18,18 +26,30 @@ class TestToggleGoing:
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        # Party exists
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([mock_party])
-        # User is not currently going
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
-        # Insert going record
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
-            create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
-        # Update count
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
+
+        # Set up the mock table calls
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                # For checking party exists
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+                # For updating count
+                mock_tbl.update.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            elif table_name == "party_going":
+                # For checking if user is going (first call returns empty = not going)
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+                # For count query
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_count_response([], 1)  # After insert, count is 1
+                # For insert
+                mock_tbl.insert.return_value.execute.return_value = \
+                    create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
 
         response = client.post(
             f"/parties/{mock_party['id']}/going",
@@ -39,25 +59,33 @@ class TestToggleGoing:
         assert response.status_code == 200
         data = response.json()
         assert data["going"] == True
-        assert data["goingCount"] == mock_party["going_count"] + 1
+        assert data["goingCount"] == 1  # Count from party_going table
 
     def test_toggle_going_unmark_as_going(self, client, mock_supabase, mock_user, mock_party):
         """Should successfully remove user from going list."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        # Party exists
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([mock_party])
-        # User is currently going
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
-        # Delete going record
-        mock_supabase.table.return_value.delete.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
-        # Update count
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+                mock_tbl.update.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            elif table_name == "party_going":
+                # User is currently going
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
+                # Count after delete
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_count_response([], 0)
+                mock_tbl.delete.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
 
         response = client.post(
             f"/parties/{mock_party['id']}/going",
@@ -67,7 +95,7 @@ class TestToggleGoing:
         assert response.status_code == 200
         data = response.json()
         assert data["going"] == False
-        assert data["goingCount"] == max(0, mock_party["going_count"] - 1)
+        assert data["goingCount"] == 0
 
     def test_toggle_going_party_not_found(self, client, mock_supabase, mock_user):
         """Should return 404 for non-existent party."""
@@ -97,15 +125,26 @@ class TestToggleGoing:
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([mock_party])
-        # User is going (edge case - count is 0 but user record exists)
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
-        mock_supabase.table.return_value.delete.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+                mock_tbl.update.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            elif table_name == "party_going":
+                # User is going (edge case)
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
+                # After delete, count is 0
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_count_response([], 0)
+                mock_tbl.delete.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
 
         response = client.post(
             f"/parties/{mock_party['id']}/going",
@@ -113,7 +152,7 @@ class TestToggleGoing:
         )
 
         assert response.status_code == 200
-        assert response.json()["goingCount"] == 0  # Should not go negative
+        assert response.json()["goingCount"] == 0  # Count from party_going is always accurate
 
     def test_toggle_going_sql_injection_in_party_id(self, client, mock_supabase, mock_user):
         """Should safely handle SQL injection in party ID."""
@@ -145,22 +184,33 @@ class TestToggleGoing:
         # Simulate rapid toggling
         is_going = False
         for i in range(5):
-            mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-                create_mock_db_response([mock_party])
+            expected_count = 1 if not is_going else 0
 
-            if is_going:
-                mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-                    create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
-                mock_supabase.table.return_value.delete.return_value.eq.return_value.eq.return_value.execute.return_value = \
-                    create_mock_db_response([])
-            else:
-                mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-                    create_mock_db_response([])
-                mock_supabase.table.return_value.insert.return_value.execute.return_value = \
-                    create_mock_db_response([])
+            def make_mock_table(current_going, expected_count):
+                def mock_table(table_name):
+                    mock_tbl = MagicMock()
+                    if table_name == "parties":
+                        mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                            create_mock_db_response([mock_party])
+                        mock_tbl.update.return_value.eq.return_value.execute.return_value = \
+                            create_mock_db_response([])
+                    elif table_name == "party_going":
+                        if current_going:
+                            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                                create_mock_db_response([{"party_id": mock_party["id"], "user_id": mock_user["id"]}])
+                            mock_tbl.delete.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                                create_mock_db_response([])
+                        else:
+                            mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                                create_mock_db_response([])
+                            mock_tbl.insert.return_value.execute.return_value = \
+                                create_mock_db_response([])
+                        mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                            create_mock_count_response([], expected_count)
+                    return mock_tbl
+                return mock_table
 
-            mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
-                create_mock_db_response([])
+            mock_supabase.table = make_mock_table(is_going, expected_count)
 
             response = client.post(
                 f"/parties/{mock_party['id']}/going",

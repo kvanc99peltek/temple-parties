@@ -434,14 +434,27 @@ class TestRateLimiting:
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([mock_party])
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
-            create_mock_db_response([])
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+                mock_tbl.update.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            elif table_name == "party_going":
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+                # Mock count response
+                count_response = Mock()
+                count_response.data = []
+                count_response.count = 1
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = count_response
+                mock_tbl.insert.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
 
         for _ in range(20):
             response = client.post(
@@ -491,14 +504,27 @@ class TestAPIAbuse:
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([mock_party])
-        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
-            create_mock_db_response([])
-        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+                mock_tbl.update.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            elif table_name == "party_going":
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+                # Mock count response
+                count_response = Mock()
+                count_response.data = []
+                count_response.count = 1
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = count_response
+                mock_tbl.insert.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
 
         # Simulate concurrent going toggles
         import concurrent.futures

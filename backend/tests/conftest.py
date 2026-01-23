@@ -30,9 +30,24 @@ def mock_supabase():
 
 @pytest.fixture
 def client(mock_supabase):
-    """Create a test client with mocked database."""
-    from app.main import app
-    return TestClient(app)
+    """Create a test client with mocked database and disabled rate limiting."""
+    from app.main import app, limiter
+
+    # Disable rate limiting for tests
+    limiter.enabled = False
+
+    # Also disable rate limiters in routers
+    from app.routers.auth import limiter as auth_limiter
+    from app.routers.parties import limiter as parties_limiter
+    auth_limiter.enabled = False
+    parties_limiter.enabled = False
+
+    yield TestClient(app)
+
+    # Re-enable rate limiting after test
+    limiter.enabled = True
+    auth_limiter.enabled = True
+    parties_limiter.enabled = True
 
 
 @pytest.fixture

@@ -242,18 +242,14 @@ class TestSetUsername:
         assert response.status_code == 400
 
     def test_set_username_whitespace_only(self, client, mock_supabase, mock_user):
-        """Whitespace-only username passes length check (no trimming in current impl).
+        """Whitespace-only username should be rejected after trimming.
 
-        Note: The implementation doesn't trim whitespace before length check,
-        so "   " (3 spaces) passes the >= 2 character requirement.
+        The implementation trims whitespace before length check,
+        so "   " (3 spaces) becomes "" which fails the >= 2 character requirement.
         """
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([])
-        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "username": "   "}])
 
         response = client.post(
             "/auth/set-username",
@@ -261,11 +257,12 @@ class TestSetUsername:
             headers={"Authorization": "Bearer valid_token"}
         )
 
-        # Current implementation accepts whitespace (doesn't trim before length check)
-        assert response.status_code == 200
+        # Implementation trims whitespace, so this should be rejected
+        assert response.status_code == 400
+        assert "2 characters" in response.json()["detail"]
 
     def test_set_username_extremely_long(self, client, mock_supabase, mock_user):
-        """Should handle extremely long usernames."""
+        """Should reject extremely long usernames (max 50 characters)."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
@@ -278,8 +275,9 @@ class TestSetUsername:
             headers={"Authorization": "Bearer valid_token"}
         )
 
-        # Should either accept or reject with proper error, not crash
-        assert response.status_code in [200, 400, 422]
+        # Should reject with proper error (max 50 characters)
+        assert response.status_code == 400
+        assert "50 characters" in response.json()["detail"]
 
     def test_set_username_sql_injection(self, client, mock_supabase, mock_user):
         """Should safely handle SQL injection in username."""

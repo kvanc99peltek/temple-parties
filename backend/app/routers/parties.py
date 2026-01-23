@@ -1,12 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Optional
 from datetime import date, timedelta
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.party import PartyCreate, PartyResponse
 from app.routers.auth import get_current_user, require_auth
 import random
 
 router = APIRouter(prefix="/parties", tags=["parties"])
+limiter = Limiter(key_func=get_remote_address)
 
 # Temple University area bounds for random coordinate generation
 TEMPLE_BOUNDS = {
@@ -94,16 +97,13 @@ async def get_party(party_id: str):
 
 
 @router.post("", response_model=PartyResponse)
-async def create_party(data: PartyCreate, user: dict = Depends(require_auth)):
+@limiter.limit("10/minute")
+async def create_party(request: Request, data: PartyCreate, user: dict = Depends(require_auth)):
     """
     Create a new party. Status will be 'pending' until admin approves.
+    Rate limited to 10 requests per minute per IP.
+    Field validation (length limits, coordinate ranges) handled by Pydantic model.
     """
-    # Validate title and host length
-    if len(data.title) > 50:
-        raise HTTPException(status_code=400, detail="Title must be 50 characters or less")
-    if len(data.host) > 30:
-        raise HTTPException(status_code=400, detail="Host must be 30 characters or less")
-
     # Generate coordinates if not provided
     lat, lng = data.latitude, data.longitude
     if lat is None or lng is None:
@@ -157,19 +157,20 @@ async def delete_party(party_id: str, user: dict = Depends(require_auth)):
 
 
 @router.post("/{party_id}/going")
-async def toggle_going(party_id: str, user: dict = Depends(require_auth)):
+@limiter.limit("30/minute")
+async def toggle_going(request: Request, party_id: str, user: dict = Depends(require_auth)):
     """
     Toggle going status for a party.
     If user is going, removes them and decrements count.
     If user is not going, adds them and increments count.
+    Rate limited to 30 requests per minute per IP.
+    Uses count from party_going table to avoid race conditions.
     """
     # Check if party exists
-    party_result = supabase.table("parties").select("*").eq("id", party_id).execute()
+    party_result = supabase.table("parties").select("id").eq("id", party_id).execute()
 
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
-
-    party = party_result.data[0]
 
     # Check if user is already going
     going_result = supabase.table("party_going").select("*").eq("party_id", party_id).eq("user_id", user["id"]).execute()
@@ -177,40 +178,53 @@ async def toggle_going(party_id: str, user: dict = Depends(require_auth)):
     is_currently_going = len(going_result.data) > 0
 
     if is_currently_going:
-        # Remove from going and decrement count
+        # Remove from going
         supabase.table("party_going").delete().eq("party_id", party_id).eq("user_id", user["id"]).execute()
-
-        new_count = max(0, party["going_count"] - 1)
-        supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
-
-        return {"going": False, "goingCount": new_count}
     else:
-        # Add to going and increment count
-        supabase.table("party_going").insert({
-            "party_id": party_id,
-            "user_id": user["id"]
-        }).execute()
+        # Add to going
+        try:
+            supabase.table("party_going").insert({
+                "party_id": party_id,
+                "user_id": user["id"]
+            }).execute()
+        except Exception:
+            # Record may already exist due to race condition, ignore
+            pass
 
-        new_count = party["going_count"] + 1
-        supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
+    # Compute going count from the actual party_going table (source of truth)
+    # This avoids race conditions by counting actual records instead of incrementing
+    count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
+    new_count = count_result.count if count_result.count is not None else 0
 
-        return {"going": True, "goingCount": new_count}
+    # Update the denormalized count for display/sorting purposes
+    supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
+
+    return {"going": not is_currently_going, "goingCount": new_count}
 
 
 @router.post("/{party_id}/going/anonymous")
-async def increment_going_anonymous(party_id: str):
+@limiter.limit("3/minute")
+async def increment_going_anonymous(request: Request, party_id: str):
     """
     Increment going count for anonymous users.
     No user tracking - just increments the count.
+    STRICTLY rate limited to 3 requests per minute per IP to prevent abuse.
     """
     # Check if party exists
-    party_result = supabase.table("parties").select("*").eq("id", party_id).execute()
+    party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()
 
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
-    party = party_result.data[0]
-    new_count = party["going_count"] + 1
+    # Get current count from party_going table and add 1 for this anonymous increment
+    count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
+    tracked_count = count_result.count if count_result.count is not None else 0
+
+    # Anonymous increments are stored in going_count beyond the tracked count
+    current_total = party_result.data[0]["going_count"]
+    anonymous_count = max(0, current_total - tracked_count)
+    new_count = tracked_count + anonymous_count + 1
+
     supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
 
     return {"going": True, "goingCount": new_count}

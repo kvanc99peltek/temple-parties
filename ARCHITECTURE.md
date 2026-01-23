@@ -1,6 +1,6 @@
 # Temple Parties - Architecture Guide
 
-**Last Updated:** January 21, 2026
+**Last Updated:** January 21, 2026 (Security Updates)
 **Purpose:** Comprehensive guide to understanding how the entire application works
 
 ---
@@ -16,6 +16,8 @@
 8. [API Reference](#api-reference)
 9. [Real-Time Updates](#real-time-updates)
 10. [Testing](#testing)
+11. [Security](#security)
+12. [Bug Fixes](#bug-fixes)
 
 ---
 
@@ -246,15 +248,28 @@ openMapsDirections(address)   // Opens Google Maps
 ```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+
+# Rate limiter configuration
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="Temple Parties API")
 
-# CORS for frontend origins
-app.add_middleware(CORSMiddleware, allow_origins=[
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://templeparties.com"
-])
+# Add rate limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS for frontend origins (restricted methods/headers)
+app.add_middleware(CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://templeparties.com"
+    ],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"]
+)
 
 # Include routers
 app.include_router(auth.router)
@@ -276,16 +291,29 @@ class User(BaseModel):
 
 **`party.py`**
 ```python
+class PartyCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=50)
+    host: str = Field(..., min_length=1, max_length=30)
+    category: str = Field(..., min_length=1, max_length=50)
+    day: Literal["friday", "saturday"]
+    doors_open: str = Field(..., min_length=1, max_length=20)
+    address: str = Field(..., min_length=1, max_length=500)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+
+    @field_validator('title', 'host', 'category', 'doors_open', 'address')
+    def strip_whitespace(cls, v): return v.strip()
+
 class Party(BaseModel):
     id: str
     title: str           # max 50 chars
     host: str            # max 30 chars
-    category: str        # Frat Party, House Party, etc.
+    category: str        # max 50 chars
     day: str             # 'friday' | 'saturday'
-    doors_open: str      # e.g., "10 PM"
-    address: str
-    latitude: float
-    longitude: float
+    doors_open: str      # max 20 chars, e.g., "10 PM"
+    address: str         # max 500 chars
+    latitude: float      # -90 to 90
+    longitude: float     # -180 to 180
     going_count: int
     created_by: str
     status: str          # 'pending' | 'approved' | 'rejected'
@@ -580,18 +608,32 @@ Show toast "Submitted for approval!"
 
 ## API Reference
 
+### Rate Limiting
+
+All endpoints are rate limited per IP address:
+
+| Endpoint | Limit |
+|----------|-------|
+| `POST /auth/signup` | 5/minute |
+| `POST /auth/set-username` | 10/minute |
+| `POST /parties` | 10/minute |
+| `POST /parties/{id}/going` | 30/minute |
+| `POST /parties/{id}/going/anonymous` | 3/minute |
+
+When rate limited, the API returns `429 Too Many Requests`.
+
 ### Authentication
 
-**POST /auth/signup**
+**POST /auth/signup** *(5/minute)*
 ```json
 Request:  { "email": "user@temple.edu" }
 Response: { "message": "Magic link sent to user@temple.edu" }
 ```
 
-**POST /auth/set-username**
+**POST /auth/set-username** *(10/minute)*
 ```json
 Headers:  Authorization: Bearer {token}
-Request:  { "username": "owlparty" }
+Request:  { "username": "owlparty" }  // 2-50 chars, trimmed
 Response: { "message": "Username set", "username": "owlparty" }
 ```
 
@@ -630,24 +672,33 @@ Response: [
 ]
 ```
 
-**POST /parties**
+**POST /parties** *(10/minute)*
 ```json
 Headers:  Authorization: Bearer {token}
 Request:  {
-  "title": "My Party",
-  "host": "Host Name",
-  "category": "House Party",
-  "day": "saturday",
-  "doorsOpen": "10 PM",
-  "address": "123 Main St"
+  "title": "My Party",         // 1-50 chars
+  "host": "Host Name",         // 1-30 chars
+  "category": "House Party",   // 1-50 chars
+  "day": "saturday",           // "friday" | "saturday"
+  "doorsOpen": "10 PM",        // 1-20 chars
+  "address": "123 Main St",    // 1-500 chars
+  "latitude": 39.98,           // optional, -90 to 90
+  "longitude": -75.15          // optional, -180 to 180
 }
 Response: Party (with status: "pending")
 ```
 
-**POST /parties/{id}/going**
+**POST /parties/{id}/going** *(30/minute)*
 ```json
 Headers:  Authorization: Bearer {token}
 Response: { "going": true, "goingCount": 43 }
+// Count computed from party_going table (race-condition safe)
+```
+
+**POST /parties/{id}/going/anonymous** *(3/minute - strict)*
+```json
+Response: { "going": true, "goingCount": 44 }
+// For non-authenticated users, strictly rate limited
 ```
 
 ### Admin
@@ -814,6 +865,63 @@ const parties = await partiesApi.getParties('friday');
 const { toggleGoing, isGoing, getCount } = useGoingStatus();
 await toggleGoing(partyId);
 // State updates automatically via realtime
+```
+
+---
+
+## Security
+
+### Rate Limiting (January 2026)
+
+Implemented using `slowapi` to prevent API abuse:
+
+```python
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
+@router.post("/signup")
+@limiter.limit("5/minute")
+async def signup(request: Request, data: UserCreate):
+    ...
+```
+
+| Endpoint | Limit | Reason |
+|----------|-------|--------|
+| Signup | 5/min | Prevent email spam |
+| Set username | 10/min | Prevent abuse |
+| Create party | 10/min | Prevent spam submissions |
+| Toggle going | 30/min | Allow normal usage |
+| Anonymous going | 3/min | Strict - no tracking |
+
+### Input Validation
+
+All user inputs are validated using Pydantic with:
+- **Length limits**: title (50), host (30), category (50), address (500), doors_open (20)
+- **Whitespace trimming**: All string fields auto-trimmed
+- **Coordinate validation**: latitude (-90 to 90), longitude (-180 to 180)
+- **Username validation**: 2-50 chars, whitespace trimmed before check
+
+### Race Condition Prevention
+
+The going count uses the `party_going` table as source of truth:
+
+```python
+# Instead of: current_count + 1 (race-prone)
+# We use: COUNT(*) FROM party_going WHERE party_id = ?
+count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
+new_count = count_result.count
+```
+
+This ensures concurrent "I'm Going" clicks don't lose counts.
+
+### CORS Configuration
+
+Restricted to specific methods and headers:
+```python
+allow_methods=["GET", "POST", "DELETE", "OPTIONS"]
+allow_headers=["Authorization", "Content-Type"]
 ```
 
 ---

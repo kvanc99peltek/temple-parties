@@ -129,7 +129,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
           }`}
         >
-          SAT {saturdayNum}
+          Sat {saturdayNum}
         </button>
       </div>
 

@@ -33,7 +33,7 @@ export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturday
               : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
           }`}
         >
-          SAT {saturdayNum}
+          Sat {saturdayNum}
         </button>
       </div>
     </div>

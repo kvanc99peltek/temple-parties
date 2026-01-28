@@ -70,8 +70,15 @@ export async function shareContent(party?: Party): Promise<{ success: boolean; m
 
 /**
  * Open address in maps for directions
+ * Uses Apple Maps on iPhone, Google Maps otherwise
  */
 export function openMapsDirections(address: string): void {
-  const mapsUrl = `https://maps.google.com/maps?daddr=${encodeURIComponent(address)}`;
+  const encodedAddress = encodeURIComponent(address);
+  const isIPhone = /iPhone/i.test(navigator.userAgent);
+
+  const mapsUrl = isIPhone
+    ? `https://maps.apple.com/?daddr=${encodedAddress}`
+    : `https://maps.google.com/maps?daddr=${encodedAddress}`;
+
   window.open(mapsUrl, '_blank');
 }

@@ -92,9 +92,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
     return parties.filter(party => party.day === selectedDay);
   }, [parties, selectedDay]);
 
-  // Extract day numbers from date strings
-  const fridayNum = fridayDate.split('/')[1];
-  const saturdayNum = saturdayDate.split('/')[1];
+  // Get day numbers for display
+  const fridayNum = fridayDate;
+  const saturdayNum = saturdayDate;
 
   if (parties.length === 0) {
     return (

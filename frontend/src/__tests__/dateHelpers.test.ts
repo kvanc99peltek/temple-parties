@@ -14,7 +14,7 @@ describe('dateHelpers', () => {
 
     const mockDate = (dayOfWeek: number) => {
       const date = new Date(2024, 0, 7 + dayOfWeek); // Jan 2024, Sunday is 7th
-      jest.spyOn(global, 'Date').mockImplementation(() => date as any);
+      jest.spyOn(global, 'Date').mockImplementation(() => date as unknown as Date);
     };
 
     it('should return friday on Monday', () => {
@@ -87,7 +87,7 @@ describe('dateHelpers', () => {
     it('should handle year boundaries', () => {
       // Mock December 31st
       const date = new Date(2024, 11, 31);
-      jest.spyOn(global, 'Date').mockImplementation(() => date as any);
+      jest.spyOn(global, 'Date').mockImplementation(() => date as unknown as Date);
 
       // Should not throw
       expect(() => getUpcomingDates()).not.toThrow();

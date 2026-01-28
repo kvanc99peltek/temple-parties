@@ -176,7 +176,7 @@ export default function Home() {
   // Handle party submission
   const handlePartySubmit = useCallback(async (partyData: { title: string; host: string; address: string; doorsOpen: string; category: string; day: 'friday' | 'saturday' }) => {
     try {
-      const newParty = await partiesApi.createParty({
+      await partiesApi.createParty({
         title: partyData.title,
         host: partyData.host,
         address: partyData.address,
@@ -188,7 +188,7 @@ export default function Home() {
       // Party is pending, so don't add to list yet
       setToastMessage('Party submitted for approval!');
       setShowToast(true);
-    } catch (error) {
+    } catch {
       setToastMessage('Failed to submit party');
       setShowToast(true);
     }
@@ -223,7 +223,7 @@ export default function Home() {
             onAddPartyClick={handleAddPartyClick}
             onAccountClick={handleAccountClick}
             isAuthenticated={isAuthenticated}
-            username={user?.username}
+            username={user?.username ?? undefined}
           />
 
           <DayTabs
@@ -267,7 +267,7 @@ export default function Home() {
             onAddPartyClick={handleAddPartyClick}
             onAccountClick={handleAccountClick}
             isAuthenticated={isAuthenticated}
-            username={user?.username}
+            username={user?.username ?? undefined}
           />
           <div className="flex-1 pb-16">
             <MapView

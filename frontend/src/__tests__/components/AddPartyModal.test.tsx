@@ -4,7 +4,7 @@
  * Includes tests for malicious inputs.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AddPartyModal from '@/components/AddPartyModal';
 

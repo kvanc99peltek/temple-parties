@@ -38,11 +38,11 @@ export default function PartyCard({
       <div className="p-5 sm:p-6">
         {/* Category Badge + HYPED */}
         <div className="flex items-center gap-2 mb-4 sm:mb-5">
-          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-medium uppercase bg-[#FA4693] text-white rounded-full font-montserrat-alt">
+          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FA4693] text-white rounded-full font-montserrat-alt">
             {category}
           </span>
           {isHyped && (
-            <span className="inline-block px-2.5 py-1 text-[10px] sm:text-xs font-medium uppercase tracking-wide bg-[#FFD666] text-black rounded-lg shadow-gold-glow animate-pulse-glow font-montserrat-alt">
+            <span className="inline-block px-2.5 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wide bg-[#FFD666] text-black rounded-lg shadow-gold-glow animate-pulse-glow font-montserrat-alt">
               HYPED
             </span>
           )}

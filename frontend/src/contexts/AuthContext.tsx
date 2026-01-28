@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { authApi } from '@/services/api';
-import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       return { success: true };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'Failed to send magic link' };
     }
   }, []);
@@ -149,8 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetchUserProfile();
       setNeedsUsername(false);
       return { success: true };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to set username' };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to set username' };
     }
   }, [fetchUserProfile]);
 

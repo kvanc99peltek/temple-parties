@@ -24,7 +24,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:3001",
-        "https://templeparties.com",  # Add your production domain
+        "https://templeparties.com",
+        "https://temple-parties.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],

@@ -14,8 +14,8 @@ export default function Header({ onAddPartyClick, onAccountClick, isAuthenticate
         <h1 className="text-3xl sm:text-4xl font-medium leading-none tracking-tight text-white font-bitcount">
           TEMPLE<br />PARTIES
         </h1>
+        {/* LAUNCH DAY: Icons disabled
         <div className="flex items-center gap-2">
-          {/* Add Party Button */}
           <button
             onClick={onAddPartyClick}
             className="text-white hover:text-[#FA4693] hover:bg-[#FA4693]/20 transition-all duration-200 p-2 rounded-full hover:scale-110 active:scale-95"
@@ -36,8 +36,6 @@ export default function Header({ onAddPartyClick, onAccountClick, isAuthenticate
               />
             </svg>
           </button>
-
-          {/* Account Button */}
           <button
             onClick={onAccountClick}
             className={`transition-all duration-200 p-2 rounded-full hover:scale-110 active:scale-95 ${
@@ -69,6 +67,7 @@ export default function Header({ onAddPartyClick, onAccountClick, isAuthenticate
             )}
           </button>
         </div>
+        */}
       </div>
     </header>
   );

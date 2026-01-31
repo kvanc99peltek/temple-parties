@@ -12,8 +12,9 @@ SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmF
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 def seed_parties():
-    # Launch day: January 30-31, 2025
-    weekend = date(2025, 1, 31)  # Saturday of launch weekend
+    # Launch day: January 30-31, 2026
+    # weekend_of uses Friday date (matches backend get_current_weekend)
+    weekend = date(2026, 1, 30)  # Friday of launch weekend
     print(f"Seeding parties for launch weekend: {weekend}")
 
     # Real party data for launch

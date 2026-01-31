@@ -7,7 +7,9 @@ interface HeaderProps {
   username?: string;
 }
 
-export default function Header({ onAddPartyClick: _onAddPartyClick, onAccountClick: _onAccountClick, isAuthenticated: _isAuthenticated, username: _username }: HeaderProps) {
+// LAUNCH DAY: Props temporarily unused while buttons are hidden
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function Header({ onAddPartyClick, onAccountClick, isAuthenticated, username }: HeaderProps) {
   return (
     <header className="bg-black pt-6 pb-4">
       <div className="max-w-xl mx-auto px-4 sm:px-6 flex items-start justify-between">

@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   description: "Discover weekend parties at Temple University",
   keywords: ["Temple University", "parties", "events", "Philadelphia", "college"],
   authors: [{ name: "Temple Parties" }],
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     title: "Temple Parties",
     description: "Discover weekend parties at Temple University",

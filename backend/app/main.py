@@ -11,7 +11,7 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="Temple Parties API",
     description="Backend API for Temple Parties app",
-    version="1.0.0"
+    version="1.0.1"  # Bump to trigger Railway redeploy
 )
 
 # Add rate limiter to app state

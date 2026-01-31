@@ -26,6 +26,8 @@ app.add_middleware(
         "http://localhost:3001",
         "https://templeparties.com",
         "https://temple-parties.vercel.app",
+        "https://tuparties.com",
+        "https://www.tuparties.com",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],

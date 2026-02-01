@@ -13,18 +13,18 @@ export interface Party {
   goingCount: number;
 }
 
-const APP_URL = 'https://templeparties.com';
+const APP_URL = 'https://tuparties.com';
 
 /**
  * Format share text when user has marked a party as going
  */
 function formatPartyShareText(party: Party): string {
   const dayName = getDayName(party.day);
-  return `I'm going to ${party.title}!
-${dayName} ${party.doorsOpen} @ ${party.address}
-${party.goingCount}+ people going
+  return `pulling up to ${party.title}! 🔥
+${dayName} @ ${party.doorsOpen}
+${party.goingCount}+ already on it
 
-Check out Temple Parties: ${APP_URL}`;
+tuparties.com`;
 }
 
 /**

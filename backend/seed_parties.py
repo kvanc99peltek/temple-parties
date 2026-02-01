@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 # Supabase credentials
 SUPABASE_URL = "https://gleiwfdgxqdvilodngzv.supabase.co"
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZWl3ZmRneHFkdmlsb2RuZ3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNTM3NCwiZXhwIjoyMDg0MjkxMzc0fQ.-G28ZrSm9AWDJ4HJMB_bFUeT0rqbQtZhQNEdsun0X80"
+SUPABASE_SERVICE_KEY = "your-service-key-here"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
@@ -51,7 +51,7 @@ def seed_parties():
             "title": "2016 House Party",
             "host": "PILAM",
             "category": "House Party",
-            "day": "saturday",
+            "day": "friday",
             "doors_open": "10:30 PM",
             "address": "1438 North Broad Street",
             "latitude": 39.9765,
@@ -64,11 +64,37 @@ def seed_parties():
             "title": "Pi Kappa Phi 2016 Theme",
             "host": "Pi Kappa Phi",
             "category": "Frat Party",
-            "day": "saturday",
+            "day": "friday",
             "doors_open": "11:00 PM",
             "address": "1840 N 16th Street",
             "latitude": 39.9815,
             "longitude": -75.1589,
+            "going_count": 0,
+            "status": "approved",
+            "weekend_of": weekend.isoformat()
+        },
+        {
+            "title": "80s & Aspen Party",
+            "host": "DPhiE, Phi Sig & DZ",
+            "category": "Day Party",
+            "day": "saturday",
+            "doors_open": "3:00 PM",
+            "address": "1437 North 15th Street",
+            "latitude": 39.9760,
+            "longitude": -75.1605,
+            "going_count": 0,
+            "status": "approved",
+            "weekend_of": weekend.isoformat()
+        },
+        {
+            "title": "Alpha Sigma Phi – Back to 16 Party",
+            "host": "Alpha Sigma Phi",
+            "category": "Frat Party",
+            "day": "saturday",
+            "doors_open": "11:00 PM",
+            "address": "1629 W Diamond Street",
+            "latitude": 39.985276,
+            "longitude": -75.160143,
             "going_count": 0,
             "status": "approved",
             "weekend_of": weekend.isoformat()

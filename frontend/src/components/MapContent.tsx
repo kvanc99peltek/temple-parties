@@ -58,23 +58,34 @@ function TempleLabel() {
   return null;
 }
 
-// Create custom marker icon with host name and going count
-function createMarkerIcon(host: string, count: number, isHyped: boolean, userIsGoing: boolean): L.DivIcon {
-  const bubbleClass = isHyped ? 'marker-bubble hyped' : userIsGoing ? 'marker-bubble going' : 'marker-bubble';
-  const pinClass = isHyped ? 'marker-pin-v2 hyped' : userIsGoing ? 'marker-pin-v2 going' : 'marker-pin-v2';
+// Create minimal avatar-style marker with initials
+function createAvatarIcon(
+  host: string,
+  count: number,
+  maxCount: number,
+  isHyped: boolean
+): L.DivIcon {
+  const minSize = 28;
+  const maxSize = 44;
+  const sizeRatio = Math.min(count / Math.max(maxCount, 1), 1);
+  const size = minSize + sizeRatio * (maxSize - minSize);
+  const fontSize = size <= 32 ? 10 : size <= 38 ? 12 : 14;
+
+  const initials = host
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .slice(0, 3)
+    .toUpperCase();
+
+  const pulseClass = isHyped ? ' avatar-marker-pulse' : '';
 
   return L.divIcon({
-    className: 'custom-party-marker',
-    html: `
-      <div class="${bubbleClass}">
-        <div class="host-name">${host}</div>
-        <div class="going-count-text">${count} going</div>
-      </div>
-      <div class="${pinClass}"></div>
-    `,
-    iconSize: [140, 75],
-    iconAnchor: [70, 75],
-    popupAnchor: [0, -75],
+    className: 'custom-marker',
+    html: `<div class="avatar-marker${pulseClass}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${initials}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
   });
 }
 
@@ -146,10 +157,12 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         <TempleLabel />
-        {filteredParties.map(party => {
-          const isHyped = party.id === topPartyIds[party.day];
-          const userIsGoing = userGoingParties.includes(party.id);
-          const icon = createMarkerIcon(party.host, party.goingCount, isHyped, userIsGoing);
+        {(() => {
+          const maxGoingCount = Math.max(...filteredParties.map(p => p.goingCount), 1);
+          return filteredParties.map(party => {
+            const isHyped = party.id === topPartyIds[party.day];
+            const userIsGoing = userGoingParties.includes(party.id);
+            const icon = createAvatarIcon(party.host, party.goingCount, maxGoingCount, isHyped);
 
           return (
             <Marker
@@ -212,7 +225,8 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               </Popup>
             </Marker>
           );
-        })}
+          });
+        })()}
       </MapContainer>
     </div>
   );

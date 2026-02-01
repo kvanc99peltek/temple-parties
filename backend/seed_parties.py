@@ -43,7 +43,7 @@ def seed_parties():
             "address": "1850 N 16th Street",
             "latitude": 39.9818,
             "longitude": -75.1589,
-            "going_count": 0,
+            "going_count": 57,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
@@ -82,7 +82,7 @@ def seed_parties():
             "address": "1437 North 15th Street",
             "latitude": 39.9760,
             "longitude": -75.1605,
-            "going_count": 0,
+            "going_count": 44,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
@@ -95,7 +95,7 @@ def seed_parties():
             "address": "1629 W Diamond Street",
             "latitude": 39.985276,
             "longitude": -75.160143,
-            "going_count": 0,
+            "going_count": 82,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         }

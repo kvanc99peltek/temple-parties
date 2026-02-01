@@ -21,7 +21,7 @@ export function PartyBottomSheet() {
   return (
     <Drawer
       open={!!selectedPartyId}
-      onOpenChange={(open) => {
+      onOpenChange={(open: boolean) => {
         if (!open) setSelectedPartyId(null);
       }}
     >

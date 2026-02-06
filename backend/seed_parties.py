@@ -7,100 +7,83 @@ from datetime import date, timedelta
 
 # Supabase credentials
 SUPABASE_URL = "https://gleiwfdgxqdvilodngzv.supabase.co"
-SUPABASE_SERVICE_KEY = "your-service-key-here"
+SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZWl3ZmRneHFkdmlsb2RuZ3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNTM3NCwiZXhwIjoyMDg0MjkxMzc0fQ.-G28ZrSm9AWDJ4HJMB_bFUeT0rqbQtZhQNEdsun0X80"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 def seed_parties():
-    # Launch day: January 30-31, 2026
+    # This weekend: February 6-7, 2026
     # weekend_of uses Friday date (matches backend get_current_weekend)
-    weekend = date(2026, 1, 30)  # Friday of launch weekend
-    print(f"Seeding parties for launch weekend: {weekend}")
+    weekend = date(2026, 2, 6)  # Friday of this weekend
+    print(f"Seeding parties for this weekend: {weekend}")
+
+    saturday = weekend + timedelta(days=1)  # Saturday of launch weekend
 
     # Real party data for launch
     parties = [
-        # Friday January 30
+        # Feb 6
         {
-            "title": "Blackout Party",
-            "host": "OG Productions",
+            "title": "Super Bowl Party",
+            "host": "Pilam & Dchi",
+            "pin_label": "PILAM",
+            "category": "Frat Party",
+            "day": "friday",
+            "doors_open": "10:00 PM",
+            "address": "1432 North Broad Street",
+            "latitude": 39.9762,
+            "longitude": -75.1527,
+            "going_count": 12,
+            "status": "approved",
+            "weekend_of": weekend.isoformat()
+        },
+
+        {
+            "title": "2016 Throwback Party",
+            "host": "786 BOYz",
+            "pin_label": "786",
             "category": "House Party",
             "day": "friday",
-            "doors_open": "10:45 PM",
-            "address": "1732 N Sydenham Street",
-            "latitude": 39.9795,
-            "longitude": -75.1620,
-            "going_count": 0,
+            "doors_open": "10:00 PM",
+            "address": "1625 Cecil B Moore Ave",
+            "latitude": 39.9785,
+            "longitude": -75.1565,
+            "going_count": 7,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
-        # Saturday January 31
+
         {
-            "title": "Beta Theta Pi 2016 Party",
-            "host": "Beta Theta Pi",
-            "category": "Frat Party",
-            "day": "saturday",
-            "doors_open": "11:00 PM",
-            "address": "1850 N 16th Street",
-            "latitude": 39.9818,
-            "longitude": -75.1589,
-            "going_count": 57,
-            "status": "approved",
-            "weekend_of": weekend.isoformat()
-        },
-        {
-            "title": "2016 House Party",
-            "host": "PILAM",
+            "title": "2016 Throwback Party",
+            "host": " ",
+            "pin_label": "HOUSE",
             "category": "House Party",
             "day": "friday",
             "doors_open": "10:30 PM",
-            "address": "1438 North Broad Street",
-            "latitude": 39.9765,
-            "longitude": -75.1527,
-            "going_count": 0,
+            "address": "1717 N 17th Street",
+            "latitude": 39.95646,
+            "longitude": -75.16687,
+            "going_count": 7,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
-        {
-            "title": "Pi Kappa Phi 2016 Theme",
-            "host": "Pi Kappa Phi",
-            "category": "Frat Party",
-            "day": "friday",
-            "doors_open": "11:00 PM",
-            "address": "1840 N 16th Street",
-            "latitude": 39.9815,
-            "longitude": -75.1589,
-            "going_count": 0,
-            "status": "approved",
-            "weekend_of": weekend.isoformat()
-        },
-        {
-            "title": "80s & Aspen Party",
-            "host": "DPhiE, Phi Sig & DZ",
-            "category": "Day Party",
-            "day": "saturday",
-            "doors_open": "3:00 PM",
-            "address": "1437 North 15th Street",
-            "latitude": 39.9760,
-            "longitude": -75.1605,
-            "going_count": 44,
-            "status": "approved",
-            "weekend_of": weekend.isoformat()
-        },
-        {
-            "title": "Alpha Sigma Phi – Back to 16 Party",
-            "host": "Alpha Sigma Phi",
-            "category": "Frat Party",
-            "day": "saturday",
-            "doors_open": "11:00 PM",
-            "address": "1629 W Diamond Street",
-            "latitude": 39.985276,
-            "longitude": -75.160143,
-            "going_count": 82,
-            "status": "approved",
-            "weekend_of": weekend.isoformat()
-        }
-    ]
 
+        {
+            "title": "Party Like It's 2016",
+            "host": "AEPI",
+            "pin_label": "AEPI",
+            "category": "Frat Party",
+            "day": "saturday",
+            "doors_open": "11:00 PM",
+            "address": "1900 N 17th Street",
+            "latitude": 39.9830,
+            "longitude": -75.1593,
+            "going_count": 8,
+            "status": "approved",
+            "weekend_of": weekend.isoformat()
+        },
+
+    ]
+    
     # Clear existing parties for this weekend (optional - comment out if you want to keep existing)
     print("Clearing existing parties for this weekend...")
     supabase.table("parties").delete().eq("weekend_of", weekend.isoformat()).execute()

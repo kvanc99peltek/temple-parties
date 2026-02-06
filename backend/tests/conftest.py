@@ -24,7 +24,9 @@ def mock_supabase():
     with patch('app.database.supabase', mock_db), \
          patch('app.routers.auth.supabase', mock_db), \
          patch('app.routers.parties.supabase', mock_db), \
-         patch('app.routers.admin.supabase', mock_db):
+         patch('app.routers.admin.supabase', mock_db), \
+         patch('app.routers.parties.geocode_address', return_value=(39.981, -75.155)), \
+         patch('app.routers.parties.generate_fallback_coordinates', return_value=(39.981, -75.155)):
         yield mock_db
 
 

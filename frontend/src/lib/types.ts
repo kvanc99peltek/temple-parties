@@ -2,8 +2,10 @@ export interface Party {
   id: string;
   title: string;
   host: string;
+  pinLabel: string;
   category: string;
   day: 'friday' | 'saturday';
+  date: string;
   doorsOpen: string;
   address: string;
   latitude: number;

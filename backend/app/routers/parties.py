@@ -6,18 +6,10 @@ from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.party import PartyCreate, PartyResponse
 from app.routers.auth import get_current_user, require_auth
-import random
+from app.services.geocoding import geocode_address, generate_fallback_coordinates
 
 router = APIRouter(prefix="/parties", tags=["parties"])
 limiter = Limiter(key_func=get_remote_address)
-
-# Temple University area bounds for random coordinate generation
-TEMPLE_BOUNDS = {
-    "min_lat": 39.978,
-    "max_lat": 39.985,
-    "min_lng": -75.162,
-    "max_lng": -75.148,
-}
 
 
 def get_current_weekend() -> date:
@@ -29,21 +21,16 @@ def get_current_weekend() -> date:
     return today + timedelta(days=days_until_friday)
 
 
-def generate_coordinates() -> tuple[float, float]:
-    """Generate random coordinates within Temple area."""
-    lat = random.uniform(TEMPLE_BOUNDS["min_lat"], TEMPLE_BOUNDS["max_lat"])
-    lng = random.uniform(TEMPLE_BOUNDS["min_lng"], TEMPLE_BOUNDS["max_lng"])
-    return round(lat, 8), round(lng, 8)
-
-
 def db_to_response(party: dict) -> PartyResponse:
     """Convert database party to API response format."""
     return PartyResponse(
         id=party["id"],
         title=party["title"],
         host=party["host"],
+        pinLabel=party.get("pin_label", ""),
         category=party["category"],
         day=party["day"],
+        date=party.get("date", ""),
         doorsOpen=party["doors_open"],
         address=party["address"],
         latitude=float(party["latitude"]),
@@ -104,19 +91,32 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     Rate limited to 10 requests per minute per IP.
     Field validation (length limits, coordinate ranges) handled by Pydantic model.
     """
-    # Generate coordinates if not provided
+    # Determine coordinates: use provided, geocode from address, or fallback to random
     lat, lng = data.latitude, data.longitude
     if lat is None or lng is None:
-        lat, lng = generate_coordinates()
+        geocoded = geocode_address(data.address)
+        if geocoded is not None:
+            lat, lng = geocoded
+        else:
+            lat, lng = generate_fallback_coordinates()
 
-    weekend = get_current_weekend()
+    # Derive day and weekend_of from the submitted date
+    party_date = date.fromisoformat(data.date)
+    day = "friday" if party_date.weekday() == 4 else "saturday"
+    # weekend_of is always the Friday of that weekend
+    if party_date.weekday() == 5:  # Saturday
+        weekend = party_date - timedelta(days=1)
+    else:
+        weekend = party_date
 
     try:
         party_data = {
             "title": data.title,
             "host": data.host,
+            "pin_label": data.pin_label,
             "category": data.category,
-            "day": data.day,
+            "day": day,
+            "date": data.date,
             "doors_open": data.doors_open,
             "address": data.address,
             "latitude": lat,
@@ -203,12 +203,12 @@ async def toggle_going(request: Request, party_id: str, user: dict = Depends(req
 
 
 @router.post("/{party_id}/going/anonymous")
-@limiter.limit("3/minute")
+@limiter.limit("100/minute")
 async def increment_going_anonymous(request: Request, party_id: str):
     """
     Increment going count for anonymous users.
     No user tracking - just increments the count.
-    STRICTLY rate limited to 3 requests per minute per IP to prevent abuse.
+    Rate limited to 100 requests per minute per IP to prevent abuse.
     """
     # Check if party exists
     party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()

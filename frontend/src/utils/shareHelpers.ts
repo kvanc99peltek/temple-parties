@@ -4,6 +4,7 @@ export interface Party {
   id: string;
   title: string;
   host: string;
+  pinLabel: string;
   category: string;
   day: 'friday' | 'saturday';
   doorsOpen: string;

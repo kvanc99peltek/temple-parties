@@ -11,6 +11,7 @@ interface Party {
   id: string;
   title: string;
   host: string;
+  pinLabel: string;
   category: string;
   day: 'friday' | 'saturday';
   doorsOpen: string;
@@ -60,29 +61,30 @@ function TempleLabel() {
 
 // Create minimal avatar-style marker with initials
 function createAvatarIcon(
+  pinLabel: string,
   host: string,
   count: number,
   maxCount: number,
-  isHyped: boolean
+  isHyped: boolean,
+  isGoing: boolean
 ): L.DivIcon {
-  const minSize = 28;
-  const maxSize = 44;
+  const minSize = 44;
+  const maxSize = 64;
   const sizeRatio = Math.min(count / Math.max(maxCount, 1), 1);
   const size = minSize + sizeRatio * (maxSize - minSize);
   const fontSize = size <= 32 ? 10 : size <= 38 ? 12 : 14;
 
-  const initials = host
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .slice(0, 3)
-    .toUpperCase();
+  // Use pin_label if available, otherwise fall back to auto-generated initials
+  const label = pinLabel
+    ? pinLabel.toUpperCase()
+    : host.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
 
   const pulseClass = isHyped ? ' avatar-marker-pulse' : '';
+  const goingClass = isGoing ? ' avatar-marker-going' : '';
 
   return L.divIcon({
     className: 'custom-marker',
-    html: `<div class="avatar-marker${pulseClass}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${initials}</div>`,
+    html: `<div class="avatar-marker${pulseClass}${goingClass}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${label}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
@@ -124,21 +126,19 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-3">
         <button
           onClick={() => setSelectedDay('friday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${
-            selectedDay === 'friday'
-              ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
-              : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
-          }`}
+          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${selectedDay === 'friday'
+            ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
+            : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
+            }`}
         >
           Fri {fridayNum}
         </button>
         <button
           onClick={() => setSelectedDay('saturday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${
-            selectedDay === 'saturday'
-              ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
-              : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
-          }`}
+          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${selectedDay === 'saturday'
+            ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
+            : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
+            }`}
         >
           Sat {saturdayNum}
         </button>
@@ -162,69 +162,69 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           return filteredParties.map(party => {
             const isHyped = party.id === topPartyIds[party.day];
             const userIsGoing = userGoingParties.includes(party.id);
-            const icon = createAvatarIcon(party.host, party.goingCount, maxGoingCount, isHyped);
+            const icon = createAvatarIcon(party.pinLabel, party.host, party.goingCount, maxGoingCount, isHyped, userIsGoing);
 
-          return (
-            <Marker
-              key={party.id}
-              position={[party.latitude, party.longitude]}
-              icon={icon}
-            >
-              <Popup className="party-popup-dark">
-                <div className="popup-content">
-                  {/* Category Badge + HYPED */}
-                  <div className="popup-badges">
-                    <span className="popup-category-badge">{party.category}</span>
-                    {isHyped && (
-                      <span className="popup-hyped-badge">HYPED</span>
-                    )}
-                  </div>
+            return (
+              <Marker
+                key={party.id}
+                position={[party.latitude, party.longitude]}
+                icon={icon}
+              >
+                <Popup className="party-popup-dark">
+                  <div className="popup-content">
+                    {/* Category Badge + HYPED */}
+                    <div className="popup-badges">
+                      <span className="popup-category-badge">{party.category}</span>
+                      {isHyped && (
+                        <span className="popup-hyped-badge">HYPED</span>
+                      )}
+                    </div>
 
-                  {/* Title */}
-                  <h3 className="popup-title">{party.title}</h3>
+                    {/* Title */}
+                    <h3 className="popup-title">{party.title}</h3>
 
-                  {/* Host */}
-                  <p className="popup-host">
-                    <span className="popup-host-by">by </span>
-                    <span className="popup-host-name">{party.host}</span>
-                  </p>
+                    {/* Host */}
+                    <p className="popup-host">
+                      <span className="popup-host-by">by </span>
+                      <span className="popup-host-name">{party.host}</span>
+                    </p>
 
-                  {/* Address + Time Row */}
-                  <div className="popup-details-row">
-                    <span>{getShortAddress(party.address)}</span>
-                    <div className="popup-time">
-                      <svg className="popup-time-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{party.doorsOpen}</span>
+                    {/* Address + Time Row */}
+                    <div className="popup-details-row">
+                      <span>{getShortAddress(party.address)}</span>
+                      <div className="popup-time">
+                        <svg className="popup-time-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{party.doorsOpen}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Action Buttons - flush with popup edges */}
-                <div className="popup-buttons">
-                  <button
-                    onClick={() => onGoingClick(party.id)}
-                    className={`popup-going-btn ${userIsGoing ? 'going' : ''}`}
-                  >
-                    {userIsGoing && (
-                      <svg className="popup-check-icon" fill="white" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                    )}
-                    GOING ({party.goingCount})
-                  </button>
+                  {/* Action Buttons - flush with popup edges */}
+                  <div className="popup-buttons">
+                    <button
+                      onClick={() => onGoingClick(party.id)}
+                      className={`popup-going-btn ${userIsGoing ? 'going' : ''}`}
+                    >
+                      {userIsGoing && (
+                        <svg className="popup-check-icon" fill="white" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                      GOING ({party.goingCount})
+                    </button>
 
-                  <button
-                    onClick={() => openMapsDirections(party.address)}
-                    className="popup-navigate-btn"
-                  >
-                    NAVIGATE
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          );
+                    <button
+                      onClick={() => openMapsDirections(party.address)}
+                      className="popup-navigate-btn"
+                    >
+                      NAVIGATE
+                    </button>
+                  </div>
+                </Popup>
+              </Marker>
+            );
           });
         })()}
       </MapContainer>

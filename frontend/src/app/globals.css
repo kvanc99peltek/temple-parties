@@ -161,6 +161,11 @@ html {
   box-shadow: 0 0 12px rgba(250, 70, 147, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+.avatar-marker-going {
+  border: 2px solid #0084FF;
+  box-shadow: 0 0 10px rgba(0, 132, 255, 0.6), 0 0 20px rgba(0, 132, 255, 0.3);
+}
+
 .avatar-marker-pulse {
   animation: avatar-pulse 2s ease-in-out infinite;
 }

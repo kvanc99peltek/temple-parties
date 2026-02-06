@@ -174,15 +174,16 @@ export default function Home() {
   }, [pendingAction, pendingPartyId, toggleGoing]);
 
   // Handle party submission
-  const handlePartySubmit = useCallback(async (partyData: { title: string; host: string; address: string; doorsOpen: string; category: string; day: 'friday' | 'saturday' }) => {
+  const handlePartySubmit = useCallback(async (partyData: { title: string; host: string; pinLabel: string; address: string; doorsOpen: string; category: string; date: string }) => {
     try {
       await partiesApi.createParty({
         title: partyData.title,
         host: partyData.host,
+        pin_label: partyData.pinLabel,
         address: partyData.address,
         doors_open: partyData.doorsOpen,
         category: partyData.category,
-        day: partyData.day,
+        date: partyData.date,
       });
 
       // Party is pending, so don't add to list yet

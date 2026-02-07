@@ -1,18 +1,6 @@
 import { getDayName } from './dateHelpers';
 
-export interface Party {
-  id: string;
-  title: string;
-  host: string;
-  pinLabel: string;
-  category: string;
-  day: 'friday' | 'saturday';
-  doorsOpen: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  goingCount: number;
-}
+import { Party } from '@/lib/types';
 
 const APP_URL = 'https://tuparties.com';
 

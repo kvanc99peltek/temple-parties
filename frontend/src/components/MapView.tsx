@@ -2,18 +2,7 @@
 
 import dynamic from 'next/dynamic';
 
-interface Party {
-  id: string;
-  title: string;
-  host: string;
-  category: string;
-  day: 'friday' | 'saturday';
-  doorsOpen: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  goingCount: number;
-}
+import { Party } from '@/lib/types';
 
 interface MapViewProps {
   parties: Party[];

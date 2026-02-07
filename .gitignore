@@ -26,3 +26,10 @@ Thumbs.db
 *.log
 backend/.env
 backend/.env.example
+
+# Backup folders
+frontend_local_backup/
+backend_local_backup/
+STATUS.md
+backend/=0.26.0
+backend/fix_coordinates.py

@@ -42,7 +42,7 @@ app.include_router(admin_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Temple Parties API", "version": "1.0.0"}
+    return {"message": "Temple Parties API", "version": app.version}
 
 
 @app.get("/health")

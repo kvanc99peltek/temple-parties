@@ -2,29 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-interface Party {
-  id: string;
-  title: string;
-  host: string;
-  pinLabel: string;
-  category: string;
-  day: 'friday' | 'saturday';
-  date: string;
-  doorsOpen: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  goingCount: number;
-  status?: string;
-}
-
-interface User {
-  id: string;
-  email: string;
-  username: string | null;
-  is_admin: boolean;
-  created_at: string;
-}
+import { Party, User } from '@/lib/types';
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();

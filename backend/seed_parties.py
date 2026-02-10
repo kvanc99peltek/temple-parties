@@ -2,19 +2,24 @@
 Seed script to populate parties in Supabase database.
 Run with: python seed_parties.py
 """
+import os
+from dotenv import load_dotenv
 from supabase import create_client
 from datetime import date, timedelta
 
-# Supabase credentials
-SUPABASE_URL = "https://gleiwfdgxqdvilodngzv.supabase.co"
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZWl3ZmRneHFkdmlsb2RuZ3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNTM3NCwiZXhwIjoyMDg0MjkxMzc0fQ.-G28ZrSm9AWDJ4HJMB_bFUeT0rqbQtZhQNEdsun0X80"
+load_dotenv()
 
+# Supabase credentials (try env vars first, fallback to hardcoded)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://gleiwfdgxqdvilodngzv.supabase.co")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZWl3ZmRneHFkdmlsb2RuZ3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNTM3NCwiZXhwIjoyMDg0MjkxMzc0fQ.-G28ZrSm9AWDJ4HJMB_bFUeT0rqbQtZhQNEdsun0X80")
+
+print(f"Connecting to Supabase at: {SUPABASE_URL}")
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 def seed_parties():
-    # This weekend: February 6-7, 2026
+    # This weekend: February 13-14, 2026
     # weekend_of uses Friday date (matches backend get_current_weekend)
-    weekend = date(2026, 2, 6)  # Friday of this weekend
+    weekend = date(2026, 2, 13)  # Friday of this weekend
     print(f"Seeding parties for this weekend: {weekend}")
 
     saturday = weekend + timedelta(days=1)  # Saturday of launch weekend
@@ -30,9 +35,9 @@ def seed_parties():
             "day": "friday",
             "doors_open": "10:00 PM",
             "address": "1432 North Broad Street",
-            "latitude": 39.9762,
-            "longitude": -75.1527,
-            "going_count": 12,
+            "latitude": 39.97569,
+            "longitude": -75.15898,
+            "going_count": 48,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
@@ -45,9 +50,9 @@ def seed_parties():
             "day": "friday",
             "doors_open": "10:00 PM",
             "address": "1625 Cecil B Moore Ave",
-            "latitude": 39.9785,
-            "longitude": -75.1565,
-            "going_count": 7,
+            "latitude": 39.97949,
+            "longitude": -75.16198,
+            "going_count": 35,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
@@ -60,9 +65,9 @@ def seed_parties():
             "day": "friday",
             "doors_open": "10:30 PM",
             "address": "1717 N 17th Street",
-            "latitude": 39.95646,
-            "longitude": -75.16687,
-            "going_count": 7,
+            "latitude": 39.98023,
+            "longitude": -75.16240,
+            "going_count": 23,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
@@ -75,9 +80,9 @@ def seed_parties():
             "day": "saturday",
             "doors_open": "11:00 PM",
             "address": "1900 N 17th Street",
-            "latitude": 39.9830,
-            "longitude": -75.1593,
-            "going_count": 8,
+            "latitude": 39.98266,
+            "longitude": -75.16219,
+            "going_count": 31,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },

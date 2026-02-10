@@ -99,7 +99,6 @@ function getShortAddress(address: string): string {
 
 export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, fridayDate, saturdayDate }: MapContentProps) {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
-
   // Filter parties based on selected day
   const filteredParties = useMemo(() => {
     return parties.filter(party => party.day === selectedDay);
@@ -126,7 +125,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-3">
         <button
           onClick={() => setSelectedDay('friday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${selectedDay === 'friday'
+          className={`py-4 px-8 font-bold text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'friday'
             ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
             : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
             }`}
@@ -135,7 +134,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         </button>
         <button
           onClick={() => setSelectedDay('saturday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${selectedDay === 'saturday'
+          className={`py-4 px-8 font-bold text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'saturday'
             ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
             : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
             }`}

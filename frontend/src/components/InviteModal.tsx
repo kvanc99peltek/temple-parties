@@ -81,19 +81,19 @@ export default function InviteModal({ isOpen, onClose, onShare }: InviteModalPro
         </div>
 
         {/* Title */}
-        <h2 className="text-2xl font-semibold text-white text-center mb-2">
+        <h2 className="text-2xl font-semibold text-white text-center mb-2 font-montserrat">
           You&apos;re going!
         </h2>
 
         {/* Subtitle */}
-        <p className="text-gray-400 text-center mb-6">
+        <p className="text-gray-400 text-center mb-6 font-helvetica">
           Invite your friends to join the party
         </p>
 
         {/* Share button */}
         <button
           onClick={handleShare}
-          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40"
+          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40 font-montserrat"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -115,7 +115,7 @@ export default function InviteModal({ isOpen, onClose, onShare }: InviteModalPro
         {/* Skip button */}
         <button
           onClick={onClose}
-          className="w-full mt-3 py-3 text-gray-600 hover:text-gray-400 hover:bg-white/5 text-sm font-medium rounded-xl transition-all"
+          className="w-full mt-3 py-3 text-gray-600 hover:text-gray-400 hover:bg-white/5 text-sm font-medium rounded-xl transition-all font-helvetica"
         >
           Maybe later
         </button>

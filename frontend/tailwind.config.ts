@@ -87,6 +87,10 @@ const config: Config = {
           '50%': { transform: 'scale(1.05)' },
           '100%': { transform: 'scale(1)' },
         },
+        'reveal-right': {
+          '0%': { opacity: '0', transform: 'translateX(-12px)', clipPath: 'inset(0 100% 0 0)' },
+          '100%': { opacity: '1', transform: 'translateX(0)', clipPath: 'inset(0 0 0 0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
@@ -97,6 +101,7 @@ const config: Config = {
         'slide-up-fade': 'slide-up-fade 400ms ease-out',
         'number-pop': 'number-pop 300ms ease-out',
         'going-click': 'going-click 300ms ease-out',
+        'reveal-right': 'reveal-right 800ms cubic-bezier(0.16, 1, 0.3, 1)',
       },
     },
   },

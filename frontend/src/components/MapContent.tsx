@@ -26,6 +26,7 @@ interface MapContentProps {
   topPartyIds: { friday: string | null; saturday: string | null };
   userGoingParties: string[];
   onGoingClick: (partyId: string) => void;
+  onNavigateClick: (partyId: string) => void;
   fridayDate: string;
   saturdayDate: string;
 }
@@ -72,12 +73,14 @@ function createAvatarIcon(
   const maxSize = 64;
   const sizeRatio = Math.min(count / Math.max(maxCount, 1), 1);
   const size = minSize + sizeRatio * (maxSize - minSize);
-  const fontSize = size <= 32 ? 10 : size <= 38 ? 12 : 14;
-
   // Use pin_label if available, otherwise fall back to auto-generated initials
   const label = pinLabel
     ? pinLabel.toUpperCase()
     : host.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase();
+
+  // Scale font size based on circle size and label length for breathing room
+  const maxFontSize = size <= 32 ? 10 : size <= 38 ? 12 : 14;
+  const fontSize = label.length <= 3 ? maxFontSize : Math.min(maxFontSize, Math.floor((size * 0.7) / (label.length * 0.55)));
 
   const pulseClass = isHyped ? ' avatar-marker-pulse' : '';
   const goingClass = isGoing ? ' avatar-marker-going' : '';
@@ -97,7 +100,7 @@ function getShortAddress(address: string): string {
 }
 
 
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, fridayDate, saturdayDate }: MapContentProps) {
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate }: MapContentProps) {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
   // Filter parties based on selected day
   const filteredParties = useMemo(() => {
@@ -215,7 +218,12 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                     </button>
 
                     <button
-                      onClick={() => openMapsDirections(party.address)}
+                      onClick={() => {
+                        if (!userIsGoing) {
+                          onNavigateClick(party.id);
+                        }
+                        openMapsDirections(party.address);
+                      }}
                       className="popup-navigate-btn"
                     >
                       NAVIGATE

@@ -150,8 +150,8 @@ html {
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   color: white;
-  font-weight: 600;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
 }

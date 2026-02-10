@@ -90,34 +90,58 @@ export function useGoingStatus(): UseGoingStatusReturn {
 
   // Toggle going status for a party
   const toggleGoing = useCallback(async (partyId: string): Promise<void> => {
-    // Check if already going
     const currentGoing = getLocalGoingParties();
-    if (currentGoing.includes(partyId)) {
-      // Already going - can't un-go
-      return;
-    }
+    const alreadyGoing = currentGoing.includes(partyId);
 
     setIsLoading(true);
     try {
-      // Add to going locally first (optimistic update)
-      const newGoing = [...currentGoing, partyId];
-      setLocalGoingParties(newGoing);
-      setGoingParties(newGoing);
+      if (alreadyGoing) {
+        // Optimistic update: remove from going + decrement count
+        const newGoing = currentGoing.filter(id => id !== partyId);
+        setLocalGoingParties(newGoing);
+        setGoingParties(newGoing);
+        setPartyCounts(prev => ({
+          ...prev,
+          [partyId]: Math.max(0, (prev[partyId] ?? 0) - 1),
+        }));
 
-      // Call anonymous increment endpoint (works for all users)
-      const result = await partiesApi.incrementGoingAnonymous(partyId);
+        // Call anonymous decrement endpoint
+        const result = await partiesApi.decrementGoingAnonymous(partyId);
 
-      // Update count from response
-      setPartyCounts(prev => ({
-        ...prev,
-        [partyId]: result.goingCount,
-      }));
+        setPartyCounts(prev => ({
+          ...prev,
+          [partyId]: result.goingCount,
+        }));
+      } else {
+        // Optimistic update: add to going + increment count
+        const newGoing = [...currentGoing, partyId];
+        setLocalGoingParties(newGoing);
+        setGoingParties(newGoing);
+        setPartyCounts(prev => ({
+          ...prev,
+          [partyId]: (prev[partyId] ?? 0) + 1,
+        }));
+
+        // Call anonymous increment endpoint
+        const result = await partiesApi.incrementGoingAnonymous(partyId);
+
+        setPartyCounts(prev => ({
+          ...prev,
+          [partyId]: result.goingCount,
+        }));
+      }
     } catch (error) {
       console.error('Failed to toggle going status:', error);
       // Revert local state on error
-      const revertedGoing = getLocalGoingParties().filter(id => id !== partyId);
-      setLocalGoingParties(revertedGoing);
-      setGoingParties(revertedGoing);
+      if (alreadyGoing) {
+        const revertedGoing = [...getLocalGoingParties(), partyId];
+        setLocalGoingParties(revertedGoing);
+        setGoingParties(revertedGoing);
+      } else {
+        const revertedGoing = getLocalGoingParties().filter(id => id !== partyId);
+        setLocalGoingParties(revertedGoing);
+        setGoingParties(revertedGoing);
+      }
     } finally {
       setIsLoading(false);
     }

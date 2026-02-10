@@ -228,3 +228,31 @@ async def increment_going_anonymous(request: Request, party_id: str):
     supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
 
     return {"going": True, "goingCount": new_count}
+
+
+@router.post("/{party_id}/going/anonymous/decrement")
+@limiter.limit("100/minute")
+async def decrement_going_anonymous(request: Request, party_id: str):
+    """
+    Decrement going count for anonymous users.
+    No user tracking - just decrements the count.
+    Rate limited to 100 requests per minute per IP to prevent abuse.
+    """
+    # Check if party exists
+    party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()
+
+    if not party_result.data:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    # Get current count from party_going table
+    count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
+    tracked_count = count_result.count if count_result.count is not None else 0
+
+    # Anonymous decrements reduce going_count beyond the tracked count
+    current_total = party_result.data[0]["going_count"]
+    anonymous_count = max(0, current_total - tracked_count)
+    new_count = tracked_count + max(0, anonymous_count - 1)
+
+    supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
+
+    return {"going": False, "goingCount": new_count}

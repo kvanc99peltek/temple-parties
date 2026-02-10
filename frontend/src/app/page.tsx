@@ -123,6 +123,13 @@ export default function Home() {
     }
   }, [toggleGoing, isGoing]);
 
+  // Handle navigate click — silently mark as going (no modal)
+  const handleNavigateClick = useCallback(async (partyId: string) => {
+    if (!isGoing(partyId)) {
+      await toggleGoing(partyId);
+    }
+  }, [toggleGoing, isGoing]);
+
   // Handle share
   const handleShare = useCallback(async () => {
     const result = await shareContent(topGoingParty || undefined);
@@ -257,6 +264,7 @@ export default function Home() {
                   isHyped={party.id === topPartyId}
                   userIsGoing={isGoing(party.id)}
                   onGoingClick={() => handleGoingClick(party.id)}
+                  onNavigateClick={() => handleNavigateClick(party.id)}
                 />
               ))
             )}
@@ -277,6 +285,7 @@ export default function Home() {
               topPartyIds={topPartyIds}
               userGoingParties={goingParties}
               onGoingClick={handleGoingClick}
+              onNavigateClick={handleNavigateClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
             />

@@ -13,8 +13,6 @@ export default function GoingButton({ currentCount, userIsGoing, onGoingClick }:
   const [isAnimating, setIsAnimating] = useState(false);
 
   const handleClick = () => {
-    if (userIsGoing) return;
-
     setIsAnimating(true);
     onGoingClick();
 
@@ -24,9 +22,8 @@ export default function GoingButton({ currentCount, userIsGoing, onGoingClick }:
   return (
     <button
       onClick={handleClick}
-      disabled={userIsGoing}
       className={`flex-1 h-[49px] rounded-bl-[12px] rounded-tl-none rounded-tr-none rounded-br-none font-bold text-lg uppercase transition-all duration-150 flex items-center justify-center gap-1.5 font-montserrat text-white hover:opacity-90 active:scale-[0.98] ${
-        userIsGoing ? 'bg-gradient-to-r from-[#0084FF] to-[#FA4693] cursor-default' : 'bg-[#FA4693]'
+        userIsGoing ? 'bg-gradient-to-r from-[#0084FF] to-[#FA4693]' : 'bg-[#FA4693]'
       } ${isAnimating ? 'animate-going-click' : ''}`}
     >
       {userIsGoing && (

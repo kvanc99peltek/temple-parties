@@ -16,6 +16,7 @@ interface PartyCardProps {
   isHyped: boolean;
   userIsGoing: boolean;
   onGoingClick: () => void;
+  onNavigateClick: () => void;
 }
 
 export default function PartyCard({
@@ -28,7 +29,8 @@ export default function PartyCard({
   goingCount,
   isHyped,
   userIsGoing,
-  onGoingClick
+  onGoingClick,
+  onNavigateClick
 }: PartyCardProps) {
   const [revealedAddresses, setRevealedAddresses] = useLocalStorage<string[]>('temple-revealed-addresses', []);
   const [justRevealed, setJustRevealed] = useState(false);
@@ -40,6 +42,9 @@ export default function PartyCard({
   };
 
   const handleNavigate = () => {
+    if (!userIsGoing) {
+      onNavigateClick();
+    }
     openMapsDirections(address);
   };
 

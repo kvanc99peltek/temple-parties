@@ -1,12 +1,6 @@
-'use client';
-
 import { useEffect } from 'react';
 
-/**
- * Custom hook for modal behavior.
- * Handles escape key closing and body scroll locking.
- */
-export function useModal(isOpen: boolean, onClose: () => void) {
+export default function useModalBehavior(isOpen: boolean, onClose: () => void) {
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

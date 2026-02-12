@@ -1,6 +1,6 @@
 # Temple Parties - Architecture Guide
 
-**Last Updated:** January 21, 2026 (Security Updates)
+**Last Updated:** February 11, 2026
 **Purpose:** Comprehensive guide to understanding how the entire application works
 
 ---
@@ -56,7 +56,9 @@ temple-parties/
 │   │   ├── app/                # Pages & routing
 │   │   │   ├── page.tsx        # Main homepage
 │   │   │   ├── layout.tsx      # Root layout (AuthProvider)
-│   │   │   └── globals.css     # Tailwind + custom styles
+│   │   │   ├── globals.css     # Tailwind + custom styles
+│   │   │   ├── auth/callback/  # OAuth callback handler
+│   │   │   └── fonts/          # Custom fonts (5 files)
 │   │   ├── components/         # Reusable UI components
 │   │   │   ├── PartyCard.tsx
 │   │   │   ├── Header.tsx
@@ -65,10 +67,12 @@ temple-parties/
 │   │   │   ├── MapView.tsx
 │   │   │   ├── MapContent.tsx
 │   │   │   ├── GoingButton.tsx
+│   │   │   ├── ModalWrapper.tsx # Shared modal shell (backdrop, close, scroll lock)
 │   │   │   ├── AddPartyModal.tsx
 │   │   │   ├── LoginModal.tsx
 │   │   │   ├── ProfileModal.tsx
 │   │   │   ├── InviteModal.tsx
+│   │   │   ├── DatePicker.tsx
 │   │   │   ├── Toast.tsx
 │   │   │   └── EmptyState.tsx
 │   │   ├── contexts/           # React Context
@@ -77,14 +81,17 @@ temple-parties/
 │   │   │   └── api.ts
 │   │   ├── hooks/              # Custom hooks
 │   │   │   ├── useGoingStatus.ts
-│   │   │   ├── useUserParties.ts
-│   │   │   └── useLocalStorage.ts
-│   │   ├── lib/                # External clients
-│   │   │   └── supabase.ts
+│   │   │   ├── useModalBehavior.ts  # Escape key + scroll lock
+│   │   │   ├── useModalState.ts     # Modal visibility orchestration
+│   │   │   ├── useParties.ts        # Party fetch + filtering
+│   │   │   └── useToast.ts          # Toast state management
+│   │   ├── lib/                # Shared config & types
+│   │   │   ├── types.ts
+│   │   │   ├── supabase.ts
+│   │   │   └── constants.ts
 │   │   ├── utils/              # Utility functions
 │   │   │   ├── dateHelpers.ts
-│   │   │   ├── shareHelpers.ts
-│   │   │   └── storage.ts
+│   │   │   └── shareHelpers.ts
 │   │   └── __tests__/          # Jest tests
 │   ├── package.json
 │   ├── tsconfig.json
@@ -95,6 +102,7 @@ temple-parties/
 │   ├── app/
 │   │   ├── main.py             # App entry + CORS
 │   │   ├── config.py           # Environment config
+│   │   ├── constants.py        # Domain, rate limits, bounds
 │   │   ├── database.py         # Supabase client
 │   │   ├── models/             # Pydantic schemas
 │   │   │   ├── user.py
@@ -109,9 +117,8 @@ temple-parties/
 │   └── requirements.txt
 │
 ├── ARCHITECTURE.md             # This file
-├── DESIGN_SPEC.md              # Design system
-├── PROGRESS.md                 # Development tracking
-└── prd_v1.md                   # Product requirements
+├── CONTRIBUTING.md             # Setup & workflow guide
+└── README.md                   # Project overview
 ```
 
 ---
@@ -695,7 +702,7 @@ Response: { "going": true, "goingCount": 43 }
 // Count computed from party_going table (race-condition safe)
 ```
 
-**POST /parties/{id}/going/anonymous** *(3/minute - strict)*
+**POST /parties/{id}/going/anonymous** *(3/minute - strict, configured in `constants.py`)*
 ```json
 Response: { "going": true, "goingCount": 44 }
 // For non-authenticated users, strictly rate limited
@@ -956,4 +963,4 @@ if (!wasGoing) {
 
 ---
 
-**Last Updated:** January 21, 2026
+**Last Updated:** February 11, 2026

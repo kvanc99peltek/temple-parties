@@ -7,6 +7,7 @@ from app.database import supabase
 from app.models.party import PartyCreate, PartyResponse
 from app.routers.auth import get_current_user, require_auth
 from app.services.geocoding import geocode_address, generate_fallback_coordinates
+from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/parties", tags=["parties"])
 limiter = Limiter(key_func=get_remote_address)
@@ -84,7 +85,7 @@ async def get_party(party_id: str):
 
 
 @router.post("", response_model=PartyResponse)
-@limiter.limit("10/minute")
+@limiter.limit(RATE_LIMITS["create_party"])
 async def create_party(request: Request, data: PartyCreate, user: dict = Depends(require_auth)):
     """
     Create a new party. Status will be 'pending' until admin approves.
@@ -157,7 +158,7 @@ async def delete_party(party_id: str, user: dict = Depends(require_auth)):
 
 
 @router.post("/{party_id}/going")
-@limiter.limit("30/minute")
+@limiter.limit(RATE_LIMITS["toggle_going_auth"])
 async def toggle_going(request: Request, party_id: str, user: dict = Depends(require_auth)):
     """
     Toggle going status for a party.
@@ -203,12 +204,12 @@ async def toggle_going(request: Request, party_id: str, user: dict = Depends(req
 
 
 @router.post("/{party_id}/going/anonymous")
-@limiter.limit("100/minute")
+@limiter.limit(RATE_LIMITS["toggle_going_anon"])
 async def increment_going_anonymous(request: Request, party_id: str):
     """
     Increment going count for anonymous users.
     No user tracking - just increments the count.
-    Rate limited to 100 requests per minute per IP to prevent abuse.
+    Rate limited to 3 requests per minute per IP to prevent abuse.
     """
     # Check if party exists
     party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()

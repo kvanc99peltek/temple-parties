@@ -9,16 +9,25 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from supabase import create_client
-from datetime import date
+from datetime import date, timedelta
 from app.config import get_settings
 
 settings = get_settings()
 supabase = create_client(settings.supabase_url, settings.supabase_service_key)
 
+def get_next_friday():
+    """Get the Friday of the current or next weekend."""
+    today = date.today()
+    days_until_friday = (4 - today.weekday()) % 7
+    if days_until_friday == 0 and today.weekday() == 4:
+        return today  # Today is Friday
+    if today.weekday() > 4:  # Saturday or Sunday, use this weekend's Friday
+        days_until_friday = (4 - today.weekday()) % 7 - 7
+    return today + timedelta(days=days_until_friday)
+
 def seed_parties():
-    # This weekend: February 6-7, 2026
     # weekend_of uses Friday date (matches backend get_current_weekend)
-    weekend = date(2026, 2, 13)  # Friday of this weekend
+    weekend = get_next_friday()
     print(f"Seeding parties for this weekend: {weekend}")
 
     # Test party data

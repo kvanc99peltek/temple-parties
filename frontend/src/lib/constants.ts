@@ -1,11 +1,3 @@
-// Brand colors
-export const COLORS = {
-  primary: '#FA4693',
-  primaryHover: '#FB6BA8',
-  secondary: '#FFD666',
-  facebook: '#0084FF',
-} as const;
-
 // Z-index levels for consistent layering
 export const Z_INDEX = {
   modal: 10000,

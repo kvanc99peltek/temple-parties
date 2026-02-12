@@ -4,6 +4,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.user import UserCreate, UserUpdate, User
+from app.constants import ALLOWED_EMAIL_DOMAIN, RATE_LIMITS
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
@@ -39,7 +40,7 @@ async def require_auth(authorization: Optional[str] = Header(None)) -> dict:
 
 
 @router.post("/signup")
-@limiter.limit("5/minute")
+@limiter.limit(RATE_LIMITS["signup"])
 async def signup(request: Request, data: UserCreate):
     """
     Initiate signup by sending magic link to @temple.edu email.
@@ -48,7 +49,7 @@ async def signup(request: Request, data: UserCreate):
     email = data.email.lower()
 
     # Validate Temple email
-    if not email.endswith("@temple.edu"):
+    if not email.endswith(ALLOWED_EMAIL_DOMAIN):
         raise HTTPException(
             status_code=400,
             detail="Only @temple.edu email addresses are allowed"
@@ -70,7 +71,7 @@ async def signup(request: Request, data: UserCreate):
 
 
 @router.post("/set-username")
-@limiter.limit("10/minute")
+@limiter.limit(RATE_LIMITS["set_username"])
 async def set_username(request: Request, data: UserUpdate, user: dict = Depends(require_auth)):
     """
     Set username after magic link verification.

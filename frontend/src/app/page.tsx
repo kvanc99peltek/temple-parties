@@ -14,47 +14,26 @@ import BottomNav from '@/components/BottomNav';
 import MapView from '@/components/MapView';
 import { getDefaultDay, getUpcomingDates } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
-import { Party } from '@/lib/types';
 import useGoingStatus from '@/hooks/useGoingStatus';
+import useParties from '@/hooks/useParties';
+import useToast from '@/hooks/useToast';
+import useModalState from '@/hooks/useModalState';
 import { useAuth } from '@/contexts/AuthContext';
 import { partiesApi } from '@/services/api';
 
 export default function Home() {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
   const [currentView, setCurrentView] = useState<'home' | 'map'>('home');
-  const [showModal, setShowModal] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showAddPartyModal, setShowAddPartyModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'addParty' | 'going' | null>(null);
-  const [pendingPartyId, setPendingPartyId] = useState<string | null>(null);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
   const [isHydrated, setIsHydrated] = useState(false);
-  const [parties, setParties] = useState<Party[]>([]);
-  const [isLoadingParties, setIsLoadingParties] = useState(true);
 
   const { goingParties, isGoing, getCount, toggleGoing } = useGoingStatus();
   const { user, isAuthenticated, needsUsername, logout } = useAuth();
+  const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount);
+  const toast = useToast();
+  const modals = useModalState(isAuthenticated, toggleGoing);
 
   // Get upcoming dates for tabs
   const { friday: fridayDate, saturday: saturdayDate } = useMemo(() => getUpcomingDates(), []);
-
-  // Fetch parties from API
-  useEffect(() => {
-    const fetchParties = async () => {
-      try {
-        const data = await partiesApi.getParties();
-        setParties(data);
-      } catch (error) {
-        console.error('Failed to fetch parties:', error);
-      } finally {
-        setIsLoadingParties(false);
-      }
-    };
-
-    fetchParties();
-  }, []);
 
   // Set default day on mount
   useEffect(() => {
@@ -65,41 +44,9 @@ export default function Home() {
   // Show login modal if user needs to set username
   useEffect(() => {
     if (needsUsername && isHydrated) {
-      setShowLoginModal(true);
+      modals.openLoginForUsername();
     }
-  }, [needsUsername, isHydrated]);
-
-  // Filter and sort parties for selected day
-  const filteredParties = useMemo(() => {
-    return parties
-      .filter(party => party.day === selectedDay)
-      .map(party => ({
-        ...party,
-        goingCount: getCount(party.id, party.goingCount)
-      }))
-      .sort((a, b) => b.goingCount - a.goingCount);
-  }, [selectedDay, getCount, parties]);
-
-  // Get ALL parties for map view (both days)
-  const allParties = useMemo(() => {
-    return parties.map(party => ({
-      ...party,
-      goingCount: getCount(party.id, party.goingCount)
-    }));
-  }, [getCount, parties]);
-
-  // Get the top party ID for HYPED badge (per day)
-  const topPartyId = filteredParties.length > 0 ? filteredParties[0].id : null;
-
-  // Get top party IDs for each day (for map view)
-  const topPartyIds = useMemo(() => {
-    const fridayParties = allParties.filter(p => p.day === 'friday').sort((a, b) => b.goingCount - a.goingCount);
-    const saturdayParties = allParties.filter(p => p.day === 'saturday').sort((a, b) => b.goingCount - a.goingCount);
-    return {
-      friday: fridayParties.length > 0 ? fridayParties[0].id : null,
-      saturday: saturdayParties.length > 0 ? saturdayParties[0].id : null,
-    };
-  }, [allParties]);
+  }, [needsUsername, isHydrated, modals.openLoginForUsername]);
 
   // Get the top party that user is going to (for sharing)
   const topGoingParty = useMemo(() => {
@@ -119,19 +66,18 @@ export default function Home() {
 
     // Show invite modal when marking as going (not un-going)
     if (!wasGoing) {
-      setShowModal(true);
+      modals.openInviteModal();
     }
-  }, [toggleGoing, isGoing]);
+  }, [toggleGoing, isGoing, modals.openInviteModal]);
 
   // Handle share
   const handleShare = useCallback(async () => {
     const result = await shareContent(topGoingParty || undefined);
 
     if (result.success && result.method === 'clipboard') {
-      setToastMessage('Link copied to clipboard!');
-      setShowToast(true);
+      toast.show('Link copied to clipboard!');
     }
-  }, [topGoingParty]);
+  }, [topGoingParty, toast.show]);
 
   // Handle day change
   const handleDayChange = useCallback((day: 'friday' | 'saturday') => {
@@ -142,37 +88,6 @@ export default function Home() {
   const handleViewChange = useCallback((view: 'home' | 'map') => {
     setCurrentView(view);
   }, []);
-
-  // Handle Add Party button click
-  const handleAddPartyClick = useCallback(() => {
-    if (!isAuthenticated) {
-      setPendingAction('addParty');
-      setShowLoginModal(true);
-    } else {
-      setShowAddPartyModal(true);
-    }
-  }, [isAuthenticated]);
-
-  // Handle Account button click
-  const handleAccountClick = useCallback(() => {
-    if (isAuthenticated) {
-      setShowProfileModal(true);
-    } else {
-      setShowLoginModal(true);
-    }
-  }, [isAuthenticated]);
-
-  // Handle login success
-  const handleLoginSuccess = useCallback(async () => {
-    if (pendingAction === 'addParty') {
-      setShowAddPartyModal(true);
-    } else if (pendingAction === 'going' && pendingPartyId) {
-      await toggleGoing(pendingPartyId);
-      setShowModal(true);
-    }
-    setPendingAction(null);
-    setPendingPartyId(null);
-  }, [pendingAction, pendingPartyId, toggleGoing]);
 
   // Handle party submission
   const handlePartySubmit = useCallback(async (partyData: { title: string; host: string; pinLabel: string; address: string; doorsOpen: string; category: string; date: string }) => {
@@ -187,20 +102,11 @@ export default function Home() {
         date: partyData.date,
       });
 
-      // Party is pending, so don't add to list yet
-      setToastMessage('Party submitted for approval!');
-      setShowToast(true);
+      toast.show('Party submitted for approval!');
     } catch {
-      setToastMessage('Failed to submit party');
-      setShowToast(true);
+      toast.show('Failed to submit party');
     }
-  }, []);
-
-  // Handle showing toast (for login modal)
-  const handleShowToast = useCallback((message: string) => {
-    setToastMessage(message);
-    setShowToast(true);
-  }, []);
+  }, [toast.show]);
 
   // Prevent hydration mismatch by not rendering until client-side
   if (!isHydrated) {
@@ -222,8 +128,8 @@ export default function Home() {
         // Home View (List)
         <div className="pb-20">
           <Header
-            onAddPartyClick={handleAddPartyClick}
-            onAccountClick={handleAccountClick}
+            onAddPartyClick={modals.handleAddPartyClick}
+            onAccountClick={modals.handleAccountClick}
             isAuthenticated={isAuthenticated}
             username={user?.username ?? undefined}
           />
@@ -266,8 +172,8 @@ export default function Home() {
         // Map View (Full Screen)
         <div className="h-screen flex flex-col">
           <Header
-            onAddPartyClick={handleAddPartyClick}
-            onAccountClick={handleAccountClick}
+            onAddPartyClick={modals.handleAddPartyClick}
+            onAccountClick={modals.handleAccountClick}
             isAuthenticated={isAuthenticated}
             username={user?.username ?? undefined}
           />
@@ -289,27 +195,23 @@ export default function Home() {
 
       {/* Invite Modal */}
       <InviteModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        isOpen={modals.showInviteModal}
+        onClose={modals.closeInviteModal}
         onShare={handleShare}
       />
 
       {/* Login Modal */}
       <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => {
-          setShowLoginModal(false);
-          setPendingAction(null);
-          setPendingPartyId(null);
-        }}
-        onSuccess={handleLoginSuccess}
-        onShowToast={handleShowToast}
+        isOpen={modals.showLoginModal}
+        onClose={modals.closeLoginModal}
+        onSuccess={modals.handleLoginSuccess}
+        onShowToast={toast.show}
       />
 
       {/* Profile Modal */}
       <ProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
+        isOpen={modals.showProfileModal}
+        onClose={modals.closeProfileModal}
         username={user?.username || ''}
         partyCount={0}
         onLogout={logout}
@@ -317,16 +219,16 @@ export default function Home() {
 
       {/* Add Party Modal */}
       <AddPartyModal
-        isOpen={showAddPartyModal}
-        onClose={() => setShowAddPartyModal(false)}
+        isOpen={modals.showAddPartyModal}
+        onClose={modals.closeAddPartyModal}
         onSubmit={handlePartySubmit}
       />
 
       {/* Toast Notification */}
       <Toast
-        message={toastMessage}
-        isVisible={showToast}
-        onClose={() => setShowToast(false)}
+        message={toast.message}
+        isVisible={toast.isVisible}
+        onClose={toast.hide}
       />
     </main>
   );

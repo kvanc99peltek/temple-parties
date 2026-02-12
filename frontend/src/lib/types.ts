@@ -22,15 +22,3 @@ export interface User {
   created_at: string;
 }
 
-export interface GoingStatuses {
-  [partyId: string]: boolean;
-}
-
-export interface PartyContextValue {
-  parties: Party[];
-  goingStatuses: GoingStatuses;
-  toggleGoing: (partyId: string) => void;
-  selectedPartyId: string | null;
-  setSelectedPartyId: (id: string | null) => void;
-  getPartyById: (id: string) => Party | undefined;
-}

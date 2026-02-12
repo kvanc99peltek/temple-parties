@@ -1,18 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Literal
-from datetime import datetime, date as date_type
-
-
-class PartyBase(BaseModel):
-    title: str = Field(..., max_length=50)
-    host: str = Field(..., max_length=30)
-    category: str = Field(..., max_length=50)
-    day: Literal["friday", "saturday"]
-    date: str  # ISO format date string (YYYY-MM-DD)
-    doors_open: str = Field(..., max_length=20)
-    address: str = Field(..., max_length=500)
-    latitude: float
-    longitude: float
+from datetime import date as date_type
 
 
 class PartyCreate(BaseModel):
@@ -41,18 +29,6 @@ class PartyCreate(BaseModel):
         if parsed.weekday() not in (4, 5):  # 4 = Friday, 5 = Saturday
             raise ValueError('Date must be a Friday or Saturday.')
         return v
-
-
-class Party(PartyBase):
-    id: str
-    going_count: int = 0
-    created_by: Optional[str] = None
-    status: Literal["pending", "approved", "rejected"] = "pending"
-    created_at: datetime
-    weekend_of: date_type
-
-    class Config:
-        from_attributes = True
 
 
 class PartyResponse(BaseModel):

@@ -49,7 +49,7 @@ export default function PartyCard({
         </div>
 
         {/* Title */}
-        <h2 className="text-xl sm:text-3xl font-black text-white mb-1 sm:mb-2 tracking-tight font-basement leading-none">
+        <h2 className="text-xl sm:text-3xl font-black text-white mb-1 sm:mb-2 tracking-tight font-montserrat leading-none">
           {title}
         </h2>
 

@@ -2,30 +2,30 @@
 Seed script to populate parties in Supabase database.
 Run with: python seed_parties.py
 """
+import sys
+import os
+
+# Add the backend directory to sys.path so we can import app.config
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from supabase import create_client
-from datetime import date, timedelta
+from datetime import date
+from app.config import get_settings
 
-# Supabase credentials
-SUPABASE_URL = "https://gleiwfdgxqdvilodngzv.supabase.co"
-SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZWl3ZmRneHFkdmlsb2RuZ3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNTM3NCwiZXhwIjoyMDg0MjkxMzc0fQ.-G28ZrSm9AWDJ4HJMB_bFUeT0rqbQtZhQNEdsun0X80"
-
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+settings = get_settings()
+supabase = create_client(settings.supabase_url, settings.supabase_service_key)
 
 def seed_parties():
     # This weekend: February 6-7, 2026
     # weekend_of uses Friday date (matches backend get_current_weekend)
-    weekend = date(2026, 2, 6)  # Friday of this weekend
+    weekend = date(2026, 2, 13)  # Friday of this weekend
     print(f"Seeding parties for this weekend: {weekend}")
 
-    saturday = weekend + timedelta(days=1)  # Saturday of launch weekend
-
-    # Real party data for launch
+    # Test party data
     parties = [
-        # Feb 6
         {
             "title": "Super Bowl Party",
             "host": "Pilam & Dchi",
-            "pin_label": "PILAM",
             "category": "Frat Party",
             "day": "friday",
             "doors_open": "10:00 PM",
@@ -36,11 +36,9 @@ def seed_parties():
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
-
         {
             "title": "2016 Throwback Party",
             "host": "786 BOYz",
-            "pin_label": "786",
             "category": "House Party",
             "day": "friday",
             "doors_open": "10:00 PM",
@@ -51,26 +49,22 @@ def seed_parties():
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
-
         {
-            "title": "2016 Throwback Party",
-            "host": " ",
-            "pin_label": "HOUSE",
-            "category": "House Party",
+            "title": "Neon Nights",
+            "host": "TKE",
+            "category": "Frat Party",
             "day": "friday",
             "doors_open": "10:30 PM",
             "address": "1717 N 17th Street",
-            "latitude": 39.95646,
-            "longitude": -75.16687,
+            "latitude": 39.9565,
+            "longitude": -75.1669,
             "going_count": 7,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
-
         {
             "title": "Party Like It's 2016",
             "host": "AEPI",
-            "pin_label": "AEPI",
             "category": "Frat Party",
             "day": "saturday",
             "doors_open": "11:00 PM",
@@ -81,9 +75,21 @@ def seed_parties():
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },
-
+        {
+            "title": "Valentine's Pregame",
+            "host": "Sigma Chi",
+            "category": "Frat Party",
+            "day": "saturday",
+            "doors_open": "9:30 PM",
+            "address": "1801 N Broad Street",
+            "latitude": 39.9810,
+            "longitude": -75.1530,
+            "going_count": 15,
+            "status": "approved",
+            "weekend_of": weekend.isoformat()
+        },
     ]
-    
+
     # Clear existing parties for this weekend (optional - comment out if you want to keep existing)
     print("Clearing existing parties for this weekend...")
     supabase.table("parties").delete().eq("weekend_of", weekend.isoformat()).execute()

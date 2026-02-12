@@ -1,8 +1,7 @@
 import { getDayName } from './dateHelpers';
 
 import { Party } from '@/lib/types';
-
-const APP_URL = 'https://tuparties.com';
+import { APP_URL } from '@/lib/constants';
 
 /**
  * Format share text when user has marked a party as going

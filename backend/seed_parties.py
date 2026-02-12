@@ -19,7 +19,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 def seed_parties():
     # This weekend: February 13-14, 2026
     # weekend_of uses Friday date (matches backend get_current_weekend)
-    weekend = date(2026, 2, 13)  # Friday of this weekend
+    weekend = date(2026, 2, 6)  # Friday of this weekend
     print(f"Seeding parties for this weekend: {weekend}")
 
     saturday = weekend + timedelta(days=1)  # Saturday of launch weekend
@@ -89,6 +89,10 @@ def seed_parties():
 
     ]
     
+    # Clean up parties from the weekend that shouldn't be showing on prod
+    print("Cleaning up parties from 2026-02-13...")
+    supabase.table("parties").delete().eq("weekend_of", "2026-02-13").execute()
+
     # Clear existing parties for this weekend (optional - comment out if you want to keep existing)
     print("Clearing existing parties for this weekend...")
     supabase.table("parties").delete().eq("weekend_of", weekend.isoformat()).execute()

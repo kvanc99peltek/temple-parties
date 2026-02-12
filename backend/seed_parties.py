@@ -9,9 +9,12 @@ from datetime import date, timedelta
 
 load_dotenv()
 
-# Supabase credentials (try env vars first, fallback to hardcoded)
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://gleiwfdgxqdvilodngzv.supabase.co")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsZWl3ZmRneHFkdmlsb2RuZ3p2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNTM3NCwiZXhwIjoyMDg0MjkxMzc0fQ.-G28ZrSm9AWDJ4HJMB_bFUeT0rqbQtZhQNEdsun0X80")
+# Supabase credentials from .env file
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    raise SystemExit("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY in .env file")
 
 print(f"Connecting to Supabase at: {SUPABASE_URL}")
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)

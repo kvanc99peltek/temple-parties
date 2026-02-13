@@ -16,6 +16,7 @@ import useGoingStatus from '@/hooks/useGoingStatus';
 import useParties from '@/hooks/useParties';
 import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
+import useAddressVisibility from '@/hooks/useAddressVisibility';
 import { partiesApi } from '@/services/api';
 
 export default function Home() {
@@ -26,6 +27,7 @@ export default function Home() {
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   // Launch-mode: auth + profile UI hidden.
   const isAuthenticated = false;
+  const { isAddressVisible, revealAddress } = useAddressVisibility();
   const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount);
   const toast = useToast();
   const modals = useModalState(isAuthenticated, toggleGoing);
@@ -62,6 +64,7 @@ export default function Home() {
 
   // Handle going button click
   const handleGoingClick = useCallback(async (partyId: string) => {
+    revealAddress(partyId);
     const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
 
@@ -69,12 +72,13 @@ export default function Home() {
     if (!wasGoing) {
       openInviteModal();
     }
-  }, [toggleGoing, isGoing, openInviteModal]);
+  }, [toggleGoing, isGoing, openInviteModal, revealAddress]);
 
   const handleNavigateClick = useCallback((partyId: string) => {
     // Fire-and-forget: don't block navigation.
+    revealAddress(partyId);
     void ensureGoing(partyId);
-  }, [ensureGoing]);
+  }, [ensureGoing, revealAddress]);
 
   // Handle share
   const handleShare = useCallback(async () => {
@@ -169,6 +173,8 @@ export default function Home() {
                   userIsGoing={isGoing(party.id)}
                   onGoingClick={() => handleGoingClick(party.id)}
                   onNavigateClick={handleNavigateClick}
+                  isAddressVisible={isAddressVisible(party.id)}
+                  onViewAddressClick={() => revealAddress(party.id)}
                 />
               ))
             )}

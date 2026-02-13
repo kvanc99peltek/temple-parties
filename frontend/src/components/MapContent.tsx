@@ -26,6 +26,7 @@ interface MapContentProps {
   topPartyIds: { friday: string | null; saturday: string | null };
   userGoingParties: string[];
   onGoingClick: (partyId: string) => void;
+  onNavigateClick: (partyId: string) => void;
   fridayDate: string;
   saturdayDate: string;
 }
@@ -97,7 +98,7 @@ function getShortAddress(address: string): string {
 }
 
 
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, fridayDate, saturdayDate }: MapContentProps) {
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate }: MapContentProps) {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
 
   // Filter parties based on selected day
@@ -216,7 +217,10 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                     </button>
 
                     <button
-                      onClick={() => openMapsDirections(party.address)}
+                      onClick={() => {
+                        onNavigateClick(party.id);
+                        openMapsDirections(party.address);
+                      }}
                       className="popup-navigate-btn"
                     >
                       NAVIGATE

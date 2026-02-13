@@ -20,6 +20,17 @@ export default function AuthCallback() {
       }
     };
 
+    const waitForSession = async (attempts = 20, delayMs = 500) => {
+      for (let i = 0; i < attempts; i++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          return session;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      return null;
+    };
+
     const recoverSession = async () => {
       try {
         // 1) Handle PKCE/code-based callback if present.
@@ -28,8 +39,11 @@ export default function AuthCallback() {
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (!error) {
-            handleRedirect();
-            return;
+            const session = await waitForSession();
+            if (session) {
+              handleRedirect();
+              return;
+            }
           }
         }
 
@@ -43,13 +57,16 @@ export default function AuthCallback() {
             refresh_token: refreshToken,
           });
           if (!error) {
-            handleRedirect();
-            return;
+            const session = await waitForSession();
+            if (session) {
+              handleRedirect();
+              return;
+            }
           }
         }
 
         // 3) Fallback: ask SDK for any already-established session.
-        const { data: { session } } = await supabase.auth.getSession();
+        const session = await waitForSession();
         if (session) {
           handleRedirect();
         }

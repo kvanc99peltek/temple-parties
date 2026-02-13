@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { authApi } from '@/services/api';
 import type { Session } from '@supabase/supabase-js';
@@ -25,102 +25,203 @@ interface AuthContextType {
 }
 
 type ApiError = Error & { status?: number };
+type AuthState = {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  needsUsername: boolean;
+};
+
+type AuthAction =
+  | { type: 'START_LOADING' }
+  | { type: 'SET_AUTH'; session: Session; user: User; needsUsername: boolean }
+  | { type: 'CLEAR_AUTH'; keepLoading?: boolean }
+  | { type: 'FINISH_LOADING' };
+
+const AUTH_V2_ENABLED = process.env.NEXT_PUBLIC_AUTH_V2 === 'true';
+
+const initialState: AuthState = {
+  user: null,
+  session: null,
+  isLoading: true,
+  needsUsername: false,
+};
+
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case 'START_LOADING':
+      return { ...state, isLoading: true };
+    case 'SET_AUTH':
+      return {
+        ...state,
+        session: action.session,
+        user: action.user,
+        needsUsername: action.needsUsername,
+        isLoading: false,
+      };
+    case 'CLEAR_AUTH':
+      return {
+        user: null,
+        session: null,
+        needsUsername: false,
+        isLoading: action.keepLoading ?? false,
+      };
+    case 'FINISH_LOADING':
+      return { ...state, isLoading: false };
+    default:
+      return state;
+  }
+}
+
+function profileToUser(profile: {
+  id: string;
+  email: string;
+  username: string | null;
+  is_admin: boolean;
+  created_at: string;
+}): User {
+  return {
+    id: profile.id,
+    email: profile.email,
+    username: profile.username,
+    isAdmin: profile.is_admin,
+    createdAt: profile.created_at,
+  };
+}
+
+function sessionToUser(session: Session): User {
+  return {
+    id: session.user.id,
+    email: session.user.email || '',
+    username: null,
+    isAdmin: false,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [needsUsername, setNeedsUsername] = useState(false);
+  const [{ user, session, isLoading, needsUsername }, dispatch] = useReducer(authReducer, initialState);
+  const requestIdRef = useRef(0);
 
-  // Fetch user profile from our backend
-  const fetchUserProfile = useCallback(async () => {
+  const syncAuthState = useCallback(async (nextSession: Session | null) => {
+    const requestId = ++requestIdRef.current;
+
+    if (!nextSession) {
+      dispatch({ type: 'CLEAR_AUTH' });
+      return;
+    }
+
     try {
-      const profile = await authApi.getMe();
+      const profile = await withTimeout(
+        authApi.getMe(),
+        10000,
+        'Timed out while loading account'
+      );
+      if (requestId !== requestIdRef.current) return;
+
       if (profile) {
-        setUser({
-          id: profile.id,
-          email: profile.email,
-          username: profile.username,
-          isAdmin: profile.is_admin,
-          createdAt: profile.created_at,
+        dispatch({
+          type: 'SET_AUTH',
+          session: nextSession,
+          user: profileToUser(profile),
+          needsUsername: !profile.username,
         });
-        setNeedsUsername(!profile.username);
       } else {
-        // User exists in Supabase Auth but not in our user_profiles table yet
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            username: null,
-            isAdmin: false,
-            createdAt: new Date().toISOString(),
-          });
-          setNeedsUsername(true);
-        }
+        dispatch({
+          type: 'SET_AUTH',
+          session: nextSession,
+          user: sessionToUser(nextSession),
+          needsUsername: true,
+        });
       }
     } catch (error) {
-      // 401 means backend rejected the token; don't force username flow in that case.
       console.error('Failed to fetch user profile:', error);
       const apiError = error as ApiError;
       if (apiError.status === 401) {
-        setUser(null);
-        setNeedsUsername(false);
+        await supabase.auth.signOut();
+        if (requestId !== requestIdRef.current) return;
+        dispatch({ type: 'CLEAR_AUTH' });
+        return;
       }
+
+      if (requestId !== requestIdRef.current) return;
+      dispatch({
+        type: 'SET_AUTH',
+        session: nextSession,
+        user: sessionToUser(nextSession),
+        // If we can't load the profile, default to requiring username so the user
+        // sees a deterministic next step instead of a blank profile.
+        needsUsername: true,
+      });
     }
   }, []);
 
-  // Initialize auth state
   useEffect(() => {
     const initAuth = async () => {
+      dispatch({ type: 'START_LOADING' });
       try {
-        // Get current session
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-
-        if (session) {
-          await fetchUserProfile();
-        }
+        const { data: { session: activeSession } } = await withTimeout(
+          supabase.auth.getSession(),
+          10000,
+          'Timed out while checking auth session'
+        );
+        await syncAuthState(activeSession);
       } catch (error) {
         console.error('Auth init error:', error);
+        dispatch({ type: 'CLEAR_AUTH' });
       } finally {
-        setIsLoading(false);
+        dispatch({ type: 'FINISH_LOADING' });
       }
     };
 
-    initAuth();
+    void initAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event, 'Session:', !!session);
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, activeSession) => {
+      console.log('Auth event:', event, 'Session:', !!activeSession);
 
-      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') && session) {
-        await fetchUserProfile();
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setNeedsUsername(false);
+      if (event === 'SIGNED_OUT') {
+        dispatch({ type: 'CLEAR_AUTH' });
+        return;
       }
+
+      await syncAuthState(activeSession);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [syncAuthState]);
 
   const sendMagicLink = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
-    // Validate email format
     if (!email.toLowerCase().endsWith('@temple.edu')) {
       return { success: false, error: 'Please use your Temple.edu email' };
     }
 
     try {
       const configuredRedirect = process.env.NEXT_PUBLIC_AUTH_REDIRECT_URL?.trim();
+      const fallbackRedirect = AUTH_V2_ENABLED
+        ? `${window.location.origin}/auth/callback`
+        : `${window.location.origin}/`;
       const redirectUrl = configuredRedirect && configuredRedirect.length > 0
         ? configuredRedirect
-        : `${window.location.origin}/auth/callback`;
+        : fallbackRedirect;
 
       if (process.env.NODE_ENV !== 'production') {
         console.log('[Auth] Magic link redirect URL:', redirectUrl);
@@ -139,8 +240,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       return { success: true };
-    } catch {
-      return { success: false, error: 'Failed to send magic link' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to send magic link' };
     }
   }, []);
 
@@ -151,26 +252,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       await authApi.setUsername(username);
-      await fetchUserProfile();
-      setNeedsUsername(false);
+      if (session) {
+        await syncAuthState(session);
+      }
       return { success: true };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Failed to set username' };
     }
-  }, [fetchUserProfile]);
+  }, [session, syncAuthState]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setNeedsUsername(false);
+    dispatch({ type: 'CLEAR_AUTH' });
   }, []);
 
   const refreshUser = useCallback(async () => {
     if (session) {
-      await fetchUserProfile();
+      await syncAuthState(session);
     }
-  }, [session, fetchUserProfile]);
+  }, [session, syncAuthState]);
 
   return (
     <AuthContext.Provider

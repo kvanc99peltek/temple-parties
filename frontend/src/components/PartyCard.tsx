@@ -14,6 +14,7 @@ interface PartyCardProps {
   isHyped: boolean;
   userIsGoing: boolean;
   onGoingClick: () => void;
+  onNavigateClick?: (partyId: string) => void | Promise<void>;
 }
 
 export default function PartyCard({
@@ -26,9 +27,13 @@ export default function PartyCard({
   goingCount,
   isHyped,
   userIsGoing,
-  onGoingClick
+  onGoingClick,
+  onNavigateClick,
 }: PartyCardProps) {
   const handleNavigate = () => {
+    if (onNavigateClick) {
+      void onNavigateClick(id);
+    }
     openMapsDirections(address);
   };
 

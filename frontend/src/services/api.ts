@@ -190,6 +190,19 @@ export const partiesApi = {
 
     return response.json();
   },
+
+  async decrementGoingAnonymous(partyId: string): Promise<{ going: boolean; goingCount: number }> {
+    const response = await fetch(`${API_URL}/parties/${partyId}/going/anonymous/decrement`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to decrement going count');
+    }
+
+    return response.json();
+  },
 };
 
 // Admin API

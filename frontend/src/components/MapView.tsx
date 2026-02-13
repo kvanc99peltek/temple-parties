@@ -9,6 +9,7 @@ interface MapViewProps {
   topPartyIds: { friday: string | null; saturday: string | null };
   userGoingParties: string[];
   onGoingClick: (partyId: string) => void;
+  onNavigateClick: (partyId: string) => void;
   fridayDate: string;
   saturdayDate: string;
 }

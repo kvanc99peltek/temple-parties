@@ -5,8 +5,6 @@ import Header from '@/components/Header';
 import DayTabs from '@/components/DayTabs';
 import PartyCard from '@/components/PartyCard';
 import InviteModal from '@/components/InviteModal';
-import LoginModal from '@/components/LoginModal';
-import ProfileModal from '@/components/ProfileModal';
 import AddPartyModal from '@/components/AddPartyModal';
 import EmptyState from '@/components/EmptyState';
 import Toast from '@/components/Toast';
@@ -18,7 +16,6 @@ import useGoingStatus from '@/hooks/useGoingStatus';
 import useParties from '@/hooks/useParties';
 import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
-import { useAuth } from '@/contexts/AuthContext';
 import { partiesApi } from '@/services/api';
 
 export default function Home() {
@@ -26,11 +23,22 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<'home' | 'map'>('home');
   const [isHydrated, setIsHydrated] = useState(false);
 
-  const { goingParties, isGoing, getCount, toggleGoing } = useGoingStatus();
-  const { user, isAuthenticated, needsUsername, logout } = useAuth();
+  const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
+  // Launch-mode: auth + profile UI hidden.
+  const isAuthenticated = false;
   const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount);
   const toast = useToast();
   const modals = useModalState(isAuthenticated, toggleGoing);
+  const showToast = toast.show;
+  const {
+    openInviteModal,
+    showInviteModal,
+    closeInviteModal,
+    handleAddPartyClick,
+    handleAccountClick,
+    showAddPartyModal,
+    closeAddPartyModal,
+  } = modals;
 
   // Get upcoming dates for tabs
   const { friday: fridayDate, saturday: saturdayDate } = useMemo(() => getUpcomingDates(), []);
@@ -40,13 +48,6 @@ export default function Home() {
     setSelectedDay(getDefaultDay());
     setIsHydrated(true);
   }, []);
-
-  // Show login modal if user needs to set username
-  useEffect(() => {
-    if (needsUsername && isHydrated) {
-      modals.openLoginForUsername();
-    }
-  }, [needsUsername, isHydrated, modals.openLoginForUsername]);
 
   // Get the top party that user is going to (for sharing)
   const topGoingParty = useMemo(() => {
@@ -66,18 +67,23 @@ export default function Home() {
 
     // Show invite modal when marking as going (not un-going)
     if (!wasGoing) {
-      modals.openInviteModal();
+      openInviteModal();
     }
-  }, [toggleGoing, isGoing, modals.openInviteModal]);
+  }, [toggleGoing, isGoing, openInviteModal]);
+
+  const handleNavigateClick = useCallback((partyId: string) => {
+    // Fire-and-forget: don't block navigation.
+    void ensureGoing(partyId);
+  }, [ensureGoing]);
 
   // Handle share
   const handleShare = useCallback(async () => {
     const result = await shareContent(topGoingParty || undefined);
 
     if (result.success && result.method === 'clipboard') {
-      toast.show('Link copied to clipboard!');
+      showToast('Link copied to clipboard!');
     }
-  }, [topGoingParty, toast.show]);
+  }, [topGoingParty, showToast]);
 
   // Handle day change
   const handleDayChange = useCallback((day: 'friday' | 'saturday') => {
@@ -102,11 +108,11 @@ export default function Home() {
         date: partyData.date,
       });
 
-      toast.show('Party submitted for approval!');
+      showToast('Party submitted for approval!');
     } catch {
-      toast.show('Failed to submit party');
+      showToast('Failed to submit party');
     }
-  }, [toast.show]);
+  }, [showToast]);
 
   // Prevent hydration mismatch by not rendering until client-side
   if (!isHydrated) {
@@ -128,10 +134,9 @@ export default function Home() {
         // Home View (List)
         <div className="pb-20">
           <Header
-            onAddPartyClick={modals.handleAddPartyClick}
-            onAccountClick={modals.handleAccountClick}
+            onAddPartyClick={handleAddPartyClick}
+            onAccountClick={handleAccountClick}
             isAuthenticated={isAuthenticated}
-            username={user?.username ?? undefined}
           />
 
           <DayTabs
@@ -163,6 +168,7 @@ export default function Home() {
                   isHyped={party.id === topPartyId}
                   userIsGoing={isGoing(party.id)}
                   onGoingClick={() => handleGoingClick(party.id)}
+                  onNavigateClick={handleNavigateClick}
                 />
               ))
             )}
@@ -172,10 +178,9 @@ export default function Home() {
         // Map View (Full Screen)
         <div className="h-screen flex flex-col">
           <Header
-            onAddPartyClick={modals.handleAddPartyClick}
-            onAccountClick={modals.handleAccountClick}
+            onAddPartyClick={handleAddPartyClick}
+            onAccountClick={handleAccountClick}
             isAuthenticated={isAuthenticated}
-            username={user?.username ?? undefined}
           />
           <div className="flex-1 pb-16">
             <MapView
@@ -183,6 +188,7 @@ export default function Home() {
               topPartyIds={topPartyIds}
               userGoingParties={goingParties}
               onGoingClick={handleGoingClick}
+              onNavigateClick={handleNavigateClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
             />
@@ -195,32 +201,15 @@ export default function Home() {
 
       {/* Invite Modal */}
       <InviteModal
-        isOpen={modals.showInviteModal}
-        onClose={modals.closeInviteModal}
+        isOpen={showInviteModal}
+        onClose={closeInviteModal}
         onShare={handleShare}
-      />
-
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={modals.showLoginModal}
-        onClose={modals.closeLoginModal}
-        onSuccess={modals.handleLoginSuccess}
-        onShowToast={toast.show}
-      />
-
-      {/* Profile Modal */}
-      <ProfileModal
-        isOpen={modals.showProfileModal}
-        onClose={modals.closeProfileModal}
-        username={user?.username || ''}
-        partyCount={0}
-        onLogout={logout}
       />
 
       {/* Add Party Modal */}
       <AddPartyModal
-        isOpen={modals.showAddPartyModal}
-        onClose={modals.closeAddPartyModal}
+        isOpen={showAddPartyModal}
+        onClose={closeAddPartyModal}
         onSubmit={handlePartySubmit}
       />
 

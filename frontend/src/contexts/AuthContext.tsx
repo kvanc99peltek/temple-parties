@@ -24,6 +24,8 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+type ApiError = Error & { status?: number };
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -60,18 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (error) {
-      // If API call fails (e.g., 401), check if we have a session and need username
+      // 401 means backend rejected the token; don't force username flow in that case.
       console.error('Failed to fetch user profile:', error);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          username: null,
-          isAdmin: false,
-          createdAt: new Date().toISOString(),
-        });
-        setNeedsUsername(true);
+      const apiError = error as ApiError;
+      if (apiError.status === 401) {
+        setUser(null);
+        setNeedsUsername(false);
       }
     }
   }, []);
@@ -121,11 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      const configuredRedirect = process.env.NEXT_PUBLIC_AUTH_REDIRECT_URL?.trim();
+      const redirectUrl = configuredRedirect && configuredRedirect.length > 0
+        ? configuredRedirect
+        : `${window.location.origin}/auth/callback`;
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Auth] Magic link redirect URL:', redirectUrl);
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email.toLowerCase(),
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: redirectUrl,
         },
       });
 

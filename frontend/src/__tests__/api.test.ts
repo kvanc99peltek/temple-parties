@@ -140,11 +140,20 @@ describe('API Service', () => {
         expect(result?.username).toBe('testuser');
       });
 
-      it('should return null for unauthenticated', async () => {
+      it('should throw for unauthenticated', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: false,
           status: 401,
           json: () => Promise.resolve({ detail: 'Not authenticated' }),
+        });
+
+        await expect(authApi.getMe()).rejects.toThrow('Not authenticated');
+      });
+
+      it('should return null when backend returns null profile', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(null),
         });
 
         const result = await authApi.getMe();

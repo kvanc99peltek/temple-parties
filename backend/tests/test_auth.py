@@ -372,13 +372,15 @@ class TestSetUsername:
         """Should reject invalid tokens."""
         mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Invalid token"))
 
-        response = client.post(
-            "/auth/set-username",
-            json={"username": "testuser"},
-            headers={"Authorization": "Bearer invalid_token"}
-        )
+        with patch("app.routers.auth.logger.warning") as mock_warning:
+            response = client.post(
+                "/auth/set-username",
+                json={"username": "testuser"},
+                headers={"Authorization": "Bearer invalid_token"}
+            )
 
         assert response.status_code == 401
+        mock_warning.assert_called_once()
 
     def test_set_username_malformed_auth_header(self, client, mock_supabase):
         """Should handle malformed authorization headers."""
@@ -450,9 +452,11 @@ class TestGetMe:
         """Should reject expired tokens."""
         mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Token expired"))
 
-        response = client.get(
-            "/auth/me",
-            headers={"Authorization": "Bearer expired_token"}
-        )
+        with patch("app.routers.auth.logger.warning") as mock_warning:
+            response = client.get(
+                "/auth/me",
+                headers={"Authorization": "Bearer expired_token"}
+            )
 
         assert response.status_code == 401
+        mock_warning.assert_called_once()

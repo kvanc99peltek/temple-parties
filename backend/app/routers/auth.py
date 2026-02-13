@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from typing import Optional
 from slowapi import Limiter
@@ -9,6 +10,7 @@ from app.constants import ALLOWED_EMAIL_DOMAIN, RATE_LIMITS
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
 
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
@@ -26,8 +28,13 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
                 "id": user_response.user.id,
                 "email": user_response.user.email
             }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(
+            "Supabase token verification failed: %s: %s",
+            type(e).__name__,
+            str(e),
+            exc_info=True,
+        )
 
     return None
 

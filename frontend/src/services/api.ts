@@ -4,6 +4,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 import { Party, AdminParty, User } from '@/lib/types';
 
+type ApiError = Error & { status?: number };
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -29,6 +31,22 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
       ...options.headers,
     },
   });
+}
+
+async function buildApiError(response: Response, fallbackMessage: string): Promise<ApiError> {
+  let message = fallbackMessage;
+  try {
+    const error = await response.json();
+    if (error?.detail) {
+      message = error.detail;
+    }
+  } catch {
+    // Keep fallback message when error response is not JSON.
+  }
+
+  const apiError: ApiError = new Error(message);
+  apiError.status = response.status;
+  return apiError;
 }
 
 // Auth API
@@ -66,9 +84,7 @@ export const authApi = {
     const response = await fetchWithAuth(`${API_URL}/auth/me`);
 
     if (!response.ok) {
-      if (response.status === 401) return null;
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to get user');
+      throw await buildApiError(response, 'Failed to get user');
     }
 
     const data = await response.json();

@@ -15,7 +15,7 @@ RATE_LIMITS = {
     "set_username": "10/minute",
     "create_party": "10/minute",
     "toggle_going_auth": "30/minute",
-    "toggle_going_anon": "3/minute",
+    "toggle_going_anon": "10/minute",
 }
 
 # Valid day values

@@ -14,6 +14,7 @@ interface UseGoingStatusReturn {
   isGoing: (partyId: string) => boolean;
   getCount: (partyId: string, fallbackCount: number) => number;
   toggleGoing: (partyId: string) => Promise<void>;
+  ensureGoing: (partyId: string) => Promise<void>;
   hasAnyGoingParties: boolean;
   isLoading: boolean;
 }
@@ -90,22 +91,21 @@ export function useGoingStatus(): UseGoingStatusReturn {
 
   // Toggle going status for a party
   const toggleGoing = useCallback(async (partyId: string): Promise<void> => {
-    // Check if already going
     const currentGoing = getLocalGoingParties();
-    if (currentGoing.includes(partyId)) {
-      // Already going - can't un-go
-      return;
-    }
+    const isCurrentlyGoing = currentGoing.includes(partyId);
 
     setIsLoading(true);
     try {
-      // Add to going locally first (optimistic update)
-      const newGoing = [...currentGoing, partyId];
+      // Optimistically update local state first.
+      const newGoing = isCurrentlyGoing
+        ? currentGoing.filter(id => id !== partyId)
+        : [...currentGoing, partyId];
       setLocalGoingParties(newGoing);
       setGoingParties(newGoing);
 
-      // Call anonymous increment endpoint (works for all users)
-      const result = await partiesApi.incrementGoingAnonymous(partyId);
+      const result = isCurrentlyGoing
+        ? await partiesApi.decrementGoingAnonymous(partyId)
+        : await partiesApi.incrementGoingAnonymous(partyId);
 
       // Update count from response
       setPartyCounts(prev => ({
@@ -115,13 +115,19 @@ export function useGoingStatus(): UseGoingStatusReturn {
     } catch (error) {
       console.error('Failed to toggle going status:', error);
       // Revert local state on error
-      const revertedGoing = getLocalGoingParties().filter(id => id !== partyId);
-      setLocalGoingParties(revertedGoing);
-      setGoingParties(revertedGoing);
+      setLocalGoingParties(currentGoing);
+      setGoingParties(currentGoing);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  // Mark going if not already going (used for silent actions like Navigate)
+  const ensureGoing = useCallback(async (partyId: string): Promise<void> => {
+    const currentGoing = getLocalGoingParties();
+    if (currentGoing.includes(partyId)) return;
+    await toggleGoing(partyId);
+  }, [toggleGoing]);
 
   return {
     goingParties,
@@ -129,6 +135,7 @@ export function useGoingStatus(): UseGoingStatusReturn {
     isGoing,
     getCount,
     toggleGoing,
+    ensureGoing,
     hasAnyGoingParties: goingParties.length > 0,
     isLoading,
   };

@@ -113,8 +113,8 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
     return (
       <div className="w-full h-full bg-black flex items-center justify-center">
         <div className="text-center">
-          <p className="text-lg mb-2 text-gray-400">No parties this weekend</p>
-          <p className="text-sm text-[#FA4693]">Check back on Thursday!</p>
+          <p className="text-lg mb-2 text-gray-400 font-montserrat">No parties this weekend</p>
+          <p className="text-sm text-[#FA4693] font-montserrat">Check back on Thursday!</p>
         </div>
       </div>
     );
@@ -126,7 +126,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-3">
         <button
           onClick={() => setSelectedDay('friday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${selectedDay === 'friday'
+          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'friday'
             ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
             : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
             }`}
@@ -135,7 +135,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         </button>
         <button
           onClick={() => setSelectedDay('saturday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat-alt ${selectedDay === 'saturday'
+          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'saturday'
             ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
             : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#FA4693]/10'
             }`}

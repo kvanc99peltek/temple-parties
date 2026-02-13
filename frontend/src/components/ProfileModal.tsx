@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import ModalWrapper from './ModalWrapper';
 
 interface ProfileModalProps {
@@ -11,9 +13,17 @@ interface ProfileModalProps {
 }
 
 export default function ProfileModal({ isOpen, onClose, username, partyCount, onLogout }: ProfileModalProps) {
+  const router = useRouter();
+  const { user } = useAuth();
+
   const handleLogout = () => {
     onLogout();
     onClose();
+  };
+
+  const handleAdminClick = () => {
+    onClose();
+    router.push('/admin');
   };
 
   return (
@@ -39,6 +49,16 @@ export default function ProfileModal({ isOpen, onClose, username, partyCount, on
           <span>{partyCount} {partyCount === 1 ? 'party' : 'parties'} created</span>
         </div>
       </div>
+
+      {/* Admin button */}
+      {user?.isAdmin && (
+        <button
+          onClick={handleAdminClick}
+          className="w-full py-3 px-6 rounded-xl font-semibold text-white bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 transition-all duration-200 active:scale-95 mb-3 font-montserrat"
+        >
+          Admin Dashboard
+        </button>
+      )}
 
       {/* Logout button */}
       <button

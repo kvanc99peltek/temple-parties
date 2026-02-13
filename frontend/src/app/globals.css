@@ -251,7 +251,7 @@ html {
 .popup-category-badge {
   display: inline-block;
   padding: 6px 12px;
-  font-family: 'Montserrat Alternates', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   background: #FA4693;
@@ -263,7 +263,7 @@ html {
 .popup-hyped-badge {
   display: inline-block;
   padding: 4px 10px;
-  font-family: 'Montserrat Alternates', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
   background: #FFD666;
@@ -276,7 +276,7 @@ html {
 }
 
 .popup-title {
-  font-family: 'Basement Grotesque', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 900;
   font-size: 20px;
   color: #ffffff;

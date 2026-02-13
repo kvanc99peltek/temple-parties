@@ -10,7 +10,7 @@ function formatPartyShareText(party: Party): string {
   const dayName = getDayName(party.day);
   return `pulling up to ${party.title}! 🔥
 ${dayName} @ ${party.doorsOpen}
-${party.goingCount}+ already on it
+${party.goingCount}+ going
 
 tuparties.com`;
 }

@@ -14,6 +14,12 @@ export interface Party {
   status?: string;
 }
 
+export interface AdminParty extends Party {
+  createdByUsername: string | null;
+  createdByEmail: string | null;
+  createdAt: string | null;
+}
+
 export interface User {
   id: string;
   email: string;

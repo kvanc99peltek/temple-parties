@@ -48,3 +48,9 @@ class PartyResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminPartyResponse(PartyResponse):
+    createdByUsername: Optional[str] = None
+    createdByEmail: Optional[str] = None
+    createdAt: Optional[str] = None

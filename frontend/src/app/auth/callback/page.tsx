@@ -10,16 +10,57 @@ export default function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const handleRedirect = () => {
-      if (!hasRedirected.current) {
+      if (isMounted && !hasRedirected.current) {
         hasRedirected.current = true;
         console.log('[Auth Callback] Session detected, redirecting...');
         router.replace('/');
       }
     };
 
-    // ONLY use the listener - let SDK parse hash naturally
-    // The SDK will fire SIGNED_IN once it parses #access_token=... from the URL
+    const recoverSession = async () => {
+      try {
+        // 1) Handle PKCE/code-based callback if present.
+        const searchParams = new URLSearchParams(window.location.search);
+        const code = searchParams.get('code');
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error) {
+            handleRedirect();
+            return;
+          }
+        }
+
+        // 2) Handle hash token callback explicitly if present.
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (!error) {
+            handleRedirect();
+            return;
+          }
+        }
+
+        // 3) Fallback: ask SDK for any already-established session.
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          handleRedirect();
+        }
+      } catch (e) {
+        console.error('[Auth Callback] Session recovery error:', e);
+      }
+    };
+
+    void recoverSession();
+
+    // Keep listener as backup for async auth state transitions.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('[Auth Callback] Auth event:', event, session ? 'has session' : 'no session');
@@ -38,6 +79,7 @@ export default function AuthCallback() {
     }, 15000);
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
       clearTimeout(timeout);
     };

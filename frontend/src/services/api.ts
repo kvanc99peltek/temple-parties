@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import { Party, User } from '@/lib/types';
+import { Party, AdminParty, User } from '@/lib/types';
 
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -178,12 +178,15 @@ export const partiesApi = {
 
 // Admin API
 export const adminApi = {
-  async getPendingParties(): Promise<Party[]> {
-    const response = await fetchWithAuth(`${API_URL}/admin/parties/pending`);
+  async getParties(status?: string): Promise<AdminParty[]> {
+    const url = status
+      ? `${API_URL}/admin/parties?status=${status}`
+      : `${API_URL}/admin/parties`;
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to fetch pending parties');
+      throw new Error(error.detail || 'Failed to fetch parties');
     }
 
     return response.json();

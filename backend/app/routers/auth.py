@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from typing import Optional
 from slowapi import Limiter
@@ -18,8 +19,8 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> Optio
     token = authorization.replace("Bearer ", "")
 
     try:
-        # Verify the JWT with Supabase
-        user_response = supabase.auth.get_user(token)
+        # Verify the JWT with Supabase (run in thread to avoid blocking event loop)
+        user_response = await asyncio.to_thread(supabase.auth.get_user, token)
         if user_response and user_response.user:
             return {
                 "id": user_response.user.id,
@@ -104,6 +105,7 @@ async def set_username(request: Request, data: UserUpdate, user: dict = Depends(
             # Create new profile
             result = supabase.table("user_profiles").insert({
                 "id": user["id"],
+                "email": user.get("email"),
                 "username": username,
                 "is_admin": False
             }).execute()

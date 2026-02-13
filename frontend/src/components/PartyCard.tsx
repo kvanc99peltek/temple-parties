@@ -2,6 +2,7 @@
 
 import GoingButton from './GoingButton';
 import { openMapsDirections } from '../utils/shareHelpers';
+import { useEffect, useRef, useState } from 'react';
 
 interface PartyCardProps {
   id: string;
@@ -15,6 +16,8 @@ interface PartyCardProps {
   userIsGoing: boolean;
   onGoingClick: () => void;
   onNavigateClick?: (partyId: string) => void | Promise<void>;
+  isAddressVisible: boolean;
+  onViewAddressClick: () => void;
 }
 
 export default function PartyCard({
@@ -29,7 +32,22 @@ export default function PartyCard({
   userIsGoing,
   onGoingClick,
   onNavigateClick,
+  isAddressVisible,
+  onViewAddressClick,
 }: PartyCardProps) {
+  const prevVisibleRef = useRef(isAddressVisible);
+  const [animateReveal, setAnimateReveal] = useState(false);
+
+  useEffect(() => {
+    const wasVisible = prevVisibleRef.current;
+    prevVisibleRef.current = isAddressVisible;
+    if (!wasVisible && isAddressVisible) {
+      setAnimateReveal(true);
+      const t = window.setTimeout(() => setAnimateReveal(false), 450);
+      return () => window.clearTimeout(t);
+    }
+  }, [isAddressVisible]);
+
   const handleNavigate = () => {
     if (onNavigateClick) {
       void onNavigateClick(id);
@@ -64,16 +82,30 @@ export default function PartyCard({
           <span className="font-medium">{host}</span>
         </p>
 
-        {/* Address + Time Row */}
-        <div className="flex items-center gap-4 text-white/50 text-sm sm:text-sm font-helvetica font-normal">
-          <span>{address.split(',')[0]}</span>
-          <div className="flex items-center gap-1.5">
-            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{doorsOpen}</span>
+        {/* Address reveal */}
+        {!isAddressVisible ? (
+          <button
+            type="button"
+            onClick={onViewAddressClick}
+            className="mt-1 text-white/40 text-sm font-helvetica underline underline-offset-4 hover:text-white/60 transition-colors"
+          >
+            View address
+          </button>
+        ) : (
+          <div
+            className={`flex items-center gap-4 text-white/50 text-sm sm:text-sm font-helvetica font-normal mt-1 ${
+              animateReveal ? 'animate-fade-in' : ''
+            }`}
+          >
+            <span>{address.split(',')[0]}</span>
+            <div className="flex items-center gap-1.5">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{doorsOpen}</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Buttons Row - flush with card edges, no gap */}

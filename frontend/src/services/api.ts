@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import { Party, AdminParty, User } from '@/lib/types';
+import { Party, AdminParty, User, PartyRanking, RatingResponse } from '@/lib/types';
 
 type ApiError = Error & { status?: number };
 
@@ -199,6 +199,52 @@ export const partiesApi = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to decrement going count');
+    }
+
+    return response.json();
+  },
+};
+
+// Ratings API
+export const ratingsApi = {
+  async submitRating(partyId: string, rating: number): Promise<RatingResponse> {
+    const response = await fetch(`${API_URL}/ratings/${partyId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to submit rating');
+    }
+
+    return response.json();
+  },
+
+  async getPartyRating(partyId: string): Promise<{
+    partyId: string;
+    avgRating: number;
+    ratingCount: number;
+    userRating: number | null;
+  }> {
+    const response = await fetch(`${API_URL}/ratings/${partyId}`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to get rating');
+    }
+
+    return response.json();
+  },
+
+  async getRankings(day?: string): Promise<PartyRanking[]> {
+    const url = day ? `${API_URL}/ratings?day=${day}` : `${API_URL}/ratings`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch rankings');
     }
 
     return response.json();

@@ -6,13 +6,16 @@ import DayTabs from '@/components/DayTabs';
 import PartyCard from '@/components/PartyCard';
 import InviteModal from '@/components/InviteModal';
 import AddPartyModal from '@/components/AddPartyModal';
+import RatingModal from '@/components/RatingModal';
 import EmptyState from '@/components/EmptyState';
 import Toast from '@/components/Toast';
 import BottomNav from '@/components/BottomNav';
 import MapView from '@/components/MapView';
-import { getDefaultDay, getUpcomingDates } from '@/utils/dateHelpers';
+import RankingsView from '@/components/RankingsView';
+import { getDefaultDay, getUpcomingDates, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
+import useRatingStatus from '@/hooks/useRatingStatus';
 import useParties from '@/hooks/useParties';
 import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
@@ -21,10 +24,12 @@ import { partiesApi } from '@/services/api';
 
 export default function Home() {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
-  const [currentView, setCurrentView] = useState<'home' | 'map'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'map' | 'rankings'>('home');
   const [isHydrated, setIsHydrated] = useState(false);
+  const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
+  const { getUserRating, getAvgRating, getRatingCount, submitRating } = useRatingStatus();
   // Launch-mode: auth + profile UI hidden.
   const isAuthenticated = false;
   const { isAddressVisible, revealAddress } = useAddressVisibility();
@@ -95,9 +100,20 @@ export default function Home() {
   }, []);
 
   // Handle view change
-  const handleViewChange = useCallback((view: 'home' | 'map') => {
+  const handleViewChange = useCallback((view: 'home' | 'map' | 'rankings') => {
     setCurrentView(view);
   }, []);
+
+  // Handle star click — open rating modal
+  const handleStarClick = useCallback((partyId: string, title: string, host: string) => {
+    setRatingModalParty({ id: partyId, title, host });
+  }, []);
+
+  // Handle rating submission from modal
+  const handleModalRate = useCallback(async (rating: number) => {
+    if (!ratingModalParty) return;
+    await submitRating(ratingModalParty.id, rating);
+  }, [ratingModalParty, submitRating]);
 
   // Handle party submission
   const handlePartySubmit = useCallback(async (partyData: { title: string; host: string; pinLabel: string; address: string; doorsOpen: string; category: string; date: string }) => {
@@ -175,12 +191,18 @@ export default function Home() {
                   onNavigateClick={handleNavigateClick}
                   isAddressVisible={isAddressVisible(party.id)}
                   onViewAddressClick={() => revealAddress(party.id)}
+                  avgRating={getAvgRating(party.id, party.avgRating)}
+                  ratingCount={getRatingCount(party.id, party.ratingCount)}
+                  userRating={getUserRating(party.id)}
+                  onStarClick={() => handleStarClick(party.id, party.title, party.host)}
+                  isRatingActive={isRatingActive(party.doorsOpen, party.date)}
+                  isRatingLocked={isRatingLocked(party.date)}
                 />
               ))
             )}
           </div>
         </div>
-      ) : (
+      ) : currentView === 'map' ? (
         // Map View (Full Screen)
         <div className="h-screen flex flex-col">
           <Header
@@ -200,6 +222,12 @@ export default function Home() {
             />
           </div>
         </div>
+      ) : (
+        // Rankings View
+        <RankingsView
+          fridayDate={fridayDate}
+          saturdayDate={saturdayDate}
+        />
       )}
 
       {/* Bottom Navigation */}
@@ -218,6 +246,20 @@ export default function Home() {
         onClose={closeAddPartyModal}
         onSubmit={handlePartySubmit}
       />
+
+      {/* Rating Modal */}
+      {ratingModalParty && (
+        <RatingModal
+          isOpen={!!ratingModalParty}
+          onClose={() => setRatingModalParty(null)}
+          partyTitle={ratingModalParty.title}
+          partyHost={ratingModalParty.host}
+          avgRating={getAvgRating(ratingModalParty.id, 0)}
+          ratingCount={getRatingCount(ratingModalParty.id, 0)}
+          userRating={getUserRating(ratingModalParty.id)}
+          onRate={handleModalRate}
+        />
+      )}
 
       {/* Toast Notification */}
       <Toast

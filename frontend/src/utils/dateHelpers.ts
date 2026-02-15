@@ -60,3 +60,55 @@ export function getUpcomingDates(): { friday: string; saturday: string } {
 export function getDayName(day: 'friday' | 'saturday'): string {
   return day === 'friday' ? 'Friday' : 'Saturday';
 }
+
+/**
+ * Parse a doors_open string (e.g., "10 PM", "9:30 PM") and a date string
+ * into a Date object.
+ */
+export function parseDoorsOpen(doorsOpen: string, dateStr: string): Date {
+  const datePart = dateStr.split('T')[0];
+  const partyDate = new Date(datePart + 'T00:00:00');
+
+  const timeStr = doorsOpen.trim().toUpperCase();
+  const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+
+  if (!match) {
+    // Fallback: 10 PM
+    partyDate.setHours(22, 0, 0, 0);
+    return partyDate;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
+  const period = match[3];
+
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+  partyDate.setHours(hours, minutes, 0, 0);
+  return partyDate;
+}
+
+/**
+ * Check if rating is currently active for a party.
+ * Active once current time >= doorsOpen time.
+ */
+export function isRatingActive(doorsOpen: string, dateStr: string): boolean {
+  const openTime = parseDoorsOpen(doorsOpen, dateStr);
+  return new Date() >= openTime;
+}
+
+/**
+ * Check if rating period has ended.
+ * Locked after Monday 11:59:59 PM of the party weekend.
+ * dateStr is the party date (YYYY-MM-DD), Friday or Saturday.
+ */
+export function isRatingLocked(dateStr: string): boolean {
+  const partyDate = new Date(dateStr + 'T00:00:00');
+  const dayOfWeek = partyDate.getDay(); // 5=Friday, 6=Saturday
+  const daysToMonday = dayOfWeek === 6 ? 2 : 3;
+  const mondayCutoff = new Date(partyDate);
+  mondayCutoff.setDate(partyDate.getDate() + daysToMonday);
+  mondayCutoff.setHours(23, 59, 59, 999);
+  return new Date() > mondayCutoff;
+}

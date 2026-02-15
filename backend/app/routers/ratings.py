@@ -1,0 +1,205 @@
+from fastapi import APIRouter, HTTPException, Request, Query
+from typing import List, Optional
+from datetime import date, datetime, timedelta
+import hashlib
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from app.database import supabase
+from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse
+from app.routers.parties import get_current_weekend
+from app.constants import RATE_LIMITS
+
+router = APIRouter(prefix="/ratings", tags=["ratings"])
+limiter = Limiter(key_func=get_remote_address)
+
+
+def hash_ip(ip: str) -> str:
+    """Hash IP address for privacy-safe storage."""
+    return hashlib.sha256(ip.encode()).hexdigest()
+
+
+def parse_doors_open(doors_open: str, party_date: str) -> datetime:
+    """
+    Parse doors_open string (e.g., '10 PM', '9:30 PM') combined with party date
+    into a datetime object.
+    """
+    party_dt = date.fromisoformat(party_date)
+    time_str = doors_open.strip().upper()
+    for fmt in ("%I %p", "%I:%M %p", "%I%p", "%I:%M%p"):
+        try:
+            parsed_time = datetime.strptime(time_str, fmt).time()
+            return datetime.combine(party_dt, parsed_time)
+        except ValueError:
+            continue
+    # Fallback: assume 10 PM if parsing fails
+    return datetime.combine(party_dt, datetime.strptime("10 PM", "%I %p").time())
+
+
+def get_monday_cutoff(weekend_of: str) -> datetime:
+    """
+    Given weekend_of (the Friday date), return Monday 11:59 PM.
+    Friday + 3 days = Monday.
+    """
+    friday = date.fromisoformat(weekend_of)
+    monday = friday + timedelta(days=3)
+    return datetime.combine(monday, datetime.max.time())
+
+
+def get_party_date(party: dict) -> str:
+    """Get party date, computing from weekend_of + day if date column is empty."""
+    party_date = party.get("date") or ""
+    if not party_date and party.get("weekend_of") and party.get("day"):
+        if party["day"] == "saturday":
+            friday = date.fromisoformat(party["weekend_of"])
+            party_date = (friday + timedelta(days=1)).isoformat()
+        else:
+            party_date = party["weekend_of"]
+    return party_date
+
+
+def is_rating_active(party: dict) -> bool:
+    """Check if rating is currently active (after doors_open time)."""
+    now = datetime.now()
+    party_date = get_party_date(party)
+    if not party_date:
+        return False
+    doors_open_dt = parse_doors_open(party["doors_open"], party_date)
+    return now >= doors_open_dt
+
+
+def is_rating_locked(party: dict) -> bool:
+    """Check if rating is locked (after Monday 11:59 PM)."""
+    now = datetime.now()
+    weekend_of = party.get("weekend_of", "")
+    if not weekend_of:
+        return False
+    cutoff = get_monday_cutoff(weekend_of)
+    return now > cutoff
+
+
+@router.post("/{party_id}", response_model=RatingResponse)
+@limiter.limit(RATE_LIMITS["submit_rating"])
+async def submit_rating(request: Request, party_id: str, data: RatingCreate):
+    """
+    Submit or update a rating for a party.
+    Anonymous - uses IP hash for one-per-user tracking.
+    Only allowed after doors_open and before Monday cutoff.
+    """
+    # Check if party exists
+    party_result = supabase.table("parties").select("*").eq("id", party_id).execute()
+    if not party_result.data:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    party = party_result.data[0]
+
+    # Check if rating is active (after doors_open)
+    if not is_rating_active(party):
+        raise HTTPException(status_code=403, detail="Rating not yet active. Opens at doors open time.")
+
+    # Check if rating is locked (after Monday)
+    if is_rating_locked(party):
+        raise HTTPException(status_code=403, detail="Rating period has ended.")
+
+    # Get IP hash
+    client_ip = get_remote_address(request)
+    ip = hash_ip(client_ip)
+
+    # Upsert rating (insert or update if exists)
+    existing = supabase.table("party_ratings").select("id").eq("party_id", party_id).eq("ip_hash", ip).execute()
+
+    if existing.data:
+        supabase.table("party_ratings").update({
+            "rating": data.rating,
+            "updated_at": datetime.now().isoformat()
+        }).eq("party_id", party_id).eq("ip_hash", ip).execute()
+    else:
+        supabase.table("party_ratings").insert({
+            "party_id": party_id,
+            "ip_hash": ip,
+            "rating": data.rating,
+        }).execute()
+
+    # Recompute average and count from source of truth
+    all_ratings = supabase.table("party_ratings").select("rating").eq("party_id", party_id).execute()
+    ratings = [r["rating"] for r in all_ratings.data]
+    avg = sum(ratings) / len(ratings) if ratings else 0
+    count = len(ratings)
+
+    # Update denormalized columns on parties table
+    supabase.table("parties").update({
+        "avg_rating": round(avg, 2),
+        "rating_count": count,
+    }).eq("id", party_id).execute()
+
+    return RatingResponse(
+        partyId=party_id,
+        rating=data.rating,
+        avgRating=round(avg, 2),
+        ratingCount=count,
+    )
+
+
+@router.get("/{party_id}")
+async def get_party_rating(request: Request, party_id: str):
+    """
+    Get rating info for a single party, including the current user's rating.
+    """
+    party_result = supabase.table("parties").select("avg_rating, rating_count").eq("id", party_id).execute()
+    if not party_result.data:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    party = party_result.data[0]
+    client_ip = get_remote_address(request)
+    ip = hash_ip(client_ip)
+
+    user_rating_result = supabase.table("party_ratings").select("rating").eq("party_id", party_id).eq("ip_hash", ip).execute()
+    user_rating = user_rating_result.data[0]["rating"] if user_rating_result.data else None
+
+    return {
+        "partyId": party_id,
+        "avgRating": float(party.get("avg_rating") or 0),
+        "ratingCount": party.get("rating_count") or 0,
+        "userRating": user_rating,
+    }
+
+
+@router.get("", response_model=List[PartyRankingResponse])
+async def get_rankings(
+    request: Request,
+    day: Optional[str] = Query(None, description="Filter by day (friday/saturday)")
+):
+    """
+    Get all parties ranked by average rating for the current weekend.
+    Includes the requesting user's rating per party (by IP).
+    """
+    weekend = get_current_weekend()
+    query = supabase.table("parties").select("*").eq("status", "approved").eq("weekend_of", weekend.isoformat())
+
+    if day:
+        query = query.eq("day", day)
+
+    result = query.order("avg_rating", desc=True).execute()
+
+    # Get user's ratings
+    client_ip = get_remote_address(request)
+    ip = hash_ip(client_ip)
+    user_ratings_result = supabase.table("party_ratings").select("party_id, rating").eq("ip_hash", ip).execute()
+    user_ratings_map = {r["party_id"]: r["rating"] for r in user_ratings_result.data}
+
+    rankings = []
+    for party in result.data:
+        rankings.append(PartyRankingResponse(
+            id=party["id"],
+            title=party["title"],
+            host=party["host"],
+            category=party["category"],
+            day=party["day"],
+            date=get_party_date(party),
+            doorsOpen=party["doors_open"],
+            avgRating=float(party.get("avg_rating") or 0),
+            ratingCount=party.get("rating_count") or 0,
+            goingCount=party.get("going_count") or 0,
+            userRating=user_ratings_map.get(party["id"]),
+        ))
+
+    return rankings

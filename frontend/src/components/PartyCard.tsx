@@ -1,6 +1,7 @@
 'use client';
 
 import GoingButton from './GoingButton';
+import StarRating from './StarRating';
 import { openMapsDirections } from '../utils/shareHelpers';
 import { useEffect, useRef, useState } from 'react';
 
@@ -18,6 +19,12 @@ interface PartyCardProps {
   onNavigateClick?: (partyId: string) => void | Promise<void>;
   isAddressVisible: boolean;
   onViewAddressClick: () => void;
+  avgRating: number;
+  ratingCount: number;
+  userRating: number | null;
+  onStarClick: () => void;
+  isRatingActive: boolean;
+  isRatingLocked: boolean;
 }
 
 export default function PartyCard({
@@ -34,6 +41,12 @@ export default function PartyCard({
   onNavigateClick,
   isAddressVisible,
   onViewAddressClick,
+  avgRating,
+  ratingCount,
+  userRating,
+  onStarClick,
+  isRatingActive,
+  isRatingLocked,
 }: PartyCardProps) {
   const prevVisibleRef = useRef(isAddressVisible);
   const [animateReveal, setAnimateReveal] = useState(false);
@@ -82,30 +95,49 @@ export default function PartyCard({
           <span className="font-medium">{host}</span>
         </p>
 
-        {/* Address reveal */}
-        {!isAddressVisible ? (
-          <button
-            type="button"
-            onClick={onViewAddressClick}
-            className="mt-1 text-white/40 text-sm font-helvetica underline underline-offset-4 hover:text-white/60 transition-colors"
-          >
-            View address
-          </button>
-        ) : (
-          <div
-            className={`flex items-center gap-4 text-white/50 text-sm sm:text-sm font-helvetica font-normal mt-1 ${
-              animateReveal ? 'animate-fade-in' : ''
-            }`}
-          >
-            <span>{address.split(',')[0]}</span>
-            <div className="flex items-center gap-1.5">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{doorsOpen}</span>
+        {/* Address row */}
+        <div className="mt-1">
+          {!isAddressVisible ? (
+            <button
+              type="button"
+              onClick={onViewAddressClick}
+              className="text-white/40 text-sm font-helvetica underline underline-offset-4 hover:text-white/60 transition-colors"
+            >
+              View address
+            </button>
+          ) : (
+            <div
+              className={`flex items-center gap-4 text-white/50 text-sm font-helvetica font-normal ${
+                animateReveal ? 'animate-fade-in' : ''
+              }`}
+            >
+              <span>{address.split(',')[0]}</span>
+              <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{doorsOpen}</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Star Rating - tappable area opens rating modal */}
+        <button
+          type="button"
+          onClick={onStarClick}
+          disabled={!isRatingActive || isRatingLocked}
+          className={`mt-2 ${!isRatingActive || isRatingLocked ? 'cursor-default' : 'cursor-pointer'}`}
+        >
+          <StarRating
+            rating={userRating}
+            avgRating={avgRating}
+            ratingCount={ratingCount}
+            onRate={() => {}}
+            disabled={!isRatingActive || isRatingLocked}
+            size="sm"
+          />
+        </button>
       </div>
 
       {/* Buttons Row - flush with card edges, no gap */}

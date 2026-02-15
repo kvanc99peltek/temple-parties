@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, MagicMock
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from tests.conftest import create_mock_auth_response, create_mock_db_response
 
@@ -156,10 +156,14 @@ class TestCreateParty:
         created_party = {
             **valid_party_data,
             "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
             "latitude": 39.981,
             "longitude": -75.155,
             "going_count": 0,
-            "status": "pending"
+            "status": "pending",
+            "avg_rating": 0,
+            "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
             create_mock_db_response([created_party])
@@ -185,8 +189,12 @@ class TestCreateParty:
         created_party = {
             **valid_party_data,
             "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
             "going_count": 0,
-            "status": "pending"
+            "status": "pending",
+            "avg_rating": 0,
+            "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
             create_mock_db_response([created_party])
@@ -225,10 +233,14 @@ class TestCreateParty:
         created_party = {
             **valid_party_data,
             "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
             "latitude": 39.981,
             "longitude": -75.155,
             "going_count": 0,
-            "status": "pending"
+            "status": "pending",
+            "avg_rating": 0,
+            "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
             create_mock_db_response([created_party])
@@ -290,11 +302,11 @@ class TestCreateParty:
         assert response.status_code == 422
 
     def test_create_party_invalid_day(self, client, mock_supabase, mock_user, valid_party_data):
-        """Should reject invalid day values."""
+        """Should reject dates that aren't Friday or Saturday."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        valid_party_data["day"] = "monday"  # Invalid - only friday/saturday allowed
+        valid_party_data["date"] = "2025-01-08"  # Wednesday - not allowed
 
         response = client.post(
             "/parties",
@@ -321,10 +333,14 @@ class TestCreateParty:
             created_party = {
                 **valid_party_data,
                 "id": str(uuid.uuid4()),
+                "day": "friday",
+                "weekend_of": valid_party_data["date"],
                 "latitude": 39.981,
                 "longitude": -75.155,
                 "going_count": 0,
-                "status": "pending"
+                "status": "pending",
+                "avg_rating": 0,
+                "rating_count": 0,
             }
             mock_supabase.table.return_value.insert.return_value.execute.return_value = \
                 create_mock_db_response([created_party])
@@ -355,10 +371,14 @@ class TestCreateParty:
             created_party = {
                 **valid_party_data,
                 "id": str(uuid.uuid4()),
+                "day": "friday",
+                "weekend_of": valid_party_data["date"],
                 "latitude": 39.981,
                 "longitude": -75.155,
                 "going_count": 0,
-                "status": "pending"
+                "status": "pending",
+                "avg_rating": 0,
+                "rating_count": 0,
             }
             mock_supabase.table.return_value.insert.return_value.execute.return_value = \
                 create_mock_db_response([created_party])
@@ -409,10 +429,14 @@ class TestCreateParty:
         created_party = {
             **valid_party_data,
             "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
             "latitude": 39.981,
             "longitude": -75.155,
             "going_count": 0,
-            "status": "pending"
+            "status": "pending",
+            "avg_rating": 0,
+            "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
             create_mock_db_response([created_party])
@@ -461,10 +485,14 @@ class TestCreateParty:
         created_party = {
             **valid_party_data,
             "id": str(uuid.uuid4()),  # Different ID
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
             "latitude": 39.981,
             "longitude": -75.155,
             "going_count": 0,         # Should be 0
-            "status": "pending"        # Should be pending
+            "status": "pending",       # Should be pending
+            "avg_rating": 0,
+            "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
             create_mock_db_response([created_party])

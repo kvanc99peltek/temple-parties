@@ -23,8 +23,8 @@ export default function StarRating({
 }: StarRatingProps) {
   const [hoverRating, setHoverRating] = useState(0);
 
-  const starSize = size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
-  const textSize = size === 'sm' ? 'text-[10px]' : 'text-sm';
+  const starSize = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6';
+  const textSize = size === 'sm' ? 'text-[15px]' : 'text-sm';
 
   const isHovering = hoverRating > 0;
   const hasRated = rating !== null;

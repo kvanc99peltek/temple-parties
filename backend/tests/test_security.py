@@ -203,7 +203,7 @@ class TestSQLInjection:
 class TestXSSVulnerabilities:
     """Tests for Cross-Site Scripting (XSS) vulnerabilities."""
 
-    def test_xss_in_party_title(self, client, mock_supabase, mock_user):
+    def test_xss_in_party_title(self, client, mock_supabase, mock_user, valid_party_data):
         """Should safely handle XSS in party title."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
@@ -211,26 +211,22 @@ class TestXSSVulnerabilities:
         xss_title = "<script>alert('XSS')</script>"
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
             create_mock_db_response([{
+                **valid_party_data,
                 "id": str(uuid.uuid4()),
                 "title": xss_title,
-                "host": "host",
-                "category": "cat",
                 "day": "friday",
-                "doors_open": "10 PM",
-                "address": "addr",
+                "weekend_of": valid_party_data["date"],
                 "latitude": 39.981,
                 "longitude": -75.155,
                 "going_count": 0,
-                "status": "pending"
+                "status": "pending",
+                "avg_rating": 0,
+                "rating_count": 0,
             }])
 
         payload = {
+            **valid_party_data,
             "title": xss_title,
-            "host": "Host",
-            "category": "House Party",
-            "day": "friday",
-            "doors_open": "10 PM",
-            "address": "123 Test St",
         }
 
         response = client.post(

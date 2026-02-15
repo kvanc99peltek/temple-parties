@@ -24,6 +24,16 @@ def get_current_weekend() -> date:
 
 def db_to_response(party: dict) -> PartyResponse:
     """Convert database party to API response format."""
+    # Compute date from weekend_of + day if date column is empty
+    party_date = party.get("date") or ""
+    if not party_date and party.get("weekend_of") and party.get("day"):
+        weekend_of_str = party["weekend_of"]
+        if party["day"] == "saturday":
+            friday = date.fromisoformat(weekend_of_str)
+            party_date = (friday + timedelta(days=1)).isoformat()
+        else:
+            party_date = weekend_of_str
+
     return PartyResponse(
         id=party["id"],
         title=party["title"],
@@ -31,13 +41,15 @@ def db_to_response(party: dict) -> PartyResponse:
         pinLabel=party.get("pin_label", ""),
         category=party["category"],
         day=party["day"],
-        date=party.get("date", ""),
+        date=party_date,
         doorsOpen=party["doors_open"],
         address=party["address"],
         latitude=float(party["latitude"]),
         longitude=float(party["longitude"]),
         goingCount=party["going_count"],
-        status=party.get("status")
+        status=party.get("status"),
+        avgRating=float(party.get("avg_rating") or 0),
+        ratingCount=party.get("rating_count") or 0,
     )
 
 

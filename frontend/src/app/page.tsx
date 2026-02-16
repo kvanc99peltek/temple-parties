@@ -174,7 +174,7 @@ export default function Home() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
               </div>
             ) : filteredParties.length === 0 ? (
-              <EmptyState selectedDay={selectedDay} />
+              <EmptyState selectedDay={selectedDay} onGoToRankings={() => setCurrentView('rankings')} />
             ) : (
               filteredParties.map(party => (
                 <PartyCard

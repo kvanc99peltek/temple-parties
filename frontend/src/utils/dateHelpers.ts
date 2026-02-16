@@ -15,43 +15,87 @@ export function getDefaultDay(): 'friday' | 'saturday' {
 }
 
 /**
- * Get the current weekend's Friday and Saturday dates for display in tabs.
- * On Sat/Sun, shows this weekend. On Mon-Fri, shows upcoming weekend.
+ * Get the upcoming weekend's Friday and Saturday dates for display in home page tabs.
+ * On Saturday, shows this weekend. On Sunday-Friday, shows next weekend.
  */
 export function getUpcomingDates(): { friday: string; saturday: string } {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-
-  // Calculate days to Friday
-  // On Saturday (6) or Sunday (0), go back to this Friday
-  // On Mon-Fri (1-5), go forward to next Friday
-  let daysToFriday: number;
-  if (dayOfWeek === 0) {
-    // Sunday -> go back 2 days to Friday
-    daysToFriday = -2;
-  } else if (dayOfWeek === 6) {
-    // Saturday -> go back 1 day to Friday
-    daysToFriday = -1;
-  } else {
-    // Mon-Fri -> go forward to Friday
-    daysToFriday = 5 - dayOfWeek;
-  }
-
-  const friday = new Date(today);
-  friday.setDate(today.getDate() + daysToFriday);
-
+  const friday = getUpcomingFriday();
   const saturday = new Date(friday);
   saturday.setDate(friday.getDate() + 1);
 
-  const formatDate = (date: Date): string => {
-    const day = date.getDate();
-    return `${day}`;
+  return {
+    friday: `${friday.getDate()}`,
+    saturday: `${saturday.getDate()}`
   };
+}
+
+/**
+ * Get the past/current weekend's Friday and Saturday dates for display in rankings tabs.
+ * Fri-Sat: current weekend. Sun-Thu: past weekend.
+ */
+export function getRankingsDates(): { friday: string; saturday: string } {
+  const friday = getRankingsFriday();
+  const saturday = new Date(friday);
+  saturday.setDate(friday.getDate() + 1);
 
   return {
-    friday: formatDate(friday),
-    saturday: formatDate(saturday)
+    friday: `${friday.getDate()}`,
+    saturday: `${saturday.getDate()}`
   };
+}
+
+function getUpcomingFriday(): Date {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+  let daysToFriday: number;
+  if (dayOfWeek === 6) {
+    // Saturday -> this Friday (yesterday)
+    daysToFriday = -1;
+  } else {
+    // Sun-Fri -> next Friday
+    daysToFriday = ((5 - dayOfWeek) + 7) % 7 || 7;
+  }
+  if (dayOfWeek === 5) daysToFriday = 0; // Friday -> today
+  const friday = new Date(today);
+  friday.setDate(today.getDate() + daysToFriday);
+  return friday;
+}
+
+function getRankingsFriday(): Date {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+  let daysToFriday: number;
+  if (dayOfWeek === 5) {
+    // Friday -> today
+    daysToFriday = 0;
+  } else if (dayOfWeek === 6) {
+    // Saturday -> yesterday (this Friday)
+    daysToFriday = -1;
+  } else {
+    // Sun-Thu -> past Friday
+    // Sunday(0)->-2, Mon(1)->-3, Tue(2)->-4, Wed(3)->-5, Thu(4)->-6
+    daysToFriday = -(((dayOfWeek - 5) + 7) % 7);
+  }
+  const friday = new Date(today);
+  friday.setDate(today.getDate() + daysToFriday);
+  return friday;
+}
+
+/** ISO date string (YYYY-MM-DD) for the upcoming weekend's Friday. */
+export function getUpcomingFridayISO(): string {
+  return toISODate(getUpcomingFriday());
+}
+
+/** ISO date string (YYYY-MM-DD) for the rankings weekend's Friday. */
+export function getRankingsFridayISO(): string {
+  return toISODate(getRankingsFriday());
+}
+
+function toISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 /**

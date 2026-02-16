@@ -6,7 +6,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse
-from app.routers.parties import get_current_weekend
+from app.routers.parties import get_current_weekend, EASTERN
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/ratings", tags=["ratings"])
@@ -59,7 +59,7 @@ def get_party_date(party: dict) -> str:
 
 def is_rating_active(party: dict) -> bool:
     """Check if rating is currently active (after doors_open time)."""
-    now = datetime.now()
+    now = datetime.now(EASTERN)
     party_date = get_party_date(party)
     if not party_date:
         return False
@@ -69,7 +69,7 @@ def is_rating_active(party: dict) -> bool:
 
 def is_rating_locked(party: dict) -> bool:
     """Check if rating is locked (after Monday 11:59 PM)."""
-    now = datetime.now()
+    now = datetime.now(EASTERN)
     weekend_of = party.get("weekend_of", "")
     if not weekend_of:
         return False
@@ -166,13 +166,14 @@ async def get_party_rating(request: Request, party_id: str):
 @router.get("", response_model=List[PartyRankingResponse])
 async def get_rankings(
     request: Request,
-    day: Optional[str] = Query(None, description="Filter by day (friday/saturday)")
+    day: Optional[str] = Query(None, description="Filter by day (friday/saturday)"),
+    weekend_of: Optional[str] = Query(None, description="Friday date (YYYY-MM-DD) of the weekend to query")
 ):
     """
     Get all parties ranked by average rating for the current weekend.
     Includes the requesting user's rating per party (by IP).
     """
-    weekend = get_current_weekend()
+    weekend = date.fromisoformat(weekend_of) if weekend_of else get_current_weekend()
     query = supabase.table("parties").select("*").eq("status", "approved").eq("weekend_of", weekend.isoformat())
 
     if day:

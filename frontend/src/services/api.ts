@@ -95,8 +95,12 @@ export const authApi = {
 
 // Parties API
 export const partiesApi = {
-  async getParties(day?: string): Promise<Party[]> {
-    const url = day ? `${API_URL}/parties?day=${day}` : `${API_URL}/parties`;
+  async getParties(day?: string, weekendOf?: string): Promise<Party[]> {
+    const params = new URLSearchParams();
+    if (day) params.set('day', day);
+    if (weekendOf) params.set('weekend_of', weekendOf);
+    const qs = params.toString();
+    const url = qs ? `${API_URL}/parties?${qs}` : `${API_URL}/parties`;
     const response = await fetchWithAuth(url);
 
     if (!response.ok) {
@@ -238,8 +242,12 @@ export const ratingsApi = {
     return response.json();
   },
 
-  async getRankings(day?: string): Promise<PartyRanking[]> {
-    const url = day ? `${API_URL}/ratings?day=${day}` : `${API_URL}/ratings`;
+  async getRankings(day?: string, weekendOf?: string): Promise<PartyRanking[]> {
+    const params = new URLSearchParams();
+    if (day) params.set('day', day);
+    if (weekendOf) params.set('weekend_of', weekendOf);
+    const qs = params.toString();
+    const url = qs ? `${API_URL}/ratings?${qs}` : `${API_URL}/ratings`;
     const response = await fetch(url);
 
     if (!response.ok) {

@@ -6,26 +6,24 @@ import RankingCard from './RankingCard';
 import EmptyState from './EmptyState';
 import { PartyRanking } from '@/lib/types';
 import { ratingsApi } from '@/services/api';
-import { isRatingActive, isRatingLocked, getDefaultDay } from '@/utils/dateHelpers';
+import { isRatingActive, isRatingLocked, getDefaultDay, getRankingsDates, getRankingsFridayISO } from '@/utils/dateHelpers';
 import useRatingStatus from '@/hooks/useRatingStatus';
 
-interface RankingsViewProps {
-  fridayDate: string;
-  saturdayDate: string;
-}
-
-export default function RankingsView({ fridayDate, saturdayDate }: RankingsViewProps) {
+export default function RankingsView() {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay());
   const [rankings, setRankings] = useState<PartyRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { getUserRating, submitRating } = useRatingStatus();
+
+  const { friday: fridayDate, saturday: saturdayDate } = useMemo(() => getRankingsDates(), []);
+  const rankingsFriday = useMemo(() => getRankingsFridayISO(), []);
 
   // Fetch rankings
   useEffect(() => {
     const fetchRankings = async () => {
       setIsLoading(true);
       try {
-        const data = await ratingsApi.getRankings(selectedDay);
+        const data = await ratingsApi.getRankings(selectedDay, rankingsFriday);
         setRankings(data);
       } catch (error) {
         console.error('Failed to fetch rankings:', error);
@@ -35,18 +33,18 @@ export default function RankingsView({ fridayDate, saturdayDate }: RankingsViewP
     };
 
     fetchRankings();
-  }, [selectedDay]);
+  }, [selectedDay, rankingsFriday]);
 
   const handleRate = useCallback(async (partyId: string, rating: number) => {
     await submitRating(partyId, rating);
     // Refresh rankings after rating
     try {
-      const data = await ratingsApi.getRankings(selectedDay);
+      const data = await ratingsApi.getRankings(selectedDay, rankingsFriday);
       setRankings(data);
     } catch (error) {
       console.error('Failed to refresh rankings:', error);
     }
-  }, [selectedDay, submitRating]);
+  }, [selectedDay, rankingsFriday, submitRating]);
 
   // Merge localStorage ratings with server data
   const enrichedRankings = useMemo(() => {

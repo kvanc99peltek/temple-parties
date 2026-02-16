@@ -12,7 +12,7 @@ import Toast from '@/components/Toast';
 import BottomNav from '@/components/BottomNav';
 import MapView from '@/components/MapView';
 import RankingsView from '@/components/RankingsView';
-import { getDefaultDay, getUpcomingDates, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
+import { getDefaultDay, getUpcomingDates, getUpcomingFridayISO, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
@@ -33,7 +33,8 @@ export default function Home() {
   // Launch-mode: auth + profile UI hidden.
   const isAuthenticated = false;
   const { isAddressVisible, revealAddress } = useAddressVisibility();
-  const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount);
+  const upcomingFriday = useMemo(() => getUpcomingFridayISO(), []);
+  const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount, upcomingFriday);
   const toast = useToast();
   const modals = useModalState(isAuthenticated, toggleGoing);
   const showToast = toast.show;
@@ -224,10 +225,7 @@ export default function Home() {
         </div>
       ) : (
         // Rankings View
-        <RankingsView
-          fridayDate={fridayDate}
-          saturdayDate={saturdayDate}
-        />
+        <RankingsView />
       )}
 
       {/* Bottom Navigation */}

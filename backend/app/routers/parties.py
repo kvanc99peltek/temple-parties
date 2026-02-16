@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Optional
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
@@ -12,10 +13,17 @@ from app.constants import RATE_LIMITS
 router = APIRouter(prefix="/parties", tags=["parties"])
 limiter = Limiter(key_func=get_remote_address)
 
+EASTERN = ZoneInfo("America/New_York")
+
+
+def today_eastern() -> date:
+    """Get today's date in US/Eastern timezone."""
+    return datetime.now(EASTERN).date()
+
 
 def get_current_weekend() -> date:
     """Get the Friday of the current or next weekend."""
-    today = date.today()
+    today = today_eastern()
     days_until_friday = (4 - today.weekday()) % 7
     if today.weekday() > 4:  # If Saturday or Sunday, use this weekend's Friday
         days_until_friday = (4 - today.weekday()) % 7 - 7
@@ -56,12 +64,13 @@ def db_to_response(party: dict) -> PartyResponse:
 @router.get("", response_model=List[PartyResponse])
 async def get_parties(
     day: Optional[str] = Query(None, description="Filter by day (friday/saturday)"),
+    weekend_of: Optional[str] = Query(None, description="Friday date (YYYY-MM-DD) of the weekend to query"),
     user: Optional[dict] = Depends(get_current_user)
 ):
     """
     Get all approved parties for the current weekend.
     """
-    weekend = get_current_weekend()
+    weekend = date.fromisoformat(weekend_of) if weekend_of else get_current_weekend()
 
     query = supabase.table("parties").select("*").eq("status", "approved").eq("weekend_of", weekend.isoformat())
 

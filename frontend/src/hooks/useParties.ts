@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Party } from '@/lib/types';
 import { partiesApi } from '@/services/api';
 
-export default function useParties(selectedDay: 'friday' | 'saturday', getCount: (partyId: string, baseCount: number) => number) {
+export default function useParties(selectedDay: 'friday' | 'saturday', getCount: (partyId: string, baseCount: number) => number, weekendOf?: string) {
   const [parties, setParties] = useState<Party[]>([]);
   const [isLoadingParties, setIsLoadingParties] = useState(true);
 
@@ -10,7 +10,7 @@ export default function useParties(selectedDay: 'friday' | 'saturday', getCount:
   useEffect(() => {
     const fetchParties = async () => {
       try {
-        const data = await partiesApi.getParties();
+        const data = await partiesApi.getParties(undefined, weekendOf);
         setParties(data);
       } catch (error) {
         console.error('Failed to fetch parties:', error);
@@ -20,7 +20,7 @@ export default function useParties(selectedDay: 'friday' | 'saturday', getCount:
     };
 
     fetchParties();
-  }, []);
+  }, [weekendOf]);
 
   // Filter and sort parties for selected day
   const filteredParties = useMemo(() => {

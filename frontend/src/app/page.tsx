@@ -27,6 +27,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<'home' | 'map' | 'rankings'>('home');
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
+  const [lastGoingPartyId, setLastGoingPartyId] = useState<string | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getAvgRating, getRatingCount, submitRating } = useRatingStatus();
@@ -76,6 +77,7 @@ export default function Home() {
 
     // Show invite modal when marking as going (not un-going)
     if (!wasGoing) {
+      setLastGoingPartyId(partyId);
       openInviteModal();
     }
   }, [toggleGoing, isGoing, openInviteModal, revealAddress]);
@@ -88,12 +90,15 @@ export default function Home() {
 
   // Handle share
   const handleShare = useCallback(async () => {
-    const result = await shareContent(topGoingParty || undefined);
+    const partyToShare = lastGoingPartyId
+      ? allParties.find(p => p.id === lastGoingPartyId) ?? topGoingParty
+      : topGoingParty;
+    const result = await shareContent(partyToShare || undefined);
 
     if (result.success && result.method === 'clipboard') {
       showToast('Link copied to clipboard!');
     }
-  }, [topGoingParty, showToast]);
+  }, [lastGoingPartyId, allParties, topGoingParty, showToast]);
 
   // Handle day change
   const handleDayChange = useCallback((day: 'friday' | 'saturday') => {

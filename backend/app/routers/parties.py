@@ -58,6 +58,7 @@ def db_to_response(party: dict) -> PartyResponse:
         status=party.get("status"),
         avgRating=float(party.get("avg_rating") or 0),
         ratingCount=party.get("rating_count") or 0,
+        isVerified=party.get("is_verified", False),
     )
 
 

@@ -25,6 +25,7 @@ interface PartyCardProps {
   onStarClick: () => void;
   isRatingActive: boolean;
   isRatingLocked: boolean;
+  isVerified: boolean;
 }
 
 export default function PartyCard({
@@ -47,6 +48,7 @@ export default function PartyCard({
   onStarClick,
   isRatingActive,
   isRatingLocked,
+  isVerified,
 }: PartyCardProps) {
   const prevVisibleRef = useRef(isAddressVisible);
   const [animateReveal, setAnimateReveal] = useState(false);
@@ -77,8 +79,13 @@ export default function PartyCard({
           <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FA4693] text-white rounded-full font-montserrat">
             {category}
           </span>
+          {isVerified && (
+            <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#3B82F6] text-white rounded-full font-montserrat">
+              VERIFIED
+            </span>
+          )}
           {isHyped && (
-            <span className="inline-block px-2.5 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wide bg-[#FFD666] text-black rounded-lg shadow-gold-glow animate-pulse-glow font-montserrat">
+            <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FFD666] text-black rounded-full shadow-gold-glow animate-pulse-glow font-montserrat">
               HYPED
             </span>
           )}

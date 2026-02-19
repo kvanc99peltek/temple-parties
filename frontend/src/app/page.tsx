@@ -198,6 +198,7 @@ export default function Home() {
                   onStarClick={() => handleStarClick(party.id, party.title, party.host)}
                   isRatingActive={isRatingActive(party.doorsOpen, party.date)}
                   isRatingLocked={isRatingLocked(party.date)}
+                  isVerified={party.isVerified}
                 />
               ))
             )}

@@ -268,11 +268,24 @@ html {
   font-weight: 700;
   background: #FFD666;
   color: #000000;
-  border-radius: 8px;
+  border-radius: 9999px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 0 10px rgba(255, 214, 102, 0.4);
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.popup-verified-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  background: #3B82F6;
+  color: #ffffff;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .popup-title {

@@ -8,7 +8,7 @@ import { APP_URL } from '@/lib/constants';
  */
 function formatPartyShareText(party: Party): string {
   const dayName = getDayName(party.day);
-  return `pulling up to ${party.title}! 🔥
+  return `pulling up to ${party.title}! 🔥 by ${party.host}
 ${dayName} @ ${party.doorsOpen}
 ${party.goingCount}+ going
 

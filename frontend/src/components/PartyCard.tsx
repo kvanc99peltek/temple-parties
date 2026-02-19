@@ -133,7 +133,6 @@ export default function PartyCard({
         <button
           type="button"
           onClick={onStarClick}
-          disabled={!isRatingActive || isRatingLocked}
           className={`mt-2 ${!isRatingActive || isRatingLocked ? 'cursor-default' : 'cursor-pointer'}`}
         >
           <StarRating

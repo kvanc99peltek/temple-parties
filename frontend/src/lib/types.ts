@@ -14,6 +14,7 @@ export interface Party {
   status?: string;
   avgRating: number;
   ratingCount: number;
+  isVerified: boolean;
 }
 
 export interface AdminParty extends Party {

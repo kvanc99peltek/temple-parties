@@ -19,6 +19,7 @@ interface Party {
   latitude: number;
   longitude: number;
   goingCount: number;
+  isVerified: boolean;
 }
 
 interface MapContentProps {
@@ -173,9 +174,12 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               >
                 <Popup className="party-popup-dark">
                   <div className="popup-content">
-                    {/* Category Badge + HYPED */}
+                    {/* Category Badge + VERIFIED + HYPED */}
                     <div className="popup-badges">
                       <span className="popup-category-badge">{party.category}</span>
+                      {party.isVerified && (
+                        <span className="popup-verified-badge">VERIFIED</span>
+                      )}
                       {isHyped && (
                         <span className="popup-hyped-badge">HYPED</span>
                       )}

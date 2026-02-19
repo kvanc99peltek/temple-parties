@@ -47,6 +47,7 @@ class PartyResponse(BaseModel):
     status: Optional[str] = None
     avgRating: float = 0
     ratingCount: int = 0
+    isVerified: bool = False
 
     class Config:
         from_attributes = True

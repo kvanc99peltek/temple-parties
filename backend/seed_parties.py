@@ -71,6 +71,7 @@ def seed_parties(*, weekend: date, clear_existing: bool, clear_seeded_only: bool
         {
             "title": "Valentine's Day Party",
             "host": "Delta Chi",
+            "pin_label": "DCHI",
             "category": "Frat Party",
             "day": "friday",
             "doors_open": "10:00 PM",
@@ -78,6 +79,7 @@ def seed_parties(*, weekend: date, clear_existing: bool, clear_seeded_only: bool
             "latitude": 39.9762,
             "longitude": -75.1527,
             "going_count": 10,
+            "is_verified": False,
             "status": "approved",
             "weekend_of": weekend.isoformat()
         },

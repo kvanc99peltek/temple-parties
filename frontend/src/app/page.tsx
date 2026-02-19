@@ -110,10 +110,18 @@ export default function Home() {
     setCurrentView(view);
   }, []);
 
-  // Handle star click — open rating modal
-  const handleStarClick = useCallback((partyId: string, title: string, host: string) => {
+  // Handle star click — show toast if not yet active, open rating modal otherwise
+  const handleStarClick = useCallback((partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => {
+    if (!ratingActive) {
+      showToast('Ratings unlock when doors open');
+      return;
+    }
+    if (ratingLocked) {
+      showToast('Ratings are now closed');
+      return;
+    }
     setRatingModalParty({ id: partyId, title, host });
-  }, []);
+  }, [showToast]);
 
   // Handle rating submission from modal
   const handleModalRate = useCallback(async (rating: number) => {
@@ -200,7 +208,7 @@ export default function Home() {
                   avgRating={getAvgRating(party.id, party.avgRating)}
                   ratingCount={getRatingCount(party.id, party.ratingCount)}
                   userRating={getUserRating(party.id)}
-                  onStarClick={() => handleStarClick(party.id, party.title, party.host)}
+                  onStarClick={() => handleStarClick(party.id, party.title, party.host, isRatingActive(party.doorsOpen, party.date), isRatingLocked(party.date))}
                   isRatingActive={isRatingActive(party.doorsOpen, party.date)}
                   isRatingLocked={isRatingLocked(party.date)}
                   isVerified={party.isVerified}

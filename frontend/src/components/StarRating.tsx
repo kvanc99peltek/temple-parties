@@ -44,7 +44,6 @@ export default function StarRating({
           <button
             key={star}
             type="button"
-            disabled={disabled}
             onClick={() => !disabled && onRate(star)}
             onMouseEnter={() => !disabled && setHoverRating(star)}
             onMouseLeave={() => setHoverRating(0)}

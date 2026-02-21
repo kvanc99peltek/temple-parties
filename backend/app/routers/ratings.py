@@ -21,28 +21,28 @@ def hash_ip(ip: str) -> str:
 def parse_doors_open(doors_open: str, party_date: str) -> datetime:
     """
     Parse doors_open string (e.g., '10 PM', '9:30 PM') combined with party date
-    into a datetime object.
+    into a timezone-aware datetime object in Eastern time.
     """
     party_dt = date.fromisoformat(party_date)
     time_str = doors_open.strip().upper()
     for fmt in ("%I %p", "%I:%M %p", "%I%p", "%I:%M%p"):
         try:
             parsed_time = datetime.strptime(time_str, fmt).time()
-            return datetime.combine(party_dt, parsed_time)
+            return datetime.combine(party_dt, parsed_time, tzinfo=EASTERN)
         except ValueError:
             continue
     # Fallback: assume 10 PM if parsing fails
-    return datetime.combine(party_dt, datetime.strptime("10 PM", "%I %p").time())
+    return datetime.combine(party_dt, datetime.strptime("10 PM", "%I %p").time(), tzinfo=EASTERN)
 
 
 def get_monday_cutoff(weekend_of: str) -> datetime:
     """
-    Given weekend_of (the Friday date), return Monday 11:59 PM.
+    Given weekend_of (the Friday date), return Monday 11:59 PM Eastern.
     Friday + 3 days = Monday.
     """
     friday = date.fromisoformat(weekend_of)
     monday = friday + timedelta(days=3)
-    return datetime.combine(monday, datetime.max.time())
+    return datetime.combine(monday, datetime.max.time(), tzinfo=EASTERN)
 
 
 def get_party_date(party: dict) -> str:

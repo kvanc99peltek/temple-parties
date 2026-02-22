@@ -2,7 +2,7 @@
  * Get the default day to display based on current day of week
  * - Monday through Friday → Show Friday parties
  * - Saturday → Show Saturday parties
- * - Sunday → Show Friday parties (next week)
+ * - Sunday → Show Friday parties (this weekend)
  */
 export function getDefaultDay(): 'friday' | 'saturday' {
   const today = new Date();
@@ -16,7 +16,7 @@ export function getDefaultDay(): 'friday' | 'saturday' {
 
 /**
  * Get the upcoming weekend's Friday and Saturday dates for display in home page tabs.
- * On Saturday, shows this weekend. On Sunday-Friday, shows next weekend.
+ * On Saturday-Sunday, shows this weekend. On Monday-Friday, shows next weekend.
  */
 export function getUpcomingDates(): { friday: string; saturday: string } {
   const friday = getUpcomingFriday();
@@ -48,11 +48,14 @@ function getUpcomingFriday(): Date {
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
   let daysToFriday: number;
-  if (dayOfWeek === 6) {
+  if (dayOfWeek === 0) {
+    // Sunday -> this Friday (2 days ago), weekend isn't over yet
+    daysToFriday = -2;
+  } else if (dayOfWeek === 6) {
     // Saturday -> this Friday (yesterday)
     daysToFriday = -1;
   } else {
-    // Sun-Fri -> next Friday
+    // Mon-Fri -> next Friday
     daysToFriday = ((5 - dayOfWeek) + 7) % 7 || 7;
   }
   if (dayOfWeek === 5) daysToFriday = 0; // Friday -> today

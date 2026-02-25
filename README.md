@@ -28,7 +28,6 @@ Party info at Temple is scattered. This app centralizes it.
 - [x] Interactive map view
 - [x] Magic link auth with @temple.edu enforcement
 - [x] Admin approval system
-- [x] Vercel Analytics integration
 - [ ] Real-name RSVP verification (in progress)
 - [ ] Microsoft OAuth with Temple SSO
 - [ ] Party detail pages with host bios
@@ -121,4 +120,4 @@ temple-parties/
 
 ## About
 
-Built by [Amir](https://github.com/templeterror) and [Kivanc](https://github.com/kvanc99peltek), CS student at Temple University (Beta Theta Pi). Started as a solution to a real problem — now growing into a campus-wide platform.
+Built by [Amir](https://github.com/templeterror) and [Kivanc](https://github.com/kvanc99peltek). CS students at Temple University.

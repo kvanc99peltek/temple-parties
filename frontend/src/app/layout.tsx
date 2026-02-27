@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PostHogProvider } from "@/components/PostHogProvider";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -40,9 +41,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <PostHogProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </PostHogProvider>
         <Analytics />
       </body>
     </html>

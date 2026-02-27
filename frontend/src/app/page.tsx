@@ -23,6 +23,7 @@ import useAddressVisibility from '@/hooks/useAddressVisibility';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { partiesApi } from '@/services/api';
 import { track } from '@vercel/analytics';
+import posthog from 'posthog-js';
 
 export default function Home() {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
@@ -89,6 +90,7 @@ export default function Home() {
     revealAddress(partyId);
     void ensureGoing(partyId);
     track('navigate_clicked', { partyId });
+    posthog.capture('navigate_clicked', { partyId });
   }, [ensureGoing, revealAddress]);
 
   // Handle share
@@ -112,6 +114,7 @@ export default function Home() {
   const handleViewChange = useCallback((view: 'home' | 'map' | 'rankings') => {
     setCurrentView(view);
     track('view_changed', { view });
+    posthog.capture('view_changed', { view });
   }, []);
 
   useSwipeNavigation(currentView, handleViewChange);

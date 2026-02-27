@@ -20,7 +20,9 @@ import useParties from '@/hooks/useParties';
 import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
+import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { partiesApi } from '@/services/api';
+import { track } from '@vercel/analytics';
 
 export default function Home() {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
@@ -86,6 +88,7 @@ export default function Home() {
     // Fire-and-forget: don't block navigation.
     revealAddress(partyId);
     void ensureGoing(partyId);
+    track('navigate_clicked', { partyId });
   }, [ensureGoing, revealAddress]);
 
   // Handle share
@@ -108,7 +111,10 @@ export default function Home() {
   // Handle view change
   const handleViewChange = useCallback((view: 'home' | 'map' | 'rankings') => {
     setCurrentView(view);
+    track('view_changed', { view });
   }, []);
+
+  useSwipeNavigation(currentView, handleViewChange);
 
   // Handle star click — show toast if not yet active, open rating modal otherwise
   const handleStarClick = useCallback((partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => {

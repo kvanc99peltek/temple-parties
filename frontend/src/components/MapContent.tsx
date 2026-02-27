@@ -74,7 +74,9 @@ function createAvatarIcon(
   const maxSize = 64;
   const sizeRatio = Math.min(count / Math.max(maxCount, 1), 1);
   const size = minSize + sizeRatio * (maxSize - minSize);
-  const fontSize = size <= 32 ? 10 : size <= 38 ? 12 : 14;
+  // Size range is always 44–64px; scale font to leave breathing room for two lines
+  const fontSize = size <= 50 ? 9 : size <= 57 ? 10 : 11;
+  const countFontSize = fontSize;
 
   // Use pin_label if available, otherwise fall back to auto-generated initials
   const label = pinLabel
@@ -86,7 +88,7 @@ function createAvatarIcon(
 
   return L.divIcon({
     className: 'custom-marker',
-    html: `<div class="avatar-marker${pulseClass}${goingClass}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${label}</div>`,
+    html: `<div class="avatar-marker${pulseClass}${goingClass}" style="width:${size}px;height:${size}px;flex-direction:column;gap:1px;padding:6px;box-sizing:border-box;"><span style="font-size:${fontSize}px;line-height:1;">${label}</span><span style="font-size:${countFontSize}px;font-weight:700;color:white;line-height:1;font-family:'Montserrat',sans-serif;">${count}</span></div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],

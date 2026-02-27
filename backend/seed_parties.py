@@ -70,8 +70,8 @@ def seed_parties(*, weekend: date, clear_existing: bool, clear_seeded_only: bool
     parties = [
         {
             "title": "Valentine's Day Party",
-            "host": "Delta Chi",
-            "pin_label": "DCHI",
+            "host": "Gamma",
+            "pin_label": "GAMMA",
             "category": "Frat Party",
             "day": "friday",
             "doors_open": "10:00 PM",

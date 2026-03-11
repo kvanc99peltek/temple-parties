@@ -23,6 +23,8 @@ import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
 import useRatingReminder from '@/hooks/useRatingReminder';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
+import SponsorBanner from '@/components/SponsorBanner';
+import { PRIMARY_SPONSOR } from '@/lib/sponsors';
 import { partiesApi } from '@/services/api';
 import { track } from '@vercel/analytics';
 import posthog from 'posthog-js';
@@ -33,6 +35,7 @@ export default function Home() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
   const [lastGoingPartyId, setLastGoingPartyId] = useState<string | null>(null);
+  const [sponsorFocus, setSponsorFocus] = useState<{ lat: number; lng: number; sponsorId: string } | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getAvgRating, getRatingCount, submitRating } = useRatingStatus();
@@ -122,6 +125,18 @@ export default function Home() {
     posthog.capture('view_changed', { view });
   }, []);
 
+  // Handle sponsor banner click
+  const handleSponsorBannerClick = useCallback(() => {
+    setSponsorFocus({
+      lat: PRIMARY_SPONSOR.latitude,
+      lng: PRIMARY_SPONSOR.longitude,
+      sponsorId: PRIMARY_SPONSOR.id,
+    });
+    setCurrentView('map');
+    track('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
+    posthog.capture('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
+  }, []);
+
   useSwipeNavigation(currentView, handleViewChange);
 
   // Handle star click — show toast if not yet active, open rating modal otherwise
@@ -200,6 +215,12 @@ export default function Home() {
             saturdayDate={saturdayDate}
           />
 
+          <SponsorBanner
+            text={PRIMARY_SPONSOR.bannerText}
+            sponsorName={PRIMARY_SPONSOR.name}
+            onClick={handleSponsorBannerClick}
+          />
+
           {/* Party Cards */}
           <div className="max-w-xl mx-auto px-4 sm:px-6">
             {isLoadingParties ? (
@@ -256,6 +277,8 @@ export default function Home() {
               onNavigateClick={handleNavigateClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
+              sponsorFocus={sponsorFocus}
+              onSponsorFocusConsumed={() => setSponsorFocus(null)}
             />
           </div>
         </div>

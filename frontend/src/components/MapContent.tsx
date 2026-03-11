@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { getDefaultDay, parseDoorsOpen } from '@/utils/dateHelpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
+import { PRIMARY_SPONSOR } from '@/lib/sponsors';
+import { track } from '@vercel/analytics';
+import posthog from 'posthog-js';
 
 interface Party {
   id: string;
@@ -31,6 +34,8 @@ interface MapContentProps {
   onNavigateClick: (partyId: string) => void;
   fridayDate: string;
   saturdayDate: string;
+  sponsorFocus?: { lat: number; lng: number; sponsorId: string } | null;
+  onSponsorFocusConsumed?: () => void;
 }
 
 // Temple University campus center
@@ -103,8 +108,45 @@ function getShortAddress(address: string): string {
   return address.split(',')[0];
 }
 
+// Sponsored marker icon — gold rounded rectangle
+function createSponsorIcon(label: string): L.DivIcon {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div class="sponsor-marker"><span class="sponsor-marker-label">${label}</span></div>`,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+    popupAnchor: [0, -24],
+  });
+}
 
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate }: MapContentProps) {
+// Pans map to sponsor and opens its popup
+function SponsorFocusHandler({
+  focus,
+  onConsumed,
+  markerRef,
+}: {
+  focus: { lat: number; lng: number } | null;
+  onConsumed?: () => void;
+  markerRef: React.RefObject<L.Marker | null>;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (focus && markerRef.current) {
+      map.setView([focus.lat, focus.lng], 17, { animate: true });
+      const timer = setTimeout(() => {
+        markerRef.current?.openPopup();
+        onConsumed?.();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [focus, map, markerRef, onConsumed]);
+
+  return null;
+}
+
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate, sponsorFocus, onSponsorFocusConsumed }: MapContentProps) {
+  const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
 
   // Filter parties based on selected day
@@ -244,6 +286,60 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
             );
           });
         })()}
+
+        {/* Sponsored Pin */}
+        <Marker
+          ref={sponsorMarkerRef}
+          position={[PRIMARY_SPONSOR.latitude, PRIMARY_SPONSOR.longitude]}
+          icon={createSponsorIcon(PRIMARY_SPONSOR.pinLabel)}
+          zIndexOffset={-500}
+          eventHandlers={{
+            popupopen: () => {
+              track('sponsor_pin_popup_opened', { sponsor: PRIMARY_SPONSOR.id });
+              posthog.capture('sponsor_pin_popup_opened', { sponsor: PRIMARY_SPONSOR.id });
+            },
+          }}
+        >
+          <Popup className="sponsor-popup-dark">
+            <div className="popup-content">
+              <div className="popup-badges">
+                <span className="popup-sponsor-badge">SPONSORED</span>
+              </div>
+              <h3 className="popup-title">{PRIMARY_SPONSOR.name}</h3>
+              <p className="popup-host" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                {PRIMARY_SPONSOR.popupDescription}
+              </p>
+              {PRIMARY_SPONSOR.promoCode && (
+                <p style={{ color: '#FFD666', fontSize: '13px', fontWeight: 600, margin: '2px 0 8px 0' }}>
+                  Use code <span style={{ fontWeight: 800 }}>{PRIMARY_SPONSOR.promoCode}</span> for {PRIMARY_SPONSOR.promoText}
+                </p>
+              )}
+              <div className="popup-details-row">
+                <span>{getShortAddress(PRIMARY_SPONSOR.address)}</span>
+                {PRIMARY_SPONSOR.hoursInfo && (
+                  <div className="popup-time">
+                    <span>{PRIMARY_SPONSOR.hoursInfo}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="popup-buttons">
+              <button
+                onClick={() => openMapsDirections(PRIMARY_SPONSOR.address)}
+                className="popup-navigate-btn"
+                style={{ borderRadius: '0 0 12px 12px', width: '100%' }}
+              >
+                NAVIGATE
+              </button>
+            </div>
+          </Popup>
+        </Marker>
+
+        <SponsorFocusHandler
+          focus={sponsorFocus ?? null}
+          onConsumed={onSponsorFocusConsumed}
+          markerRef={sponsorMarkerRef}
+        />
       </MapContainer>
     </div>
   );

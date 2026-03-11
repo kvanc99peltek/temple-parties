@@ -87,7 +87,7 @@ export default function AdminPage() {
         <div className="max-w-xl mx-auto px-4 sm:px-6 flex items-center gap-3">
           <button
             onClick={() => router.push('/')}
-            className="text-white hover:text-[#FA4693] transition-colors p-1"
+            className="text-white hover:text-[#08CA66] transition-colors p-1"
             aria-label="Back to home"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -109,7 +109,7 @@ export default function AdminPage() {
               onClick={() => setFilter(key)}
               className={`px-4 py-2 rounded-xl text-sm font-bold font-montserrat transition-all duration-200 ${
                 filter === key
-                  ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/25'
+                  ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/25'
                   : 'bg-zinc-800 text-gray-400 hover:text-white hover:bg-zinc-700'
               }`}
             >
@@ -130,7 +130,7 @@ export default function AdminPage() {
             <h2 className="text-xl font-semibold text-gray-400 mb-2 text-center font-montserrat">
               No {filter === 'all' ? '' : filter} parties
             </h2>
-            <p className="text-[#FA4693] text-center font-montserrat text-sm">
+            <p className="text-[#08CA66] text-center font-montserrat text-sm">
               {filter === 'pending' ? 'Nothing to review right now' : 'Try a different filter'}
             </p>
           </div>
@@ -159,7 +159,7 @@ export default function AdminPage() {
 
                   {/* Category + Status */}
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-block px-3 py-1 text-[10px] font-bold uppercase bg-[#FA4693] text-white rounded-full font-montserrat">
+                    <span className="inline-block px-3 py-1 text-[10px] font-bold uppercase bg-[#08CA66] text-white rounded-full font-montserrat">
                       {party.category}
                     </span>
                     <StatusBadge status={party.status || 'pending'} />

@@ -111,7 +111,7 @@ export default function AuthCallback() {
           <p className="text-zinc-400 mb-6">{error}</p>
           <button
             onClick={() => router.replace('/')}
-            className="px-6 py-3 bg-[#FA4693] hover:bg-[#FB6BA8] text-white font-semibold rounded-xl transition-colors"
+            className="px-6 py-3 bg-[#08CA66] hover:bg-[#39D680] text-white font-semibold rounded-xl transition-colors"
           >
             Go Back
           </button>

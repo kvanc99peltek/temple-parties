@@ -47,9 +47,9 @@
   --background: #000000;
   --foreground: #f5f5f5;
   /* New color system */
-  --pink-primary: #FA4693;
-  --pink-light: #FB6BA8;
-  --pink-dark: #E83A82;
+  --pink-primary: #08CA66;
+  --pink-light: #39D680;
+  --pink-dark: #06AB56;
   --green-success: #10B981;
   --green-dark: #059669;
   --gold-highlight: #FFD666;
@@ -87,17 +87,17 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(250, 70, 147, 0.3);
+  background: rgba(8, 202, 102, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(250, 70, 147, 0.5);
+  background: rgba(8, 202, 102, 0.5);
 }
 
 /* Focus visible styles for accessibility - Pink */
 :focus-visible {
-  outline: 2px solid #FA4693;
+  outline: 2px solid #08CA66;
   outline-offset: 2px;
 }
 
@@ -145,7 +145,7 @@ html {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(250, 70, 147, 0.85);
+  background: rgba(8, 202, 102, 0.85);
   backdrop-filter: blur(4px);
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -158,12 +158,12 @@ html {
 
 .avatar-marker-selected {
   border: 2px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 12px rgba(250, 70, 147, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 12px rgba(8, 202, 102, 0.6), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .avatar-marker-going {
-  border: 2px solid #0084FF;
-  box-shadow: 0 0 10px rgba(0, 132, 255, 0.6), 0 0 20px rgba(0, 132, 255, 0.3);
+  border: 2px solid #FFD666;
+  box-shadow: 0 0 10px rgba(255, 214, 102, 0.6), 0 0 20px rgba(255, 214, 102, 0.3);
 }
 
 .avatar-marker-pulse {
@@ -176,7 +176,7 @@ html {
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 16px rgba(250, 70, 147, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 16px rgba(8, 202, 102, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
     transform: scale(1.05);
   }
 }
@@ -189,15 +189,15 @@ html {
 }
 
 .campus-label {
-  background: rgba(250, 70, 147, 0.15);
-  border: 1px solid rgba(250, 70, 147, 0.5);
-  color: #FA4693;
+  background: rgba(8, 202, 102, 0.15);
+  border: 1px solid rgba(8, 202, 102, 0.5);
+  color: #08CA66;
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   text-align: center;
-  box-shadow: 0 0 10px rgba(250, 70, 147, 0.3);
+  box-shadow: 0 0 10px rgba(8, 202, 102, 0.3);
   backdrop-filter: blur(4px);
   white-space: nowrap;
 }
@@ -219,8 +219,8 @@ html {
 
 .party-popup-dark .leaflet-popup-tip {
   background: #202023;
-  border-left: 1px solid rgba(250, 70, 147, 0.3);
-  border-bottom: 1px solid rgba(250, 70, 147, 0.3);
+  border-left: 1px solid rgba(8, 202, 102, 0.3);
+  border-bottom: 1px solid rgba(8, 202, 102, 0.3);
 }
 
 .party-popup-dark .leaflet-popup-close-button {
@@ -254,7 +254,7 @@ html {
   font-family: 'Montserrat', sans-serif;
   font-size: 10px;
   font-weight: 700;
-  background: #FA4693;
+  background: #08CA66;
   color: #ffffff;
   border-radius: 9999px;
   text-transform: uppercase;
@@ -351,7 +351,7 @@ html {
   border: none;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: #FA4693;
+  background: #08CA66;
   color: white;
   text-transform: uppercase;
   display: flex;
@@ -369,7 +369,7 @@ html {
 }
 
 .popup-going-btn.going {
-  background: linear-gradient(to right, #0084FF, #FA4693);
+  background: linear-gradient(to right, #08CA6680, #08CA66);
   cursor: default;
 }
 

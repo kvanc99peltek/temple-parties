@@ -26,9 +26,9 @@ const config: Config = {
         },
         // New Temple color system
         temple: {
-          pink: '#FA4693',
-          'pink-light': '#FB6BA8',
-          'pink-dark': '#E83A82',
+          pink: '#08CA66',
+          'pink-light': '#39D680',
+          'pink-dark': '#06AB56',
           green: '#10B981',
           'green-dark': '#059669',
           gold: '#FFD666',
@@ -37,8 +37,8 @@ const config: Config = {
         },
       },
       boxShadow: {
-        'pink-glow': '0 4px 20px rgba(250, 70, 147, 0.3)',
-        'pink-glow-lg': '0 8px 30px rgba(250, 70, 147, 0.4)',
+        'pink-glow': '0 4px 20px rgba(8, 202, 102, 0.3)',
+        'pink-glow-lg': '0 8px 30px rgba(8, 202, 102, 0.4)',
         'green-glow': '0 4px 16px rgba(16, 185, 129, 0.4)',
         'gold-glow': '0 0 15px rgba(255, 214, 102, 0.5)',
       },

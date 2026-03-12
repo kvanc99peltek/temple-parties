@@ -26,6 +26,8 @@ interface PartyCardProps {
   isRatingActive: boolean;
   isRatingLocked: boolean;
   isVerified: boolean;
+  onVerifiedClick?: () => void;
+  onHypedClick?: () => void;
 }
 
 export default function PartyCard({
@@ -49,6 +51,8 @@ export default function PartyCard({
   isRatingActive,
   isRatingLocked,
   isVerified,
+  onVerifiedClick,
+  onHypedClick,
 }: PartyCardProps) {
   const prevVisibleRef = useRef(isAddressVisible);
   const [animateReveal, setAnimateReveal] = useState(false);
@@ -80,14 +84,18 @@ export default function PartyCard({
             {category}
           </span>
           {isVerified && (
-            <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#3B82F6] text-white rounded-full font-montserrat">
-              VERIFIED
-            </span>
+            <button type="button" onClick={onVerifiedClick} className="appearance-none p-0 border-none bg-transparent">
+              <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#3B82F6] text-white rounded-full font-montserrat">
+                VERIFIED
+              </span>
+            </button>
           )}
           {isHyped && (
-            <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FFD666] text-black rounded-full shadow-gold-glow animate-pulse-glow font-montserrat">
-              HYPED
-            </span>
+            <button type="button" onClick={onHypedClick} className="appearance-none p-0 border-none bg-transparent">
+              <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FFD666] text-black rounded-full shadow-gold-glow animate-pulse-glow font-montserrat">
+                HYPED
+              </span>
+            </button>
           )}
         </div>
 
@@ -156,6 +164,7 @@ export default function PartyCard({
         />
         <button
           onClick={handleNavigate}
+          title="Opens in Google Maps"
           className="flex-1 h-[49px] rounded-br-[12px] rounded-tl-none rounded-tr-none rounded-bl-none font-bold text-lg uppercase bg-[#FFD666] text-black hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
         >
           NAVIGATE

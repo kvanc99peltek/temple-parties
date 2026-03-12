@@ -145,6 +145,89 @@ export function isRatingActive(doorsOpen: string, dateStr: string): boolean {
   return new Date() >= openTime;
 }
 
+/** ISO date string for last weekend's Friday (7 days before rankings Friday). */
+export function getLastWeekendFridayISO(): string {
+  const currentFriday = getRankingsFriday();
+  const lastFriday = new Date(currentFriday);
+  lastFriday.setDate(lastFriday.getDate() - 7);
+  return toISODate(lastFriday);
+}
+
+/** Get the bounding Friday ISO dates for the current calendar month. */
+export function getMonthRange(): { from: string; to: string } {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  const monthStart = new Date(year, month, 1);
+  const fromFriday = new Date(monthStart);
+  while (fromFriday.getDay() !== 5) {
+    fromFriday.setDate(fromFriday.getDate() + 1);
+  }
+
+  const lastDay = new Date(year, month + 1, 0);
+  const toFriday = new Date(lastDay);
+  while (toFriday.getDay() !== 5) {
+    toFriday.setDate(toFriday.getDate() - 1);
+  }
+
+  return { from: toISODate(fromFriday), to: toISODate(toFriday) };
+}
+
+/** Get the bounding Friday ISO dates for the current semester. */
+export function getSemesterRange(): { from: string; to: string } {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  let semesterStart: Date;
+  let semesterEnd: Date;
+
+  if (month <= 4) {
+    // Spring: January - May
+    semesterStart = new Date(year, 0, 1);
+    semesterEnd = new Date(year, 4, 31);
+  } else if (month >= 7) {
+    // Fall: August - December
+    semesterStart = new Date(year, 7, 1);
+    semesterEnd = new Date(year, 11, 31);
+  } else {
+    // Summer: default to spring
+    semesterStart = new Date(year, 0, 1);
+    semesterEnd = new Date(year, 4, 31);
+  }
+
+  // Find first Friday >= semesterStart
+  const fromFriday = new Date(semesterStart);
+  while (fromFriday.getDay() !== 5) {
+    fromFriday.setDate(fromFriday.getDate() + 1);
+  }
+
+  // Find last Friday <= semesterEnd
+  const toFriday = new Date(semesterEnd);
+  while (toFriday.getDay() !== 5) {
+    toFriday.setDate(toFriday.getDate() - 1);
+  }
+
+  return { from: toISODate(fromFriday), to: toISODate(toFriday) };
+}
+
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SHORT_DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+/** Format an ISO date string for display, e.g. "Fri Mar 6". */
+export function formatPartyDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${SHORT_DAYS[date.getDay()]} ${SHORT_MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+
+/** Format an ISO date string as short date, e.g. "13 Feb". */
+export function formatShortDate(dateStr: string): string {
+  const [, m, d] = dateStr.split('-').map(Number);
+  return `${d} ${SHORT_MONTHS[m - 1]}`;
+}
+
 /**
  * Check if rating period has ended.
  * Locked after Monday 11:59:59 PM of the party weekend.

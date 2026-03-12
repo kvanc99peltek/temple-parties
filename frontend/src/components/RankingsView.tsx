@@ -1,33 +1,52 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import DayTabs from './DayTabs';
-import RankingCard from './RankingCard';
+import RankingsDropdown, { RankingsFilter } from './RankingsDropdown';
+import RankingsCalendarPicker from './RankingsCalendarPicker';
+import RankingRow from './RankingRow';
 import EmptyState from './EmptyState';
 import ModalWrapper from './ModalWrapper';
 import { PartyRanking } from '@/lib/types';
 import { ratingsApi } from '@/services/api';
-import { isRatingActive, isRatingLocked, getDefaultDay, getRankingsDates, getRankingsFridayISO } from '@/utils/dateHelpers';
-import useRatingStatus from '@/hooks/useRatingStatus';
+import { getLastWeekendFridayISO, getMonthRange, getSemesterRange } from '@/utils/dateHelpers';
 
 const PRIZE_LINK = 'https://www.instagram.com/reel/DVrFxFcgo1D/?igsh=MWNmbTcwbGUxNmFpeQ==';
 
 export default function RankingsView() {
-  const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay());
+  const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>('this-semester');
+  const [customStart, setCustomStart] = useState<string | null>(null);
+  const [customEnd, setCustomEnd] = useState<string | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [rankings, setRankings] = useState<PartyRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPrizeModal, setShowPrizeModal] = useState(false);
-  const { getUserRating, submitRating } = useRatingStatus();
 
-  const { friday: fridayDate, saturday: saturdayDate } = useMemo(() => getRankingsDates(), []);
-  const rankingsFriday = useMemo(() => getRankingsFridayISO(), []);
+  const apiParams = useMemo(() => {
+    switch (selectedFilter) {
+      case 'last-week':
+        return { weekendOf: getLastWeekendFridayISO() };
+      case 'this-month': {
+        const { from, to } = getMonthRange();
+        return { weekendFrom: from, weekendTo: to };
+      }
+      case 'this-semester': {
+        const { from, to } = getSemesterRange();
+        return { weekendFrom: from, weekendTo: to };
+      }
+      case 'custom':
+        if (customStart && customEnd) {
+          return { weekendFrom: customStart, weekendTo: customEnd };
+        }
+        return { weekendOf: getLastWeekendFridayISO() };
+    }
+  }, [selectedFilter, customStart, customEnd]);
 
   // Fetch rankings
   useEffect(() => {
     const fetchRankings = async () => {
       setIsLoading(true);
       try {
-        const data = await ratingsApi.getRankings(selectedDay, rankingsFriday);
+        const data = await ratingsApi.getRankings(apiParams);
         setRankings(data);
       } catch (error) {
         console.error('Failed to fetch rankings:', error);
@@ -37,35 +56,37 @@ export default function RankingsView() {
     };
 
     fetchRankings();
-  }, [selectedDay, rankingsFriday]);
+  }, [apiParams]);
 
-  const handleRate = useCallback(async (partyId: string, rating: number) => {
-    await submitRating(partyId, rating);
-    // Refresh rankings after rating
-    try {
-      const data = await ratingsApi.getRankings(selectedDay, rankingsFriday);
-      setRankings(data);
-    } catch (error) {
-      console.error('Failed to refresh rankings:', error);
+  const handleFilterChange = useCallback((filter: RankingsFilter) => {
+    setSelectedFilter(filter);
+    if (filter === 'custom') {
+      setShowCalendar(true);
+    } else {
+      setShowCalendar(false);
     }
-  }, [selectedDay, rankingsFriday, submitRating]);
+  }, []);
 
-  // Merge localStorage ratings with server data
-  const enrichedRankings = useMemo(() => {
-    return rankings.map(party => ({
-      ...party,
-      userRating: getUserRating(party.id) ?? party.userRating,
-    }));
-  }, [rankings, getUserRating]);
+  const handleCustomRangeChange = useCallback((start: string, end: string) => {
+    setCustomStart(start);
+    setCustomEnd(end);
+    setShowCalendar(false);
+  }, []);
+
+
+  // Custom label for dropdown when range is set
+  const customLabel = customStart && customEnd
+    ? `${formatShort(customStart)} – ${formatShort(customEnd)}`
+    : undefined;
 
   return (
     <div className="pb-20">
       <header className="bg-black pt-6 pb-4">
         <div className="max-w-xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <h1 className="text-3xl sm:text-4xl font-medium leading-none tracking-tight text-white font-bitcount">
-            RANKINGS
+            LEADERBOARDS
           </h1>
-          <div className="pr-5 flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowPrizeModal(true)}
               className="px-5 py-2.5 rounded-2xl bg-[#FFD666] text-[#C69100] font-Montserrat font-bold text-base active:scale-95 transition-all duration-200 cursor-pointer"
@@ -77,31 +98,41 @@ export default function RankingsView() {
         </div>
       </header>
 
-      <DayTabs
-        selectedDay={selectedDay}
-        onDayChange={setSelectedDay}
-        fridayDate={fridayDate}
-        saturdayDate={saturdayDate}
+      <RankingsDropdown
+        selectedFilter={selectedFilter}
+        onFilterChange={handleFilterChange}
+        customLabel={customLabel}
       />
+
+      {showCalendar && (
+        <div className="max-w-xl mx-auto px-4 sm:px-6 pb-4">
+          <RankingsCalendarPicker
+            startDate={customStart}
+            endDate={customEnd}
+            onRangeChange={handleCustomRangeChange}
+            onClose={() => setShowCalendar(false)}
+          />
+        </div>
+      )}
 
       <div className="max-w-xl mx-auto px-4 sm:px-6">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           </div>
-        ) : enrichedRankings.length === 0 ? (
-          <EmptyState selectedDay={selectedDay} />
+        ) : rankings.length === 0 ? (
+          <EmptyState message="No ranked parties for this period" />
         ) : (
-          enrichedRankings.map((party, index) => (
-            <RankingCard
-              key={party.id}
-              rank={index + 1}
-              party={party}
-              onRate={(rating) => handleRate(party.id, rating)}
-              isActive={isRatingActive(party.doorsOpen, party.date)}
-              isLocked={isRatingLocked(party.date)}
-            />
-          ))
+          <div className="bg-[#202023] rounded-2xl overflow-hidden animate-slide-up-fade">
+            {rankings.map((party, index) => (
+              <RankingRow
+                key={party.id}
+                rank={index + 1}
+                party={party}
+                isLast={index === rankings.length - 1}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -123,4 +154,10 @@ export default function RankingsView() {
       </ModalWrapper>
     </div>
   );
+}
+
+function formatShort(iso: string): string {
+  const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [, m, d] = iso.split('-').map(Number);
+  return `${SHORT_MONTHS[m - 1]} ${d}`;
 }

@@ -242,11 +242,16 @@ export const ratingsApi = {
     return response.json();
   },
 
-  async getRankings(day?: string, weekendOf?: string): Promise<PartyRanking[]> {
-    const params = new URLSearchParams();
-    if (day) params.set('day', day);
-    if (weekendOf) params.set('weekend_of', weekendOf);
-    const qs = params.toString();
+  async getRankings(params?: {
+    weekendOf?: string;
+    weekendFrom?: string;
+    weekendTo?: string;
+  }): Promise<PartyRanking[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.weekendOf) searchParams.set('weekend_of', params.weekendOf);
+    if (params?.weekendFrom) searchParams.set('weekend_from', params.weekendFrom);
+    if (params?.weekendTo) searchParams.set('weekend_to', params.weekendTo);
+    const qs = searchParams.toString();
     const url = qs ? `${API_URL}/ratings?${qs}` : `${API_URL}/ratings`;
     const response = await fetch(url);
 

@@ -26,7 +26,7 @@ export default function RankingCard({
           <span className="text-2xl font-black text-[#FFD666] font-montserrat">
             #{rank}
           </span>
-          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FA4693] text-white rounded-full font-montserrat">
+          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#08CA66] text-white rounded-full font-montserrat">
             {party.category}
           </span>
         </div>

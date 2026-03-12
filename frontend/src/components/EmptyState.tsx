@@ -20,7 +20,7 @@ export default function EmptyState({ selectedDay, onGoToRankings }: EmptyStatePr
       {onGoToRankings && (
         <button
           onClick={onGoToRankings}
-          className="text-[#FA4693] text-sm text-center font-montserrat mt-2 underline"
+          className="text-[#08CA66] text-sm text-center font-montserrat mt-2 underline"
         >
           Check last week&apos;s rankings
         </button>

@@ -206,7 +206,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
               if (errors.title) setErrors(prev => ({ ...prev, title: '' }));
             }}
             placeholder="e.g., Sigma Chi House Party"
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors"
             maxLength={50}
           />
           {errors.title && <p className="text-red-400 text-sm mt-1">{errors.title}</p>}
@@ -225,7 +225,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
               if (errors.host) setErrors(prev => ({ ...prev, host: '' }));
             }}
             placeholder="e.g., Sigma Chi"
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors"
             maxLength={30}
           />
           {errors.host && <p className="text-red-400 text-sm mt-1">{errors.host}</p>}
@@ -244,7 +244,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
               if (errors.pinLabel) setErrors(prev => ({ ...prev, pinLabel: '' }));
             }}
             placeholder="e.g., ΣΧ, OGP, PKP"
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors"
             maxLength={5}
           />
           <p className="text-gray-500 text-xs mt-1">Short label shown on the map pin (max 5 chars)</p>
@@ -267,7 +267,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
               }
             }}
             placeholder="Start typing address..."
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors"
             autoComplete="off"
           />
 
@@ -312,7 +312,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
           <select
             value={doorsOpen}
             onChange={(e) => setDoorsOpen(e.target.value)}
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors appearance-none cursor-pointer"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors appearance-none cursor-pointer"
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
               backgroundRepeat: 'no-repeat',
@@ -334,7 +334,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors appearance-none cursor-pointer"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors appearance-none cursor-pointer"
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
               backgroundRepeat: 'no-repeat',
@@ -353,7 +353,7 @@ export default function AddPartyModal({ isOpen, onClose, onSubmit }: AddPartyMod
         {/* Submit button */}
         <button
           type="submit"
-          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40 transition-all duration-200 active:scale-95 mt-6"
+          className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#08CA66] hover:bg-[#39D680] shadow-lg shadow-[#08CA66]/30 hover:shadow-[#08CA66]/40 transition-all duration-200 active:scale-95 mt-6"
         >
           Add Party
         </button>

@@ -40,7 +40,7 @@ export default function BottomNav({ activeView, onViewChange }: BottomNavProps) 
           onClick={() => onViewChange('home')}
           className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
             activeView === 'home'
-              ? 'text-[#FA4693]'
+              ? 'text-[#08CA66]'
               : 'text-gray-600 hover:text-gray-400'
           }`}
         >
@@ -52,7 +52,7 @@ export default function BottomNav({ activeView, onViewChange }: BottomNavProps) 
           onClick={() => onViewChange('map')}
           className={`flex flex-col items-center justify-center flex-1 py-2 transition-colors duration-200 ${
             activeView === 'map'
-              ? 'text-[#FA4693]'
+              ? 'text-[#08CA66]'
               : 'text-gray-600 hover:text-gray-400'
           }`}
         >

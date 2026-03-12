@@ -30,7 +30,7 @@ export default function ProfileModal({ isOpen, onClose, username, partyCount, on
     <ModalWrapper isOpen={isOpen} onClose={onClose}>
       {/* Avatar */}
       <div className="flex justify-center mb-4">
-        <div className="w-20 h-20 rounded-full bg-[#FA4693] flex items-center justify-center">
+        <div className="w-20 h-20 rounded-full bg-[#08CA66] flex items-center justify-center">
           <span className="text-3xl font-bold text-white">
             {username.charAt(0).toUpperCase()}
           </span>
@@ -54,7 +54,7 @@ export default function ProfileModal({ isOpen, onClose, username, partyCount, on
       {user?.isAdmin && (
         <button
           onClick={handleAdminClick}
-          className="w-full py-3 px-6 rounded-xl font-semibold text-white bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 transition-all duration-200 active:scale-95 mb-3 font-montserrat"
+          className="w-full py-3 px-6 rounded-xl font-semibold text-white bg-[#08CA66] hover:bg-[#39D680] shadow-lg shadow-[#08CA66]/30 transition-all duration-200 active:scale-95 mb-3 font-montserrat"
         >
           Admin Dashboard
         </button>

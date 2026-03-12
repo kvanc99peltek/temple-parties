@@ -71,12 +71,12 @@ export default function PartyCard({
   };
 
   return (
-    <div className="bg-[#202023] rounded-t-2xl rounded-b-[12px] mb-3 sm:mb-4 overflow-hidden shadow-xl transition-all duration-200 hover:shadow-[#FA4693]/20 hover:-translate-y-1 animate-slide-up-fade">
+    <div className="bg-[#202023] rounded-t-2xl rounded-b-[12px] mb-3 sm:mb-4 overflow-hidden shadow-xl transition-all duration-200 hover:shadow-[#08CA66]/20 hover:-translate-y-1 animate-slide-up-fade">
       {/* Content area with padding */}
       <div className="p-5 sm:p-6">
         {/* Category Badge + HYPED */}
         <div className="flex items-center gap-2 mb-4 sm:mb-5">
-          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#FA4693] text-white rounded-full font-montserrat">
+          <span className="inline-block px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase bg-[#08CA66] text-white rounded-full font-montserrat">
             {category}
           </span>
           {isVerified && (

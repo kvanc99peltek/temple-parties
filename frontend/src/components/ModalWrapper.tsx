@@ -27,7 +27,7 @@ export default function ModalWrapper({ isOpen, onClose, children, className }: M
       data-testid="modal-backdrop"
       style={{ zIndex: 10000 }}
     >
-      <div className={`w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-[#FA4693]/30 border border-[#FA4693]/30 animate-scale-in relative ${className || ''}`}>
+      <div className={`w-full max-w-sm bg-zinc-900 rounded-2xl p-8 shadow-2xl shadow-[#08CA66]/30 border border-[#08CA66]/30 animate-scale-in relative ${className || ''}`}>
         {/* Close button */}
         <button
           onClick={onClose}

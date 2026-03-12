@@ -90,7 +90,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, onShowToast }: 
           <div
             key={s}
             className={`w-2 h-2 rounded-full transition-colors ${
-              i <= currentIndex ? 'bg-[#FA4693]' : 'bg-zinc-700'
+              i <= currentIndex ? 'bg-[#08CA66]' : 'bg-zinc-700'
             }`}
           />
         ))}
@@ -142,7 +142,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, onShowToast }: 
                 setError('');
               }}
               placeholder="yourname@temple.edu"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors"
               autoFocus
             />
             {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
@@ -151,7 +151,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, onShowToast }: 
           <button
             type="submit"
             disabled={isLoading || !email}
-            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#08CA66] hover:bg-[#39D680] shadow-lg shadow-[#08CA66]/30 hover:shadow-[#08CA66]/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Sending...' : 'Send Magic Link'}
           </button>
@@ -170,7 +170,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, onShowToast }: 
             Check your email
           </h2>
           <p className="text-gray-400 text-center mb-6">
-            We sent a magic link to <span className="text-[#FA4693]">{email}</span>
+            We sent a magic link to <span className="text-[#08CA66]">{email}</span>
           </p>
           <p className="text-gray-500 text-center text-sm mb-6">
             Click the link in your email to log in. You can close this modal.
@@ -209,7 +209,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, onShowToast }: 
                 setError('');
               }}
               placeholder="Enter a username"
-              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors"
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-gray-500 focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors"
               autoFocus
             />
             {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
@@ -218,7 +218,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, onShowToast }: 
           <button
             type="submit"
             disabled={isLoading || !usernameInput.trim()}
-            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#FA4693] hover:bg-[#FB6BA8] shadow-lg shadow-[#FA4693]/30 hover:shadow-[#FA4693]/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3.5 px-6 rounded-xl font-semibold text-white bg-[#08CA66] hover:bg-[#39D680] shadow-lg shadow-[#08CA66]/30 hover:shadow-[#08CA66]/40 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Saving...' : 'Complete Sign Up'}
           </button>

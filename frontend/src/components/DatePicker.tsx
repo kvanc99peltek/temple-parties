@@ -117,7 +117,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-left focus:border-[#FA4693] focus:ring-1 focus:ring-[#FA4693] outline-none transition-colors flex items-center justify-between"
+        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white text-left focus:border-[#08CA66] focus:ring-1 focus:ring-[#08CA66] outline-none transition-colors flex items-center justify-between"
       >
         <span>{formatDisplayDate(selected)}</span>
         <svg
@@ -166,7 +166,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
               <div
                 key={d}
                 className={`text-center text-xs font-medium py-1 ${
-                  d === 'Fri' || d === 'Sat' ? 'text-[#FA4693]/70' : 'text-gray-500'
+                  d === 'Fri' || d === 'Sat' ? 'text-[#08CA66]/70' : 'text-gray-500'
                 }`}
               >
                 {d}
@@ -201,7 +201,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
                   onClick={() => handleSelect(day.iso)}
                   className={`h-8 flex items-center justify-center text-xs rounded-lg font-medium transition-all ${
                     isSelected
-                      ? 'bg-[#FA4693] text-white shadow-lg shadow-[#FA4693]/30'
+                      ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/30'
                       : 'text-white hover:bg-zinc-700 bg-zinc-700/40'
                   }`}
                 >

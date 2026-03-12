@@ -19,7 +19,7 @@ export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturday
           onClick={() => onDayChange('friday')}
           className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat ${
             selectedDay === 'friday'
-              ? 'bg-[#FA4693] text-white'
+              ? 'bg-[#08CA66] text-white'
               : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
           }`}
         >
@@ -29,7 +29,7 @@ export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturday
           onClick={() => onDayChange('saturday')}
           className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat ${
             selectedDay === 'saturday'
-              ? 'bg-[#FA4693] text-white'
+              ? 'bg-[#08CA66] text-white'
               : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
           }`}
         >

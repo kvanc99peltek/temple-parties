@@ -24,7 +24,7 @@ export default function GoingButton({ currentCount, userIsGoing, onGoingClick }:
       onClick={handleClick}
       title={userIsGoing ? 'Click to un-go' : 'Click to go'}
       className={`flex-1 h-[49px] rounded-bl-[12px] rounded-tl-none rounded-tr-none rounded-br-none font-bold text-lg uppercase transition-all duration-150 flex items-center justify-center gap-1.5 font-montserrat text-white hover:opacity-90 active:scale-[0.98] ${
-        userIsGoing ? 'bg-gradient-to-r from-[#0084FF] to-[#FA4693]' : 'bg-[#FA4693]'
+        userIsGoing ? 'bg-gradient-to-r from-[#08CA6680] to-[#08CA66]' : 'bg-[#08CA66]'
       } ${isAnimating ? 'animate-going-click' : ''}`}
     >
       {userIsGoing && (

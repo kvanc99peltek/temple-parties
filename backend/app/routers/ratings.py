@@ -166,18 +166,24 @@ async def get_party_rating(request: Request, party_id: str):
 @router.get("", response_model=List[PartyRankingResponse])
 async def get_rankings(
     request: Request,
-    day: Optional[str] = Query(None, description="Filter by day (friday/saturday)"),
-    weekend_of: Optional[str] = Query(None, description="Friday date (YYYY-MM-DD) of the weekend to query")
+    weekend_of: Optional[str] = Query(None, description="Single Friday date (YYYY-MM-DD)"),
+    weekend_from: Optional[str] = Query(None, description="Range start Friday date (YYYY-MM-DD)"),
+    weekend_to: Optional[str] = Query(None, description="Range end Friday date (YYYY-MM-DD)")
 ):
     """
-    Get all parties ranked by average rating for the current weekend.
+    Get all parties ranked by average rating.
+    Supports single weekend (weekend_of) or date range (weekend_from + weekend_to).
     Includes the requesting user's rating per party (by IP).
     """
-    weekend = date.fromisoformat(weekend_of) if weekend_of else get_current_weekend()
-    query = supabase.table("parties").select("*").eq("status", "approved").eq("weekend_of", weekend.isoformat())
+    query = supabase.table("parties").select("*").eq("status", "approved")
 
-    if day:
-        query = query.eq("day", day)
+    if weekend_from and weekend_to:
+        query = query.gte("weekend_of", weekend_from).lte("weekend_of", weekend_to)
+    elif weekend_of:
+        query = query.eq("weekend_of", weekend_of)
+    else:
+        weekend = get_current_weekend()
+        query = query.eq("weekend_of", weekend.isoformat())
 
     result = query.order("avg_rating", desc=True).execute()
 

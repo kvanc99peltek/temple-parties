@@ -221,6 +221,8 @@ export default function Home() {
                   isRatingActive={isRatingActive(party.doorsOpen, party.date)}
                   isRatingLocked={isRatingLocked(party.date)}
                   isVerified={party.isVerified}
+                  onVerifiedClick={() => showToast('This host has been verified')}
+                  onHypedClick={() => showToast('Most popular party tonight')}
                 />
               ))
             )}

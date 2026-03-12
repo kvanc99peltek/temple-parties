@@ -26,7 +26,7 @@ export default function RankingRow({ rank, party, isLast }: RankingRowProps) {
           </span>
         </div>
 
-        <p className="flex-1 min-w-0 text-xl font-bold text-white font-montserrat truncate leading-tight">
+        <p className="flex-1 min-w-0 text-base font-bold text-white font-montserrat truncate leading-tight">
           {party.title}
         </p>
 

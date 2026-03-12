@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import ModalWrapper from './ModalWrapper';
 
-const ADD_PARTY_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScYP6VITctDBeGqpYtgMrStQoShUe0jZpxeuSTeRAcqhWR-9Q/viewform?usp=publish-editor';
 const PRIZE_LINK = 'https://www.instagram.com/reel/DVrFxFcgo1D/?igsh=MWNmbTcwbGUxNmFpeQ==';
 
 interface HeaderProps {
@@ -25,13 +24,6 @@ export default function Header(props: HeaderProps) {
             TEMPLE<br />PARTIES
           </h1>
           <div className="mt-2 pr-5 flex items-center gap-3">
-            {/* <button
-              onClick={() => window.open(ADD_PARTY_FORM_URL, '_blank')}
-              className="text-white text-3xl font-light leading-none active:scale-95 transition-transform duration-200"
-              aria-label="Add a party"
-            >
-              +
-            </button> */}
             <button
               onClick={() => setShowPrizeModal(true)}
               className="px-5 py-2.5 rounded-2xl bg-[#FFD666] text-[#C69100] font-Montserrat font-bold text-base active:scale-95 transition-all duration-200 cursor-pointer"

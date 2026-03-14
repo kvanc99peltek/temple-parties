@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { getDefaultDay } from '@/utils/dateHelpers';
+import { getDefaultDay, parseDoorsOpen } from '@/utils/dateHelpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
@@ -14,6 +14,7 @@ interface Party {
   pinLabel: string;
   category: string;
   day: 'friday' | 'saturday';
+  date: string;
   doorsOpen: string;
   address: string;
   latitude: number;
@@ -68,7 +69,8 @@ function createAvatarIcon(
   count: number,
   maxCount: number,
   isHyped: boolean,
-  isGoing: boolean
+  isGoing: boolean,
+  isDimmed: boolean
 ): L.DivIcon {
   const minSize = 44;
   const maxSize = 64;
@@ -85,10 +87,11 @@ function createAvatarIcon(
 
   const pulseClass = isHyped ? ' avatar-marker-pulse' : '';
   const goingClass = isGoing ? ' avatar-marker-going' : '';
+  const dimStyle = isDimmed ? 'opacity:0.5;' : '';
 
   return L.divIcon({
     className: 'custom-marker',
-    html: `<div class="avatar-marker${pulseClass}${goingClass}" style="width:${size}px;height:${size}px;flex-direction:column;gap:1px;padding:6px;box-sizing:border-box;"><span style="font-size:${fontSize}px;line-height:1;">${label}</span><span style="font-size:${countFontSize}px;font-weight:700;color:white;line-height:1;font-family:'Montserrat',sans-serif;">${count}</span></div>`,
+    html: `<div class="avatar-marker${pulseClass}${goingClass}" style="${dimStyle}width:${size}px;height:${size}px;flex-direction:column;gap:1px;padding:6px;box-sizing:border-box;"><span style="font-size:${fontSize}px;line-height:1;">${label}</span><span style="font-size:${countFontSize}px;font-weight:700;color:white;line-height:1;font-family:'Montserrat',sans-serif;">${count}</span></div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
@@ -163,10 +166,14 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         <TempleLabel />
         {(() => {
           const maxGoingCount = Math.max(...filteredParties.map(p => p.goingCount), 1);
+          const now = new Date();
+          const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
           return filteredParties.map(party => {
             const isHyped = party.id === topPartyIds[party.day];
             const userIsGoing = userGoingParties.includes(party.id);
-            const icon = createAvatarIcon(party.pinLabel, party.host, party.goingCount, maxGoingCount, isHyped, userIsGoing);
+            const doorsOpenTime = parseDoorsOpen(party.doorsOpen, party.date);
+            const isDimmed = now.getTime() - doorsOpenTime.getTime() >= FOUR_HOURS_MS;
+            const icon = createAvatarIcon(party.pinLabel, party.host, party.goingCount, maxGoingCount, isHyped, userIsGoing, isDimmed);
 
             return (
               <Marker

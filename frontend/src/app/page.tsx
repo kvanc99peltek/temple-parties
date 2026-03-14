@@ -7,6 +7,7 @@ import PartyCard from '@/components/PartyCard';
 import InviteModal from '@/components/InviteModal';
 import AddPartyModal from '@/components/AddPartyModal';
 import RatingModal from '@/components/RatingModal';
+import RatingReminderModal from '@/components/RatingReminderModal';
 import EmptyState from '@/components/EmptyState';
 import Toast from '@/components/Toast';
 import BottomNav from '@/components/BottomNav';
@@ -20,6 +21,7 @@ import useParties from '@/hooks/useParties';
 import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
+import useRatingReminder from '@/hooks/useRatingReminder';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { partiesApi } from '@/services/api';
 import { track } from '@vercel/analytics';
@@ -40,6 +42,9 @@ export default function Home() {
   const upcomingFriday = useMemo(() => getUpcomingFridayISO(), []);
   const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount, upcomingFriday);
   const toast = useToast();
+  const { currentPrompt, dismissPrompt } = useRatingReminder(
+    allParties, goingParties, getUserRating, isHydrated, isLoadingParties,
+  );
   const modals = useModalState(isAuthenticated, toggleGoing);
   const showToast = toast.show;
   const {
@@ -137,6 +142,12 @@ export default function Home() {
     if (!ratingModalParty) return;
     await submitRating(ratingModalParty.id, rating);
   }, [ratingModalParty, submitRating]);
+
+  // Handle rating submission from reminder popup
+  const handleReminderRate = useCallback(async (rating: number) => {
+    if (!currentPrompt) return;
+    await submitRating(currentPrompt.id, rating);
+  }, [currentPrompt, submitRating]);
 
   // Handle party submission
   const handlePartySubmit = useCallback(async (partyData: { title: string; host: string; pinLabel: string; address: string; doorsOpen: string; category: string; date: string }) => {
@@ -281,6 +292,21 @@ export default function Home() {
           ratingCount={getRatingCount(ratingModalParty.id, 0)}
           userRating={getUserRating(ratingModalParty.id)}
           onRate={handleModalRate}
+        />
+      )}
+
+      {/* Rating Reminder Popup */}
+      {currentPrompt && !ratingModalParty && (
+        <RatingReminderModal
+          isOpen={true}
+          onClose={dismissPrompt}
+          partyTitle={currentPrompt.title}
+          partyHost={currentPrompt.host}
+          avgRating={getAvgRating(currentPrompt.id, 0)}
+          ratingCount={getRatingCount(currentPrompt.id, 0)}
+          userRating={getUserRating(currentPrompt.id)}
+          onRate={handleReminderRate}
+          variant={currentPrompt.trigger === '12hr' ? 'nextday' : 'tonight'}
         />
       )}
 

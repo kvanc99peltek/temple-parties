@@ -25,3 +25,6 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tuparties.com
 
 // LocalStorage key for anonymous ratings
 export const RATING_STORAGE_KEY = 'temple_parties_ratings';
+
+// LocalStorage key for rating prompt dismissals
+export const RATING_PROMPTS_STORAGE_KEY = 'temple_parties_rating_prompts';

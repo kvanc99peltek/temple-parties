@@ -12,6 +12,8 @@ interface MapViewProps {
   onNavigateClick: (partyId: string) => void;
   fridayDate: string;
   saturdayDate: string;
+  sponsorFocus?: { lat: number; lng: number; sponsorId: string } | null;
+  onSponsorFocusConsumed?: () => void;
 }
 
 // Loading placeholder

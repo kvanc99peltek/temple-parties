@@ -11,6 +11,7 @@ export function useSwipeNavigation(
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
+      if (currentView === 'map') return;
       touchStart.current = {
         x: e.touches[0].clientX,
         y: e.touches[0].clientY,
@@ -20,6 +21,7 @@ export function useSwipeNavigation(
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
+      if (currentView === 'map') return;
       if (!touchStart.current) return;
       const { x: startX, y: startY, time: startTime, target: startTarget } = touchStart.current;
       touchStart.current = null;

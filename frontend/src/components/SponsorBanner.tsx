@@ -12,7 +12,7 @@ export default function SponsorBanner({ text, sponsorName, onClick }: SponsorBan
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-2">
       <button
         onClick={onClick}
-        className="w-full text-center text-sm text-white/40 hover:text-white/60 transition-colors cursor-pointer"
+        className="w-full text-center text-sm text-white/40 hover:text-white/60 transition-colors cursor-pointer font-helvetica"
       >
         {parts[0]}
         <span className="text-[#FFD666] font-semibold">{sponsorName}</span>

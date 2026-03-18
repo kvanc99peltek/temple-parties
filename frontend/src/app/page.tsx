@@ -67,6 +67,8 @@ export default function Home() {
   useEffect(() => {
     setSelectedDay(getDefaultDay());
     setIsHydrated(true);
+    track('view_changed', { from: null, to: 'home' });
+    posthog.capture('view_changed', { from: null, to: 'home' });
   }, []);
 
   // Get the top party that user is going to (for sharing)
@@ -85,6 +87,9 @@ export default function Home() {
     revealAddress(partyId);
     const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
+
+    track('going_toggled', { partyId, action: wasGoing ? 'unmarked' : 'marked' });
+    posthog.capture('going_toggled', { partyId, action: wasGoing ? 'unmarked' : 'marked' });
 
     // Show invite modal when marking as going (not un-going)
     if (!wasGoing) {
@@ -108,6 +113,9 @@ export default function Home() {
       : topGoingParty;
     const result = await shareContent(partyToShare || undefined);
 
+    track('party_shared', { method: result.method, success: result.success, partyId: partyToShare?.id });
+    posthog.capture('party_shared', { method: result.method, success: result.success, partyId: partyToShare?.id });
+
     if (result.success && result.method === 'clipboard') {
       showToast('Link copied to clipboard!');
     }
@@ -120,10 +128,10 @@ export default function Home() {
 
   // Handle view change
   const handleViewChange = useCallback((view: 'home' | 'map' | 'rankings') => {
+    track('view_changed', { from: currentView, to: view });
+    posthog.capture('view_changed', { from: currentView, to: view });
     setCurrentView(view);
-    track('view_changed', { view });
-    posthog.capture('view_changed', { view });
-  }, []);
+  }, [currentView]);
 
   // Handle sponsor banner click
   const handleSponsorBannerClick = useCallback(() => {
@@ -156,12 +164,16 @@ export default function Home() {
   const handleModalRate = useCallback(async (rating: number) => {
     if (!ratingModalParty) return;
     await submitRating(ratingModalParty.id, rating);
+    track('party_rated', { partyId: ratingModalParty.id, rating, source: 'modal' });
+    posthog.capture('party_rated', { partyId: ratingModalParty.id, rating, source: 'modal' });
   }, [ratingModalParty, submitRating]);
 
   // Handle rating submission from reminder popup
   const handleReminderRate = useCallback(async (rating: number) => {
     if (!currentPrompt) return;
     await submitRating(currentPrompt.id, rating);
+    track('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
+    posthog.capture('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
   }, [currentPrompt, submitRating]);
 
   // Handle party submission
@@ -177,6 +189,8 @@ export default function Home() {
         date: partyData.date,
       });
 
+      track('party_created', { category: partyData.category });
+      posthog.capture('party_created', { category: partyData.category });
       showToast('Party submitted for approval!');
     } catch {
       showToast('Failed to submit party');

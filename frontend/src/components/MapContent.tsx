@@ -158,17 +158,6 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
   const fridayNum = fridayDate;
   const saturdayNum = saturdayDate;
 
-  if (parties.length === 0) {
-    return (
-      <div className="w-full h-full bg-black flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg mb-2 text-gray-400 font-montserrat">No parties this weekend</p>
-          <p className="text-sm text-[#08CA66] font-montserrat">Check back on Thursday!</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full h-full relative">
       {/* Vertical Day Filter */}

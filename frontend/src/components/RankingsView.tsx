@@ -5,12 +5,12 @@ import RankingsDropdown, { RankingsFilter } from './RankingsDropdown';
 import RankingsCalendarPicker from './RankingsCalendarPicker';
 import RankingRow from './RankingRow';
 import EmptyState from './EmptyState';
-import ModalWrapper from './ModalWrapper';
+// import ModalWrapper from './ModalWrapper';
 import { PartyRanking } from '@/lib/types';
 import { ratingsApi } from '@/services/api';
 import { getLastWeekendFridayISO, getMonthRange, getSemesterRange } from '@/utils/dateHelpers';
 
-const PRIZE_LINK = 'https://www.instagram.com/reel/DVrFxFcgo1D/?igsh=MWNmbTcwbGUxNmFpeQ==';
+// const PRIZE_LINK = 'https://www.instagram.com/reel/DVrFxFcgo1D/?igsh=MWNmbTcwbGUxNmFpeQ==';
 
 export default function RankingsView() {
   const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>('this-semester');
@@ -19,7 +19,7 @@ export default function RankingsView() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [rankings, setRankings] = useState<PartyRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showPrizeModal, setShowPrizeModal] = useState(false);
+  // const [showPrizeModal, setShowPrizeModal] = useState(false);
 
   const apiParams = useMemo(() => {
     switch (selectedFilter) {
@@ -86,7 +86,7 @@ export default function RankingsView() {
           <h1 className="text-3xl sm:text-4xl font-medium leading-none tracking-tight text-white font-bitcount">
             LEADERBOARDS
           </h1>
-          <div className="flex items-center gap-3">
+          {/* <div className="flex items-center gap-3">
             <button
               onClick={() => setShowPrizeModal(true)}
               className="px-5 py-2.5 rounded-2xl bg-[#FFD666] text-[#C69100] font-Montserrat font-bold text-base active:scale-95 transition-all duration-200 cursor-pointer"
@@ -94,7 +94,7 @@ export default function RankingsView() {
             >
               Win $50
             </button>
-          </div>
+          </div> */}
         </div>
       </header>
 
@@ -136,7 +136,7 @@ export default function RankingsView() {
         )}
       </div>
 
-      <ModalWrapper isOpen={showPrizeModal} onClose={() => setShowPrizeModal(false)} className="!p-0 overflow-hidden">
+      {/* <ModalWrapper isOpen={showPrizeModal} onClose={() => setShowPrizeModal(false)} className="!p-0 overflow-hidden">
         <div className="p-8 pb-6">
           <h2 className="text-2xl font-montserrat font-semibold text-white mb-4">Win $50</h2>
           <p className="text-gray-300">
@@ -151,7 +151,7 @@ export default function RankingsView() {
         >
           Take Me There
         </a>
-      </ModalWrapper>
+      </ModalWrapper> */}
     </div>
   );
 }

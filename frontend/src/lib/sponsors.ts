@@ -7,8 +7,7 @@ export interface SponsorConfig {
   longitude: number;
   pinLabel: string;
   popupDescription: string;
-  promoCode?: string;
-  promoText?: string;
+  tagline?: string;
   hoursInfo?: string;
 }
 
@@ -22,8 +21,7 @@ export const SPONSORS: SponsorConfig[] = [
     longitude: -75.15908057988015,
     pinLabel: 'HJ',
     popupDescription: "Nashville hot chicken right near campus.",
-    promoCode: 'TUPARTIES',
-    promoText: '10% off',
+    tagline: 'Beer Available (21+)',
     hoursInfo: 'Open till 2 am',
   },
 ];

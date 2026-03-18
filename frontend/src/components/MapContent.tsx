@@ -309,9 +309,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               <p className="popup-host" style={{ color: 'rgba(255,255,255,0.6)' }}>
                 {PRIMARY_SPONSOR.popupDescription}
               </p>
-              {PRIMARY_SPONSOR.promoCode && (
+              {PRIMARY_SPONSOR.tagline && (
                 <p style={{ color: '#FFD666', fontSize: '13px', fontWeight: 600, margin: '2px 0 8px 0' }}>
-                  Use code <span style={{ fontWeight: 800 }}>{PRIMARY_SPONSOR.promoCode}</span> for {PRIMARY_SPONSOR.promoText}
+                  {PRIMARY_SPONSOR.tagline}
                 </p>
               )}
               <div className="popup-details-row">

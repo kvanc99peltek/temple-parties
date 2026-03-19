@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import DayTabs from '@/components/DayTabs';
 import PartyCard from '@/components/PartyCard';
@@ -43,7 +43,7 @@ export default function Home() {
   const isAuthenticated = false;
   const { isAddressVisible, revealAddress } = useAddressVisibility();
   const upcomingFriday = useMemo(() => getUpcomingFridayISO(), []);
-  const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties } = useParties(selectedDay, getCount, upcomingFriday);
+  const { filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties, fridayCount, saturdayCount } = useParties(selectedDay, getCount, upcomingFriday);
   const toast = useToast();
   const { currentPrompt, dismissPrompt } = useRatingReminder(
     allParties, goingParties, getUserRating, isHydrated, isLoadingParties,
@@ -70,6 +70,19 @@ export default function Home() {
     track('view_changed', { from: null, to: 'home' });
     posthog.capture('view_changed', { from: null, to: 'home' });
   }, []);
+
+  // Smart default: switch to the other day if the default day has no parties
+  const hasAppliedSmartDefault = useRef(false);
+  useEffect(() => {
+    if (isLoadingParties || hasAppliedSmartDefault.current) return;
+    hasAppliedSmartDefault.current = true;
+
+    if (selectedDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
+      setSelectedDay('saturday');
+    } else if (selectedDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
+      setSelectedDay('friday');
+    }
+  }, [isLoadingParties, fridayCount, saturdayCount, selectedDay]);
 
   // Get the top party that user is going to (for sharing)
   const topGoingParty = useMemo(() => {

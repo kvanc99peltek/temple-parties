@@ -149,6 +149,22 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
   const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
 
+  // Smart default: switch to the other day if the default day has no parties
+  const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
+  const saturdayCount = useMemo(() => parties.filter(p => p.day === 'saturday').length, [parties]);
+  const hasAppliedSmartDefault = useRef(false);
+  useEffect(() => {
+    if (parties.length === 0 || hasAppliedSmartDefault.current) return;
+    hasAppliedSmartDefault.current = true;
+
+    const defaultDay = getDefaultDay();
+    if (defaultDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
+      setSelectedDay('saturday');
+    } else if (defaultDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
+      setSelectedDay('friday');
+    }
+  }, [parties, fridayCount, saturdayCount]);
+
   // Filter parties based on selected day
   const filteredParties = useMemo(() => {
     return parties.filter(party => party.day === selectedDay);

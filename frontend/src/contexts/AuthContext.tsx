@@ -4,6 +4,7 @@ import { createContext, useContext, useReducer, useEffect, useCallback, ReactNod
 import { supabase } from '@/lib/supabase';
 import { authApi } from '@/services/api';
 import type { Session } from '@supabase/supabase-js';
+import posthog from 'posthog-js';
 
 interface User {
   id: string;
@@ -137,10 +138,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (requestId !== requestIdRef.current) return;
 
       if (profile) {
+        const user = profileToUser(profile);
+        posthog.identify(user.id, {
+          email: user.email,
+          username: user.username,
+        });
         dispatch({
           type: 'SET_AUTH',
           session: nextSession,
-          user: profileToUser(profile),
+          user,
           needsUsername: !profile.username,
         });
       } else {
@@ -227,6 +233,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('[Auth] Magic link redirect URL:', redirectUrl);
       }
 
+      posthog.capture('login_started', { method: 'magic_link' });
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email.toLowerCase(),
         options: {
@@ -236,9 +244,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
+        posthog.capture('login_failed', { error: error.message });
         return { success: false, error: error.message };
       }
 
+      posthog.capture('magic_link_sent');
       return { success: true };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to send magic link' };
@@ -263,6 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
+    posthog.reset();
     dispatch({ type: 'CLEAR_AUTH' });
   }, []);
 

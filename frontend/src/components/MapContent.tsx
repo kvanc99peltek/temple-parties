@@ -299,8 +299,13 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 {PRIMARY_SPONSOR.popupDescription}
               </p>
               {PRIMARY_SPONSOR.tagline && (
-                <p style={{ color: '#FFD666', fontSize: '13px', fontWeight: 600, margin: '2px 0 8px 0' }}>
+                <p style={{ color: '#FFD666', fontSize: '13px', fontWeight: 600, margin: '2px 0 0 0', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
                   {PRIMARY_SPONSOR.tagline}
+                </p>
+              )}
+              {PRIMARY_SPONSOR.tagline2 && (
+                <p style={{ color: 'rgba(255, 214, 102, 0.9)', fontSize: '11px', fontWeight: 500, margin: '2px 0 8px 0', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                  {PRIMARY_SPONSOR.tagline2}
                 </p>
               )}
               <div className="popup-details-row">
@@ -313,10 +318,29 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               </div>
             </div>
             <div className="popup-buttons">
+              {PRIMARY_SPONSOR.orderUrl && (
+                <a
+                  href={PRIMARY_SPONSOR.orderUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="popup-going-btn"
+                  style={{ textDecoration: 'none', color: 'white' }}
+                  onClick={() => {
+                    track('sponsor_order_clicked', { sponsor: PRIMARY_SPONSOR.id });
+                    posthog.capture('sponsor_order_clicked', { sponsor: PRIMARY_SPONSOR.id });
+                  }}
+                >
+                  ORDER
+                </a>
+              )}
               <button
-                onClick={() => openMapsDirections(PRIMARY_SPONSOR.address)}
+                onClick={() => {
+                  track('sponsor_navigate_clicked', { sponsor: PRIMARY_SPONSOR.id });
+                  posthog.capture('sponsor_navigate_clicked', { sponsor: PRIMARY_SPONSOR.id });
+                  openMapsDirections(PRIMARY_SPONSOR.address);
+                }}
                 className="popup-navigate-btn"
-                style={{ borderRadius: '0 0 12px 12px', width: '100%' }}
+                style={PRIMARY_SPONSOR.orderUrl ? {} : { borderRadius: '0 0 12px 12px', width: '100%' }}
               >
                 NAVIGATE
               </button>

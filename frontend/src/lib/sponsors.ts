@@ -8,7 +8,9 @@ export interface SponsorConfig {
   pinLabel: string;
   popupDescription: string;
   tagline?: string;
+  tagline2?: string;
   hoursInfo?: string;
+  orderUrl?: string;
 }
 
 export const SPONSORS: SponsorConfig[] = [
@@ -20,9 +22,11 @@ export const SPONSORS: SponsorConfig[] = [
     latitude: 39.97866057729966,
     longitude: -75.15908057988015,
     pinLabel: 'HJ',
-    popupDescription: "Nashville hot chicken right near campus.",
-    tagline: 'Beer Available (21+)',
+    popupDescription: "Halal Hot Chicken On Campus",
+    tagline: 'Beer Available (ID required)',
+    tagline2: 'Everyone In The Group Must Be 21+',
     hoursInfo: 'Open till 2 am',
+    orderUrl: 'https://order.incentivio.com/c/hangryjoes/locations/philadelphiacecilbmooreave',
   },
 ];
 

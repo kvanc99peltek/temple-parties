@@ -54,5 +54,8 @@ export default function useParties(selectedDay: 'friday' | 'saturday', getCount:
     };
   }, [allParties]);
 
-  return { parties, filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties };
+  const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
+  const saturdayCount = useMemo(() => parties.filter(p => p.day === 'saturday').length, [parties]);
+
+  return { parties, filteredParties, allParties, topPartyId, topPartyIds, isLoadingParties, fridayCount, saturdayCount };
 }

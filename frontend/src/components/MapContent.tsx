@@ -182,7 +182,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           onClick={() => setSelectedDay('friday')}
           className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'friday'
             ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/25'
-            : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#08CA66]/10'
+            : 'bg-black/80 text-white/50 border border-zinc-700 hover:text-gray-300 hover:bg-[#08CA66]/10'
             }`}
         >
           Fri {fridayNum}
@@ -191,7 +191,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           onClick={() => setSelectedDay('saturday')}
           className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'saturday'
             ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/25'
-            : 'bg-black/80 text-white border border-zinc-700 hover:text-gray-300 hover:bg-[#08CA66]/10'
+            : 'bg-black/80 text-white/50 border border-zinc-700 hover:text-gray-300 hover:bg-[#08CA66]/10'
             }`}
         >
           Sat {saturdayNum}

@@ -20,7 +20,7 @@ export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturday
           className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat ${
             selectedDay === 'friday'
               ? 'bg-[#08CA66] text-white'
-              : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
+              : 'bg-[#202023] text-white/50 hover:bg-[#2A2A2D]'
           }`}
         >
           Fri {fridayNum}
@@ -30,7 +30,7 @@ export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturday
           className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat ${
             selectedDay === 'saturday'
               ? 'bg-[#08CA66] text-white'
-              : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
+              : 'bg-[#202023] text-white/50 hover:bg-[#2A2A2D]'
           }`}
         >
           Sat {saturdayNum}

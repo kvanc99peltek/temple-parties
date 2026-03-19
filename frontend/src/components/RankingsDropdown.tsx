@@ -17,15 +17,22 @@ interface RankingsDropdownProps {
   selectedFilter: RankingsFilter;
   onFilterChange: (filter: RankingsFilter) => void;
   customLabel?: string;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export default function RankingsDropdown({
   selectedFilter,
   onFilterChange,
   customLabel,
+  onOpenChange,
 }: RankingsDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpenRaw] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const setIsOpen = (open: boolean) => {
+    setIsOpenRaw(open);
+    onOpenChange?.(open);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,7 +57,7 @@ export default function RankingsDropdown({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center gap-3 px-4 py-3 bg-[#202023] border border-white/10 rounded-2xl text-white font-montserrat font-bold text-base transition-colors hover:border-white/20"
+          className={`w-full flex items-center gap-3 px-4 py-3 bg-[#202023] border border-white/10 rounded-2xl font-montserrat font-bold text-base transition-colors hover:border-white/20 ${isOpen ? 'text-white' : 'text-white/50'}`}
         >
           <svg
             className={`w-5 h-5 text-white/40 transition-transform ${isOpen ? 'rotate-90' : ''}`}
@@ -75,9 +82,9 @@ export default function RankingsDropdown({
                   onFilterChange(filter);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left px-5 py-3.5 text-sm font-montserrat font-medium transition-colors ${
+                className={`w-full text-left pl-12 pr-4 py-3.5 text-base font-montserrat font-medium transition-colors ${
                   selectedFilter === filter
-                    ? 'text-[#08CA66] bg-[#08CA66]/10'
+                    ? 'text-[#FFD666] bg-[#FFD666]/10'
                     : 'text-white hover:bg-[#2A2A2D]'
                 }`}
               >

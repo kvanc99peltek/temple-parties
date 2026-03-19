@@ -19,6 +19,7 @@ export default function RankingsView() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [rankings, setRankings] = useState<PartyRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   // const [showPrizeModal, setShowPrizeModal] = useState(false);
 
   const apiParams = useMemo(() => {
@@ -102,6 +103,7 @@ export default function RankingsView() {
         selectedFilter={selectedFilter}
         onFilterChange={handleFilterChange}
         customLabel={customLabel}
+        onOpenChange={setIsDropdownOpen}
       />
 
       {showCalendar && (
@@ -115,7 +117,7 @@ export default function RankingsView() {
         </div>
       )}
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6">
+      <div className={`max-w-xl mx-auto px-4 sm:px-6 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>

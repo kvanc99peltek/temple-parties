@@ -228,7 +228,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 position={[party.latitude, party.longitude]}
                 icon={icon}
               >
-                <Popup className="party-popup-dark">
+                <Popup className="party-popup-dark" closeButton={false}>
                   <div className="popup-content">
                     {/* Category Badge + VERIFIED + HYPED */}
                     <div className="popup-badges">
@@ -305,7 +305,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
             },
           }}
         >
-          <Popup className="sponsor-popup-dark">
+          <Popup className="sponsor-popup-dark" closeButton={false}>
             <div className="popup-content">
               <div className="popup-badges">
                 <span className="popup-sponsor-badge">SPONSORED</span>

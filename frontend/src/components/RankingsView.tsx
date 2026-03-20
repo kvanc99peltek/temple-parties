@@ -5,6 +5,8 @@ import RankingsDropdown, { RankingsFilter } from './RankingsDropdown';
 import RankingsCalendarPicker from './RankingsCalendarPicker';
 import RankingRow from './RankingRow';
 import EmptyState from './EmptyState';
+import posthog from 'posthog-js';
+import { track } from '@vercel/analytics';
 import ModalWrapper from './ModalWrapper';
 import { PartyRanking } from '@/lib/types';
 import { ratingsApi } from '@/services/api';
@@ -87,7 +89,7 @@ export default function RankingsView() {
           </h1>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowLostCatModal(true)}
+              onClick={() => { track('lost_cat_clicked'); posthog.capture('lost_cat_clicked'); setShowLostCatModal(true); }}
               className="px-4 py-2 rounded-2xl bg-[#FFD666] text-black font-Montserrat font-bold text-sm active:scale-95 transition-all duration-200 cursor-pointer"
               aria-label="Help find lost cat"
             >

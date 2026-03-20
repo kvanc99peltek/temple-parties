@@ -101,22 +101,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar for webkit browsers - Purple theme */
-::-webkit-scrollbar {
-  width: 6px;
+/* Hide scrollbar on mobile */
+@media (max-width: 639px) {
+  * {
+    scrollbar-width: none;
+  }
+  ::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* Custom scrollbar for webkit browsers on desktop */
+@media (min-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(8, 202, 102, 0.3);
-  border-radius: 3px;
-}
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(8, 202, 102, 0.5);
+  ::-webkit-scrollbar-thumb {
+    background: rgba(8, 202, 102, 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(8, 202, 102, 0.5);
+  }
 }
 
 /* Focus visible styles for accessibility - Pink */

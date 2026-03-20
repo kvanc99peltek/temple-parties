@@ -247,18 +247,6 @@ html {
   border-bottom: 1px solid rgba(8, 202, 102, 0.3);
 }
 
-.party-popup-dark .leaflet-popup-close-button {
-  color: #888;
-  font-size: 18px;
-  padding: 6px 8px;
-  top: 2px;
-  right: 2px;
-}
-
-.party-popup-dark .leaflet-popup-close-button:hover {
-  color: #fff;
-}
-
 /* Popup content styling */
 .popup-content {
   min-width: 240px;
@@ -485,18 +473,6 @@ html {
   background: #202023;
   border-left: 1px solid rgba(255, 214, 102, 0.3);
   border-bottom: 1px solid rgba(255, 214, 102, 0.3);
-}
-
-.sponsor-popup-dark .leaflet-popup-close-button {
-  color: #888;
-  font-size: 18px;
-  padding: 6px 8px;
-  top: 2px;
-  right: 2px;
-}
-
-.sponsor-popup-dark .leaflet-popup-close-button:hover {
-  color: #fff;
 }
 
 /* Leaflet controls dark theme */

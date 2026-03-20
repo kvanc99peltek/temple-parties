@@ -1,9 +1,7 @@
 'use client';
 
-// import { useState } from 'react';
-// import ModalWrapper from './ModalWrapper';
-
-// const PRIZE_LINK = 'https://www.instagram.com/reel/DVrFxFcgo1D/?igsh=MWNmbTcwbGUxNmFpeQ==';
+import { useState } from 'react';
+import ModalWrapper from './ModalWrapper';
 
 interface HeaderProps {
   onAddPartyClick: () => void;
@@ -14,7 +12,7 @@ interface HeaderProps {
 
 export default function Header(props: HeaderProps) {
   void props;
-  // const [showPrizeModal, setShowPrizeModal] = useState(false);
+  const [showLostCatModal, setShowLostCatModal] = useState(false);
 
   return (
     <>
@@ -23,34 +21,34 @@ export default function Header(props: HeaderProps) {
           <h1 className="text-3xl sm:text-4xl font-medium leading-none tracking-tight text-white font-bitcount">
             TEMPLE<br />PARTIES
           </h1>
-          {/* <div className="mt-2 flex items-center gap-3">
+          <div className="mt-2 flex items-center gap-3">
             <button
-              onClick={() => setShowPrizeModal(true)}
-              className="px-5 py-2.5 rounded-2xl bg-[#FFD666] text-[#C69100] font-Montserrat font-bold text-base active:scale-95 transition-all duration-200 cursor-pointer"
-              aria-label="Win $50"
+              onClick={() => setShowLostCatModal(true)}
+              className="px-4 py-2 rounded-2xl bg-[#FFD666] text-black font-Montserrat font-bold text-sm active:scale-95 transition-all duration-200 cursor-pointer"
+              aria-label="Help find lost cat"
             >
-              Win $50
+              Help Find<br />Lost Cat
             </button>
-          </div> */}
+          </div>
         </div>
       </header>
 
-      {/* <ModalWrapper isOpen={showPrizeModal} onClose={() => setShowPrizeModal(false)} className="!p-0 overflow-hidden">
-        <div className="p-8 pb-6">
-          <h2 className="text-2xl font-montserrat font-semibold text-white mb-4">Win $50</h2>
+      <ModalWrapper isOpen={showLostCatModal} onClose={() => setShowLostCatModal(false)} className="!p-0 overflow-hidden">
+        <div className="p-8 pb-4">
+          <h2 className="text-2xl font-montserrat font-semibold text-white mb-4">Help Find Benito</h2>
           <p className="text-gray-300">
-            We&apos;re doing a $50 giveaway to celebrate St. Patricks Day. You&apos;ll find the details on our Instagram below.
+            A fellow Temple student, Justin, lost his cat Benito. If you find him, please reach out using the info on the poster!
           </p>
         </div>
-        <a
-          href={PRIZE_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full py-4 font-montserrat font-bold text-lg text-center text-[#000000] bg-[#FFD666] hover:bg-[#FFE08A] transition-all duration-200 active:scale-[0.98]"
-        >
-          Take Me There
-        </a>
-      </ModalWrapper> */}
+        <div className="px-8 pb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/lost-cat-poster.jpg"
+            alt="Lost CAT card poster with contact information"
+            className="w-full rounded-lg"
+          />
+        </div>
+      </ModalWrapper>
     </>
   );
 }

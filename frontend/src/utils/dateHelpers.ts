@@ -5,8 +5,13 @@
  * - Sunday → Show Friday parties (this weekend)
  */
 export function getDefaultDay(): 'friday' | 'saturday' {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+  const now = new Date();
+  let dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+
+  // Before 6 AM, treat as previous day (parties run past midnight)
+  if (now.getHours() < 6) {
+    dayOfWeek = (dayOfWeek - 1 + 7) % 7;
+  }
 
   if (dayOfWeek === 6) {
     return 'saturday';

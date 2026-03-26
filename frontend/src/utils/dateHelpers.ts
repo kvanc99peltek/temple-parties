@@ -150,12 +150,9 @@ export function isRatingActive(doorsOpen: string, dateStr: string): boolean {
   return new Date() >= openTime;
 }
 
-/** ISO date string for last weekend's Friday (7 days before rankings Friday). */
+/** ISO date string for the most recent past Friday (last completed weekend). */
 export function getLastWeekendFridayISO(): string {
-  const currentFriday = getRankingsFriday();
-  const lastFriday = new Date(currentFriday);
-  lastFriday.setDate(lastFriday.getDate() - 7);
-  return toISODate(lastFriday);
+  return toISODate(getRankingsFriday());
 }
 
 /** Get the bounding Friday ISO dates for the current calendar month. */

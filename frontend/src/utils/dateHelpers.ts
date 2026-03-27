@@ -74,8 +74,8 @@ function getRankingsFriday(): Date {
   const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
   let daysToFriday: number;
   if (dayOfWeek === 5) {
-    // Friday -> today
-    daysToFriday = 0;
+    // Friday -> last Friday
+    daysToFriday = -7;
   } else if (dayOfWeek === 6) {
     // Saturday -> yesterday (this Friday)
     daysToFriday = -1;

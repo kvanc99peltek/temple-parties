@@ -45,7 +45,7 @@ class PartyResponse(BaseModel):
     longitude: float
     goingCount: int  # camelCase for frontend compatibility
     status: Optional[str] = None
-    avgRating: float = 0
+    likePercentage: float = 0
     ratingCount: int = 0
     isVerified: bool = False
 

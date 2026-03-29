@@ -56,7 +56,7 @@ def db_to_response(party: dict) -> PartyResponse:
         longitude=float(party["longitude"]),
         goingCount=party["going_count"],
         status=party.get("status"),
-        avgRating=float(party.get("avg_rating") or 0),
+        likePercentage=float(party.get("like_percentage") or 0),
         ratingCount=party.get("rating_count") or 0,
         isVerified=party.get("is_verified", False),
     )

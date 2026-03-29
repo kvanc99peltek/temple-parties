@@ -5,16 +5,16 @@ import { ratingsApi } from '@/services/api';
 import { RATING_STORAGE_KEY } from '@/lib/constants';
 
 interface RatingState {
-  [partyId: string]: number; // partyId -> user's rating (1-5)
+  [partyId: string]: number; // partyId -> user's rating (0 or 1)
 }
 
-interface AvgRatingState {
-  [partyId: string]: { avgRating: number; ratingCount: number };
+interface LikePercentageState {
+  [partyId: string]: { likePercentage: number; ratingCount: number };
 }
 
 interface UseRatingStatusReturn {
   getUserRating: (partyId: string) => number | null;
-  getAvgRating: (partyId: string, fallbackAvg: number) => number;
+  getLikePercentage: (partyId: string, fallbackPct: number) => number;
   getRatingCount: (partyId: string, fallbackCount: number) => number;
   submitRating: (partyId: string, rating: number) => Promise<void>;
   isLoading: boolean;
@@ -24,7 +24,23 @@ const getLocalRatings = (): RatingState => {
   if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem(RATING_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : {};
+    if (!stored) return {};
+    const parsed = JSON.parse(stored);
+    // Migrate old 1-5 star ratings to binary 0/1
+    let needsMigration = false;
+    const migrated: RatingState = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'number' && value > 1) {
+        migrated[key] = value >= 3 ? 1 : 0;
+        needsMigration = true;
+      } else {
+        migrated[key] = value as number;
+      }
+    }
+    if (needsMigration) {
+      localStorage.setItem(RATING_STORAGE_KEY, JSON.stringify(migrated));
+    }
+    return migrated;
   } catch {
     return {};
   }
@@ -37,7 +53,7 @@ const setLocalRatings = (ratings: RatingState) => {
 
 export function useRatingStatus(): UseRatingStatusReturn {
   const [ratedParties, setRatedParties] = useState<RatingState>({});
-  const [avgRatings, setAvgRatings] = useState<AvgRatingState>({});
+  const [likePercentages, setLikePercentages] = useState<LikePercentageState>({});
   const [isLoading, setIsLoading] = useState(false);
 
   // Load ratings from localStorage on mount
@@ -49,13 +65,13 @@ export function useRatingStatus(): UseRatingStatusReturn {
     return ratedParties[partyId] ?? null;
   }, [ratedParties]);
 
-  const getAvgRating = useCallback((partyId: string, fallbackAvg: number): number => {
-    return avgRatings[partyId]?.avgRating ?? fallbackAvg;
-  }, [avgRatings]);
+  const getLikePercentage = useCallback((partyId: string, fallbackPct: number): number => {
+    return likePercentages[partyId]?.likePercentage ?? fallbackPct;
+  }, [likePercentages]);
 
   const getRatingCount = useCallback((partyId: string, fallbackCount: number): number => {
-    return avgRatings[partyId]?.ratingCount ?? fallbackCount;
-  }, [avgRatings]);
+    return likePercentages[partyId]?.ratingCount ?? fallbackCount;
+  }, [likePercentages]);
 
   const submitRating = useCallback(async (partyId: string, rating: number): Promise<void> => {
     const currentRatings = getLocalRatings();
@@ -69,10 +85,10 @@ export function useRatingStatus(): UseRatingStatusReturn {
 
       const result = await ratingsApi.submitRating(partyId, rating);
 
-      // Update avg from response
-      setAvgRatings(prev => ({
+      // Update like percentage from response
+      setLikePercentages(prev => ({
         ...prev,
-        [partyId]: { avgRating: result.avgRating, ratingCount: result.ratingCount },
+        [partyId]: { likePercentage: result.likePercentage, ratingCount: result.ratingCount },
       }));
     } catch (error) {
       console.error('Failed to submit rating:', error);
@@ -86,7 +102,7 @@ export function useRatingStatus(): UseRatingStatusReturn {
 
   return {
     getUserRating,
-    getAvgRating,
+    getLikePercentage,
     getRatingCount,
     submitRating,
     isLoading,

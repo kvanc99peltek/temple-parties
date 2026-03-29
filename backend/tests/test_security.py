@@ -220,7 +220,7 @@ class TestXSSVulnerabilities:
                 "longitude": -75.155,
                 "going_count": 0,
                 "status": "pending",
-                "avg_rating": 0,
+                "like_percentage": 0,
                 "rating_count": 0,
             }])
 

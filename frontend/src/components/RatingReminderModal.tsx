@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import ModalWrapper from './ModalWrapper';
-import StarRating from './StarRating';
+import ThumbsRating from './ThumbsRating';
 
 interface RatingReminderModalProps {
   isOpen: boolean;
   onClose: () => void;
   partyTitle: string;
   partyHost: string;
-  avgRating: number;
+  likePercentage: number;
   ratingCount: number;
   userRating: number | null;
   onRate: (rating: number) => void;
@@ -21,7 +21,7 @@ export default function RatingReminderModal({
   onClose,
   partyTitle,
   partyHost,
-  avgRating,
+  likePercentage,
   ratingCount,
   userRating,
   onRate,
@@ -70,18 +70,17 @@ export default function RatingReminderModal({
             </div>
 
             <div className="flex justify-center mb-4">
-              <StarRating
-                rating={userRating}
-                avgRating={avgRating}
+              <ThumbsRating
+                userRating={userRating}
+                likePercentage={likePercentage}
                 ratingCount={ratingCount}
                 onRate={handleRate}
                 size="md"
-                showUserRating
               />
             </div>
 
             <p className="text-white/30 text-xs font-light font-helvetica">
-              Tap a star to rate
+              Did you enjoy this party?
             </p>
           </>
         ) : (

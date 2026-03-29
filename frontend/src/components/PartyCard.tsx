@@ -1,7 +1,7 @@
 'use client';
 
 import GoingButton from './GoingButton';
-import StarRating from './StarRating';
+import ThumbsRating from './ThumbsRating';
 import { openMapsDirections } from '../utils/shareHelpers';
 import { useEffect, useRef, useState } from 'react';
 
@@ -19,10 +19,10 @@ interface PartyCardProps {
   onNavigateClick?: (partyId: string) => void | Promise<void>;
   isAddressVisible: boolean;
   onViewAddressClick: () => void;
-  avgRating: number;
+  likePercentage: number;
   ratingCount: number;
   userRating: number | null;
-  onStarClick: () => void;
+  onRateClick: () => void;
   isRatingActive: boolean;
   isRatingLocked: boolean;
   isVerified: boolean;
@@ -44,10 +44,10 @@ export default function PartyCard({
   onNavigateClick,
   isAddressVisible,
   onViewAddressClick,
-  avgRating,
+  likePercentage,
   ratingCount,
   userRating,
-  onStarClick,
+  onRateClick,
   isRatingActive,
   isRatingLocked,
   isVerified,
@@ -137,15 +137,15 @@ export default function PartyCard({
           )}
         </div>
 
-        {/* Star Rating - tappable area opens rating modal */}
+        {/* Rating - tappable area opens rating modal */}
         <button
           type="button"
-          onClick={onStarClick}
+          onClick={onRateClick}
           className={`mt-2 ${!isRatingActive || isRatingLocked ? 'cursor-default' : 'cursor-pointer'}`}
         >
-          <StarRating
-            rating={userRating}
-            avgRating={avgRating}
+          <ThumbsRating
+            userRating={userRating}
+            likePercentage={likePercentage}
             ratingCount={ratingCount}
             onRate={() => {}}
             disabled={!isRatingActive || isRatingLocked}

@@ -228,7 +228,7 @@ export const ratingsApi = {
 
   async getPartyRating(partyId: string): Promise<{
     partyId: string;
-    avgRating: number;
+    likePercentage: number;
     ratingCount: number;
     userRating: number | null;
   }> {

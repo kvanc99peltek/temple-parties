@@ -37,14 +37,6 @@ function getPartyNightKey(): string | null {
   const minute = now.getMinutes();
   const timeInMinutes = hour * 60 + minute;
 
-  // TODO: REMOVE BEFORE DEPLOYING — test override to trigger on any day/time
-  if (true) {
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}_test`;
-  }
-
   // Saturday or Sunday, between 00:30 and 05:59
   if ((day === 6 || day === 0) && timeInMinutes >= 30 && hour < 6) {
     const y = now.getFullYear();

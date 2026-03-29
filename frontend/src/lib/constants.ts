@@ -28,3 +28,6 @@ export const RATING_STORAGE_KEY = 'temple_parties_ratings';
 
 // LocalStorage key for rating prompt dismissals
 export const RATING_PROMPTS_STORAGE_KEY = 'temple_parties_rating_prompts';
+
+// LocalStorage key for sponsor reminder dismissals
+export const SPONSOR_REMINDER_STORAGE_KEY = 'temple_parties_sponsor_reminder';

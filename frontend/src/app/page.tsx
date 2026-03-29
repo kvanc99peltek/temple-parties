@@ -22,9 +22,12 @@ import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
 import useRatingReminder from '@/hooks/useRatingReminder';
+import useSponsorReminder from '@/hooks/useSponsorReminder';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import SponsorBanner from '@/components/SponsorBanner';
+import SponsorReminderModal from '@/components/SponsorReminderModal';
 import { PRIMARY_SPONSOR } from '@/lib/sponsors';
+import { openMapsDirections } from '@/utils/shareHelpers';
 import { partiesApi } from '@/services/api';
 import { track } from '@vercel/analytics';
 import posthog from 'posthog-js';
@@ -48,6 +51,7 @@ export default function Home() {
   const { currentPrompt, dismissPrompt } = useRatingReminder(
     allParties, goingParties, getUserRating, isHydrated, isLoadingParties,
   );
+  const { showSponsorReminder, dismissSponsorReminder } = useSponsorReminder(isHydrated);
   const modals = useModalState(isAuthenticated, toggleGoing);
   const showToast = toast.show;
   const {
@@ -157,6 +161,20 @@ export default function Home() {
     track('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
     posthog.capture('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
   }, []);
+
+  // Handle sponsor reminder navigate
+  const handleSponsorReminderNavigate = useCallback(() => {
+    openMapsDirections(PRIMARY_SPONSOR.address);
+    track('sponsor_reminder_navigate', { sponsor: PRIMARY_SPONSOR.id });
+    posthog.capture('sponsor_reminder_navigate', { sponsor: PRIMARY_SPONSOR.id });
+  }, []);
+
+  // Handle sponsor reminder dismiss
+  const handleSponsorReminderDismiss = useCallback(() => {
+    dismissSponsorReminder();
+    track('sponsor_reminder_dismissed', { sponsor: PRIMARY_SPONSOR.id });
+    posthog.capture('sponsor_reminder_dismissed', { sponsor: PRIMARY_SPONSOR.id });
+  }, [dismissSponsorReminder]);
 
   useSwipeNavigation(currentView, handleViewChange);
 
@@ -345,8 +363,18 @@ export default function Home() {
         />
       )}
 
-      {/* Rating Reminder Popup */}
-      {currentPrompt && !ratingModalParty && (
+      {/* Sponsor Reminder Modal — priority over rating reminder */}
+      {showSponsorReminder && !ratingModalParty && (
+        <SponsorReminderModal
+          isOpen={true}
+          onClose={handleSponsorReminderDismiss}
+          sponsorName={PRIMARY_SPONSOR.name}
+          onNavigate={handleSponsorReminderNavigate}
+        />
+      )}
+
+      {/* Rating Reminder Popup — suppressed while sponsor modal is showing */}
+      {currentPrompt && !ratingModalParty && !showSponsorReminder && (
         <RatingReminderModal
           isOpen={true}
           onClose={dismissPrompt}

@@ -77,10 +77,10 @@ export default function RankingsView() {
     : undefined;
 
   return (
-    <div className="pb-20">
-      <header className="bg-black pt-10 pb-4">
-        <div className="max-w-xl mx-auto px-6">
-          <h1 className="text-[36px] leading-[27px] font-normal text-white font-bitcount">
+    <div className="pb-20 lg:pb-8">
+      <header className="bg-black pt-10 pb-4 lg:hidden">
+        <div className="max-w-xl lg:max-w-3xl mx-auto px-6 lg:px-8">
+          <h1 className="text-[36px] leading-[27px] lg:text-[44px] lg:leading-[34px] font-normal text-white font-bitcount">
             Leaderboards
           </h1>
         </div>
@@ -94,7 +94,7 @@ export default function RankingsView() {
       />
 
       {showCalendar && (
-        <div className="max-w-xl mx-auto px-4 sm:px-6 pb-4">
+        <div className="max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
           <RankingsCalendarPicker
             startDate={customStart}
             endDate={customEnd}
@@ -104,7 +104,7 @@ export default function RankingsView() {
         </div>
       )}
 
-      <div className={`max-w-xl mx-auto px-4 sm:px-6 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
+      <div className={`max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>

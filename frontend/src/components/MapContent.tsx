@@ -178,12 +178,12 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
   const saturdayNum = saturdayDate;
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ touchAction: 'none' }}>
       {/* Day Filter */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-[10px]">
+      <div className="absolute top-4 lg:top-8 left-4 z-[1100] flex flex-col gap-[10px]">
         <button
           onClick={() => setSelectedDay('friday')}
-          className={`w-[112px] h-[42px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] transition-all duration-200 ${selectedDay === 'friday'
+          className={`w-[112px] h-[42px] lg:w-[140px] lg:h-[48px] rounded-[12px] font-montserrat font-semibold text-[16px] lg:text-[19px] leading-[18px] lg:leading-[22px] transition-all duration-200 ${selectedDay === 'friday'
             ? 'bg-[#b24bf3] text-white'
             : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
             }`}
@@ -192,7 +192,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         </button>
         <button
           onClick={() => setSelectedDay('saturday')}
-          className={`w-[112px] h-[42px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] transition-all duration-200 ${selectedDay === 'saturday'
+          className={`w-[112px] h-[42px] lg:w-[140px] lg:h-[48px] rounded-[12px] font-montserrat font-semibold text-[16px] lg:text-[19px] leading-[18px] lg:leading-[22px] transition-all duration-200 ${selectedDay === 'saturday'
             ? 'bg-[#b24bf3] text-white'
             : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
             }`}

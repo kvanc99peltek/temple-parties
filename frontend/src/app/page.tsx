@@ -211,10 +211,10 @@ export default function Home() {
   // Prevent hydration mismatch by not rendering until client-side
   if (!isHydrated) {
     return (
-      <main className="min-h-screen bg-black">
+      <main className="min-h-screen bg-black lg:pt-16">
         <div className="animate-pulse">
           <div className="h-16 bg-zinc-900/50" />
-          <div className="max-w-xl mx-auto px-4 sm:px-6 py-4">
+          <div className="max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="h-12 bg-zinc-900/50 rounded-xl" />
           </div>
         </div>
@@ -223,10 +223,10 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-black">
+    <main className={`min-h-screen bg-black lg:pt-16 ${currentView === 'map' ? 'h-screen overflow-hidden' : ''}`}>
       {currentView === 'home' ? (
         // Home View (List)
-        <div className="pb-20">
+        <div className="pb-20 lg:pb-8">
           <Header />
 
           <DayTabs
@@ -243,7 +243,7 @@ export default function Home() {
           />
 
           {/* Party Cards */}
-          <div className="max-w-xl mx-auto px-4 sm:px-6">
+          <div className="max-w-xl lg:max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
             {isLoadingParties ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
@@ -275,6 +275,7 @@ export default function Home() {
                   isRatingLocked={isRatingLocked(party.date)}
                   isVerified={party.isVerified}
                   posterImage={party.posterImage}
+                  onShowToast={showToast}
                 />
               ))
             )}
@@ -282,9 +283,9 @@ export default function Home() {
         </div>
       ) : currentView === 'map' ? (
         // Map View (Full Screen)
-        <div className="h-screen flex flex-col">
+        <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
           <Header title="Party Map" />
-          <div className="flex-1 pb-16">
+          <div className="flex-1 pb-16 lg:pb-0">
             <MapView
               parties={allParties}
               topPartyIds={topPartyIds}

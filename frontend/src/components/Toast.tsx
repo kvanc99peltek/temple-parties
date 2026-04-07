@@ -21,7 +21,7 @@ export default function Toast({ message, isVisible, onClose }: ToastProps) {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 animate-slide-up" style={{ zIndex: 10001 }}>
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 lg:hidden animate-slide-up" style={{ zIndex: 10001 }}>
       <div className="bg-zinc-900 text-white px-6 py-3 rounded-full border border-[#b24bf3] flex items-center gap-2">
         <span className="text-xs font-helvetica font-normal whitespace-nowrap">{message}</span>
       </div>

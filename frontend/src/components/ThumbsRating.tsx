@@ -20,8 +20,8 @@ export default function ThumbsRating({
   const likeCount = ratingCount > 0 ? Math.round((likePercentage / 100) * ratingCount) : 0;
   const dislikeCount = ratingCount - likeCount;
 
-  const iconSize = size === 'sm' ? 'w-5 h-5' : 'w-7 h-7';
-  const textSize = size === 'sm' ? 'text-[14px]' : 'text-sm';
+  const iconSize = size === 'sm' ? 'w-5 h-5 lg:w-6 lg:h-6' : 'w-7 h-7 lg:w-8 lg:h-8';
+  const textSize = size === 'sm' ? 'text-[14px] lg:text-[17px]' : 'text-sm lg:text-base';
 
   return (
     <div className="flex items-center gap-[10px]">
@@ -46,7 +46,7 @@ export default function ThumbsRating({
 
       {/* Divider */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icons/divider.svg" alt="" className="h-3 w-px" />
+      <img src="/icons/divider.svg" alt="" className="h-3 lg:h-4 w-px" />
 
       {/* Thumbs Down + Count */}
       <button

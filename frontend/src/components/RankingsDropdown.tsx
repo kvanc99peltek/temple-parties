@@ -51,16 +51,16 @@ export default function RankingsDropdown({
       : FILTER_LABELS[selectedFilter];
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-3" ref={ref}>
+    <div className="max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3" ref={ref}>
       <div className="relative">
         {/* Trigger */}
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full flex items-center gap-3 px-4 py-3 bg-[#202023] border border-white/10 rounded-2xl font-montserrat font-bold text-base transition-colors hover:border-white/20 ${isOpen ? 'text-white' : 'text-white'}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 lg:px-5 lg:py-3.5 bg-[#202023] border border-white/10 rounded-2xl font-montserrat font-bold text-base lg:text-lg transition-colors hover:border-white/20 ${isOpen ? 'text-white' : 'text-white'}`}
         >
           <svg
-            className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-90 text-white' : 'text-white/40'}`}
+            className={`w-5 h-5 lg:w-6 lg:h-6 transition-transform ${isOpen ? 'rotate-90 text-white' : 'text-white/40'}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -82,7 +82,7 @@ export default function RankingsDropdown({
                   onFilterChange(filter);
                   setIsOpen(false);
                 }}
-                className={`w-full text-left pl-12 pr-4 py-3.5 text-base font-montserrat font-medium transition-colors ${
+                className={`w-full text-left pl-12 pr-4 py-3.5 lg:py-4 text-base lg:text-lg font-montserrat font-medium transition-colors ${
                   selectedFilter === filter
                     ? 'text-[#b24bf3] bg-[#b24bf3]/10'
                     : 'text-white hover:bg-[#2A2A2D]'

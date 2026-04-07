@@ -13,6 +13,7 @@ class PartyCreate(BaseModel):
     address: str = Field(..., min_length=1, max_length=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+    poster_image: Optional[str] = Field(None, max_length=2000)
 
     @field_validator('title', 'host', 'pin_label', 'category', 'doors_open', 'address')
     @classmethod
@@ -48,6 +49,7 @@ class PartyResponse(BaseModel):
     likePercentage: float = 0
     ratingCount: int = 0
     isVerified: bool = False
+    posterImage: Optional[str] = None
 
     class Config:
         from_attributes = True

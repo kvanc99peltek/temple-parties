@@ -11,36 +11,21 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        // Legacy cherry colors (keeping for backwards compatibility)
-        cherry: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
-        },
-        // New Temple color system
+        // Purple color system (redesign)
         temple: {
-          pink: '#08CA66',
-          'pink-light': '#39D680',
-          'pink-dark': '#06AB56',
+          purple: '#b24bf3',
+          'purple-light': '#e0d4ff',
+          'purple-dark': '#252525',
           green: '#10B981',
           'green-dark': '#059669',
-          gold: '#FFD666',
-          'gold-dark': '#E6C05C',
-          card: '#202023',
+          card: 'rgba(40,40,40,0.5)',
+          'card-info': 'rgba(40,40,40,0.9)',
         },
       },
       boxShadow: {
-        'pink-glow': '0 4px 20px rgba(8, 202, 102, 0.3)',
-        'pink-glow-lg': '0 8px 30px rgba(8, 202, 102, 0.4)',
+        'purple-glow': '0 4px 20px rgba(178, 75, 243, 0.3)',
+        'purple-glow-lg': '0 8px 30px rgba(178, 75, 243, 0.4)',
         'green-glow': '0 4px 16px rgba(16, 185, 129, 0.4)',
-        'gold-glow': '0 0 15px rgba(255, 214, 102, 0.5)',
       },
       fontFamily: {
         'bitcount': ['"Bitcount Prop Single"', 'sans-serif'],
@@ -70,8 +55,8 @@ const config: Config = {
           '50%': { opacity: '0.8' },
         },
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 15px rgba(255, 214, 102, 0.4)' },
-          '50%': { boxShadow: '0 0 25px rgba(255, 214, 102, 0.7)' },
+          '0%, 100%': { boxShadow: '0 0 15px rgba(178, 75, 243, 0.4)' },
+          '50%': { boxShadow: '0 0 25px rgba(178, 75, 243, 0.7)' },
         },
         'slide-up-fade': {
           'from': { opacity: '0', transform: 'translateY(20px)' },

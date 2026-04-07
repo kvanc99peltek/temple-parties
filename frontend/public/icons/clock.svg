@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="xMidYMid meet" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Clock">
+<circle id="Ellipse 1" cx="7.5" cy="7.5" r="6.75" stroke="var(--stroke-0, white)" stroke-opacity="0.75" stroke-width="1.5"/>
+<line id="Line 1" x1="7.53334" y1="3.00004" x2="7.53334" y2="8.00004" stroke="var(--stroke-0, white)" stroke-opacity="0.75" stroke-width="1.06667"/>
+<line id="Line 2" x1="7.00001" y1="8.46664" x2="13" y2="8.46664" stroke="var(--stroke-0, white)" stroke-opacity="0.75" stroke-width="1.06667"/>
+</g>
+</svg>

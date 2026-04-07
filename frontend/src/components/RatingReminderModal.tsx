@@ -60,7 +60,7 @@ export default function RatingReminderModal({
             </p>
 
             <div className="mb-5">
-              <p className="text-base font-bold text-[#08CA66] font-montserrat">
+              <p className="text-base font-bold text-[#b24bf3] font-montserrat">
                 {partyTitle}
               </p>
               <p className="text-sm font-helvetica mt-0.5">

@@ -57,10 +57,10 @@ export default function RankingsDropdown({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className={`w-full flex items-center gap-3 px-4 py-3 bg-[#202023] border border-white/10 rounded-2xl font-montserrat font-bold text-base transition-colors hover:border-white/20 ${isOpen ? 'text-white' : 'text-white/50'}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 bg-[#202023] border border-white/10 rounded-2xl font-montserrat font-bold text-base transition-colors hover:border-white/20 ${isOpen ? 'text-white' : 'text-white'}`}
         >
           <svg
-            className={`w-5 h-5 text-white/40 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+            className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-90 text-white' : 'text-white/40'}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -84,7 +84,7 @@ export default function RankingsDropdown({
                 }}
                 className={`w-full text-left pl-12 pr-4 py-3.5 text-base font-montserrat font-medium transition-colors ${
                   selectedFilter === filter
-                    ? 'text-[#FFD666] bg-[#FFD666]/10'
+                    ? 'text-[#b24bf3] bg-[#b24bf3]/10'
                     : 'text-white hover:bg-[#2A2A2D]'
                 }`}
               >

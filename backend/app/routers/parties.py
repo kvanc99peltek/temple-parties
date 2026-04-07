@@ -59,6 +59,7 @@ def db_to_response(party: dict) -> PartyResponse:
         likePercentage=float(party.get("like_percentage") or 0),
         ratingCount=party.get("rating_count") or 0,
         isVerified=party.get("is_verified", False),
+        posterImage=party.get("poster_image"),
     )
 
 
@@ -147,7 +148,8 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
             "going_count": 0,
             "created_by": user["id"],
             "status": "pending",
-            "weekend_of": weekend.isoformat()
+            "weekend_of": weekend.isoformat(),
+            "poster_image": data.poster_image,
         }
 
         result = supabase.table("parties").insert(party_data).execute()

@@ -34,7 +34,7 @@ export default function InviteModal({ isOpen, onClose, onShare }: InviteModalPro
       {/* Share button */}
       <button
         onClick={handleShare}
-        className="w-full py-3.5 px-6 rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 bg-[#08CA66] hover:bg-[#39D680] shadow-lg shadow-[#08CA66]/30 hover:shadow-[#08CA66]/40"
+        className="w-full py-3.5 px-6 rounded-xl font-semibold text-white transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 bg-[#b24bf3] hover:bg-[#c76ff5] shadow-lg shadow-[#b24bf3]/30 hover:shadow-[#b24bf3]/40"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

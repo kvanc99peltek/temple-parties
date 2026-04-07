@@ -54,8 +54,6 @@ export default function Home() {
     openInviteModal,
     showInviteModal,
     closeInviteModal,
-    handleAddPartyClick,
-    handleAccountClick,
     showAddPartyModal,
     closeAddPartyModal,
   } = modals;
@@ -229,11 +227,7 @@ export default function Home() {
       {currentView === 'home' ? (
         // Home View (List)
         <div className="pb-20">
-          <Header
-            onAddPartyClick={handleAddPartyClick}
-            onAccountClick={handleAccountClick}
-            isAuthenticated={isAuthenticated}
-          />
+          <Header />
 
           <DayTabs
             selectedDay={selectedDay}
@@ -280,8 +274,7 @@ export default function Home() {
                   isRatingActive={isRatingActive(party.doorsOpen, party.date)}
                   isRatingLocked={isRatingLocked(party.date)}
                   isVerified={party.isVerified}
-                  onVerifiedClick={() => showToast('This host has been verified')}
-                  onHypedClick={() => showToast('Most popular party tonight')}
+                  posterImage={party.posterImage}
                 />
               ))
             )}
@@ -290,11 +283,7 @@ export default function Home() {
       ) : currentView === 'map' ? (
         // Map View (Full Screen)
         <div className="h-screen flex flex-col">
-          <Header
-            onAddPartyClick={handleAddPartyClick}
-            onAccountClick={handleAccountClick}
-            isAuthenticated={isAuthenticated}
-          />
+          <Header title="Party Map" />
           <div className="flex-1 pb-16">
             <MapView
               parties={allParties}
@@ -302,6 +291,7 @@ export default function Home() {
               userGoingParties={goingParties}
               onGoingClick={handleGoingClick}
               onNavigateClick={handleNavigateClick}
+              onRateClick={handleStarClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
               sponsorFocus={sponsorFocus}

@@ -15,6 +15,7 @@ export interface Party {
   likePercentage: number;
   ratingCount: number;
   isVerified: boolean;
+  posterImage?: string;
 }
 
 export interface AdminParty extends Party {

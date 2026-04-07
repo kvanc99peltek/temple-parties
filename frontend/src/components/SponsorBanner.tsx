@@ -5,19 +5,17 @@ interface SponsorBannerProps {
 }
 
 export default function SponsorBanner({ text, sponsorName, onClick }: SponsorBannerProps) {
-  // Split the text around the sponsor name to style it differently
   const parts = text.split(sponsorName);
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-2">
+    <div className="max-w-xl mx-auto px-4 py-1">
       <button
         onClick={onClick}
-        className="w-full text-center text-sm text-white/40 hover:text-white/60 transition-colors cursor-pointer font-helvetica"
+        className="w-full text-center text-[12px] text-white/75 hover:text-white/90 transition-colors cursor-pointer font-helvetica"
       >
         {parts[0]}
-        <span className="text-[#FFD666] font-semibold">{sponsorName}</span>
+        <span className="text-[#e0d4ff] font-bold">{sponsorName}</span>
         {parts[1]}
-        <span className="ml-1 text-white/25">›</span>
       </button>
     </div>
   );

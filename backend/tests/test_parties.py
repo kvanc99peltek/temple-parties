@@ -162,7 +162,7 @@ class TestCreateParty:
             "longitude": -75.155,
             "going_count": 0,
             "status": "pending",
-            "avg_rating": 0,
+            "like_percentage": 0,
             "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
@@ -193,7 +193,7 @@ class TestCreateParty:
             "weekend_of": valid_party_data["date"],
             "going_count": 0,
             "status": "pending",
-            "avg_rating": 0,
+            "like_percentage": 0,
             "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
@@ -239,7 +239,7 @@ class TestCreateParty:
             "longitude": -75.155,
             "going_count": 0,
             "status": "pending",
-            "avg_rating": 0,
+            "like_percentage": 0,
             "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
@@ -339,7 +339,7 @@ class TestCreateParty:
                 "longitude": -75.155,
                 "going_count": 0,
                 "status": "pending",
-                "avg_rating": 0,
+                "like_percentage": 0,
                 "rating_count": 0,
             }
             mock_supabase.table.return_value.insert.return_value.execute.return_value = \
@@ -377,7 +377,7 @@ class TestCreateParty:
                 "longitude": -75.155,
                 "going_count": 0,
                 "status": "pending",
-                "avg_rating": 0,
+                "like_percentage": 0,
                 "rating_count": 0,
             }
             mock_supabase.table.return_value.insert.return_value.execute.return_value = \
@@ -435,7 +435,7 @@ class TestCreateParty:
             "longitude": -75.155,
             "going_count": 0,
             "status": "pending",
-            "avg_rating": 0,
+            "like_percentage": 0,
             "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
@@ -491,7 +491,7 @@ class TestCreateParty:
             "longitude": -75.155,
             "going_count": 0,         # Should be 0
             "status": "pending",       # Should be pending
-            "avg_rating": 0,
+            "like_percentage": 0,
             "rating_count": 0,
         }
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \

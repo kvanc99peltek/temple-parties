@@ -12,9 +12,10 @@ export interface Party {
   longitude: number;
   goingCount: number;
   status?: string;
-  avgRating: number;
+  likePercentage: number;
   ratingCount: number;
   isVerified: boolean;
+  posterImage?: string;
 }
 
 export interface AdminParty extends Party {
@@ -31,7 +32,7 @@ export interface PartyRanking {
   day: 'friday' | 'saturday';
   date: string;
   doorsOpen: string;
-  avgRating: number;
+  likePercentage: number;
   ratingCount: number;
   goingCount: number;
   userRating: number | null;
@@ -40,7 +41,7 @@ export interface PartyRanking {
 export interface RatingResponse {
   partyId: string;
   rating: number;
-  avgRating: number;
+  likePercentage: number;
   ratingCount: number;
 }
 
@@ -51,4 +52,3 @@ export interface User {
   is_admin: boolean;
   created_at: string;
 }
-

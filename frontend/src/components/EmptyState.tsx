@@ -22,7 +22,7 @@ export default function EmptyState({ selectedDay, message, onGoToRankings }: Emp
       {onGoToRankings && (
         <button
           onClick={onGoToRankings}
-          className="text-[#08CA66] text-sm text-center font-montserrat mt-2 underline"
+          className="text-[#b24bf3] text-sm text-center font-montserrat mt-2 underline"
         >
           Check this semester&apos;s leaderboards
         </button>

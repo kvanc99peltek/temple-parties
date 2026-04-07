@@ -22,7 +22,7 @@ export const SPONSORS: SponsorConfig[] = [
     latitude: 39.97866057729966,
     longitude: -75.15908057988015,
     pinLabel: 'HJ',
-    popupDescription: "Halal Hot Chicken On Campus",
+    popupDescription: "Halal Hot Chicken",
     tagline: 'Beer Available (ID required)',
     tagline2: 'Everyone In The Group Must Be 21+',
     hoursInfo: 'Open till 2 am',

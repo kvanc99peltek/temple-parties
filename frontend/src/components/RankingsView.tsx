@@ -5,9 +5,6 @@ import RankingsDropdown, { RankingsFilter } from './RankingsDropdown';
 import RankingsCalendarPicker from './RankingsCalendarPicker';
 import RankingRow from './RankingRow';
 import EmptyState from './EmptyState';
-import posthog from 'posthog-js';
-import { track } from '@vercel/analytics';
-import ModalWrapper from './ModalWrapper';
 import { PartyRanking } from '@/lib/types';
 import { ratingsApi } from '@/services/api';
 import { getLastWeekendFridayISO, getMonthRange, getSemesterRange } from '@/utils/dateHelpers';
@@ -20,7 +17,6 @@ export default function RankingsView() {
   const [rankings, setRankings] = useState<PartyRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showLostCatModal, setShowLostCatModal] = useState(false);
 
   const apiParams = useMemo(() => {
     switch (selectedFilter) {
@@ -82,20 +78,11 @@ export default function RankingsView() {
 
   return (
     <div className="pb-20">
-      <header className="bg-black pt-6 pb-4">
-        <div className="max-w-xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-          <h1 className="text-3xl sm:text-4xl font-medium leading-none tracking-tight text-white font-bitcount">
-            LEADERBOARDS
+      <header className="bg-black pt-10 pb-4">
+        <div className="max-w-xl mx-auto px-6">
+          <h1 className="text-[36px] leading-[27px] font-normal text-white font-bitcount">
+            Leaderboards
           </h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { track('lost_cat_clicked'); posthog.capture('lost_cat_clicked'); setShowLostCatModal(true); }}
-              className="px-4 py-2 rounded-2xl bg-[#FFD666] text-black font-Montserrat font-bold text-sm active:scale-95 transition-all duration-200 cursor-pointer"
-              aria-label="Help find lost cat"
-            >
-              Help Find<br />Lost Cat
-            </button>
-          </div>
         </div>
       </header>
 
@@ -138,22 +125,6 @@ export default function RankingsView() {
         )}
       </div>
 
-      <ModalWrapper isOpen={showLostCatModal} onClose={() => setShowLostCatModal(false)} className="!p-0 overflow-hidden">
-        <div className="p-8 pb-4">
-          <h2 className="text-2xl font-montserrat font-semibold text-white mb-4">Help Find Benito</h2>
-          <p className="text-gray-300">
-            A fellow Temple student, Justin, lost his cat Benito. If you find him, please reach out using the info on the poster!
-          </p>
-        </div>
-        <div className="px-8 pb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/lost-cat-poster.jpg"
-            alt="Lost CAT card poster with contact information"
-            className="w-full rounded-lg"
-          />
-        </div>
-      </ModalWrapper>
     </div>
   );
 }

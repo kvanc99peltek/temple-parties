@@ -164,7 +164,7 @@ export default function RankingsCalendarPicker({
           <div
             key={d}
             className={`text-center text-xs font-medium py-1 ${
-              d === 'Fri' ? 'text-[#08CA66]/70' : d === 'Sat' ? 'text-[#08CA66]/50' : 'text-gray-500'
+              d === 'Fri' ? 'text-[#b24bf3]/70' : d === 'Sat' ? 'text-[#b24bf3]/50' : 'text-gray-500'
             }`}
           >
             {d}
@@ -194,9 +194,9 @@ export default function RankingsCalendarPicker({
                 onClick={() => handleDayClick(day.iso)}
                 className={`h-8 flex items-center justify-center text-xs rounded-lg font-medium transition-all ${
                   isEndpoint
-                    ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/30'
+                    ? 'bg-[#b24bf3] text-white shadow-lg shadow-[#b24bf3]/30'
                     : inRange
-                    ? 'bg-[#08CA66]/20 text-[#08CA66] hover:bg-[#08CA66]/30'
+                    ? 'bg-[#b24bf3]/20 text-[#b24bf3] hover:bg-[#b24bf3]/30'
                     : 'text-white hover:bg-zinc-700 bg-zinc-700/40'
                 }`}
               >
@@ -211,7 +211,7 @@ export default function RankingsCalendarPicker({
                 key={i}
                 className={`h-8 flex items-center justify-center text-xs rounded-lg ${
                   satInRange || inRange
-                    ? 'bg-[#08CA66]/10 text-[#08CA66]/60'
+                    ? 'bg-[#b24bf3]/10 text-[#b24bf3]/60'
                     : 'text-gray-600'
                 }`}
               >
@@ -253,7 +253,7 @@ export default function RankingsCalendarPicker({
             type="button"
             onClick={handleApply}
             disabled={!localStart || !localEnd}
-            className="px-4 py-1.5 bg-[#08CA66] text-white text-xs font-montserrat font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#39D680] transition-colors"
+            className="px-4 py-1.5 bg-[#b24bf3] text-white text-xs font-montserrat font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#9b3dd4] transition-colors"
           >
             Apply
           </button>

@@ -112,7 +112,7 @@ def mock_party():
         "created_by": str(uuid.uuid4()),
         "weekend_of": date.today().isoformat(),
         "created_at": datetime.now().isoformat(),
-        "avg_rating": 0,
+        "like_percentage": 0,
         "rating_count": 0,
     }
 

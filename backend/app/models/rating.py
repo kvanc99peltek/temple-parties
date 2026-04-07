@@ -3,13 +3,13 @@ from typing import Optional
 
 
 class RatingCreate(BaseModel):
-    rating: int = Field(..., ge=1, le=5, description="Star rating from 1 to 5")
+    rating: int = Field(..., ge=0, le=1, description="Thumbs down (0) or thumbs up (1)")
 
 
 class RatingResponse(BaseModel):
     partyId: str
     rating: int
-    avgRating: float
+    likePercentage: float
     ratingCount: int
 
 
@@ -21,7 +21,7 @@ class PartyRankingResponse(BaseModel):
     day: str
     date: str
     doorsOpen: str
-    avgRating: float
+    likePercentage: float
     ratingCount: int
     goingCount: int
     userRating: Optional[int] = None

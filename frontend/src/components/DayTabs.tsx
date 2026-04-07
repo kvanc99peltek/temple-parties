@@ -8,32 +8,28 @@ interface DayTabsProps {
 }
 
 export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturdayDate }: DayTabsProps) {
-  // fridayDate and saturdayDate are already just the day numbers (e.g., "21", "22")
-  const fridayNum = fridayDate;
-  const saturdayNum = saturdayDate;
-
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
-      <div className="flex gap-2">
+    <div className="max-w-xl mx-auto px-4 py-2">
+      <div className="flex gap-[10px] justify-center">
         <button
           onClick={() => onDayChange('friday')}
-          className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat ${
+          className={`w-[122px] h-[42px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] transition-all duration-200 ${
             selectedDay === 'friday'
-              ? 'bg-[#08CA66] text-white'
-              : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
+              ? 'bg-[#b24bf3] text-white'
+              : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
           }`}
         >
-          Fri {fridayNum}
+          Fri {fridayDate}
         </button>
         <button
           onClick={() => onDayChange('saturday')}
-          className={`flex-1 py-2.5 sm:py-3 px-4 sm:px-6 font-black text-base sm:text-lg rounded-[14px] border border-white/25 transition-all duration-200 font-montserrat ${
+          className={`w-[122px] h-[42px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] transition-all duration-200 ${
             selectedDay === 'saturday'
-              ? 'bg-[#08CA66] text-white'
-              : 'bg-[#202023] text-white hover:bg-[#2A2A2D]'
+              ? 'bg-[#b24bf3] text-white'
+              : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
           }`}
         >
-          Sat {saturdayNum}
+          Sat {saturdayDate}
         </button>
       </div>
     </div>

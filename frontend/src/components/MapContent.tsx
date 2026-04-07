@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { getDefaultDay, parseDoorsOpen } from '@/utils/dateHelpers';
+import { getDefaultDay, parseDoorsOpen, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
@@ -24,6 +24,8 @@ interface Party {
   longitude: number;
   goingCount: number;
   isVerified: boolean;
+  likePercentage: number;
+  ratingCount: number;
 }
 
 interface MapContentProps {
@@ -32,6 +34,7 @@ interface MapContentProps {
   userGoingParties: string[];
   onGoingClick: (partyId: string) => void;
   onNavigateClick: (partyId: string) => void;
+  onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   fridayDate: string;
   saturdayDate: string;
   sponsorFocus?: { lat: number; lng: number; sponsorId: string } | null;
@@ -145,7 +148,7 @@ function SponsorFocusHandler({
   return null;
 }
 
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate, sponsorFocus, onSponsorFocusConsumed }: MapContentProps) {
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate, sponsorFocus, onSponsorFocusConsumed }: MapContentProps) {
   const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
 
@@ -176,22 +179,22 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
 
   return (
     <div className="w-full h-full relative">
-      {/* Vertical Day Filter */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-3">
+      {/* Day Filter */}
+      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-[10px]">
         <button
           onClick={() => setSelectedDay('friday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'friday'
-            ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/25'
-            : 'bg-black/80 text-white/50 border border-zinc-700 hover:text-gray-300 hover:bg-[#08CA66]/10'
+          className={`w-[112px] h-[42px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] transition-all duration-200 ${selectedDay === 'friday'
+            ? 'bg-[#b24bf3] text-white'
+            : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
             }`}
         >
           Fri {fridayNum}
         </button>
         <button
           onClick={() => setSelectedDay('saturday')}
-          className={`py-4 px-8 font-black text-lg rounded-2xl transition-all duration-200 font-montserrat ${selectedDay === 'saturday'
-            ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/25'
-            : 'bg-black/80 text-white/50 border border-zinc-700 hover:text-gray-300 hover:bg-[#08CA66]/10'
+          className={`w-[112px] h-[42px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] transition-all duration-200 ${selectedDay === 'saturday'
+            ? 'bg-[#b24bf3] text-white'
+            : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
             }`}
         >
           Sat {saturdayNum}
@@ -230,12 +233,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               >
                 <Popup className="party-popup-dark" closeButton={false}>
                   <div className="popup-content">
-                    {/* Category Badge + VERIFIED + HYPED */}
+                    {/* Pills */}
                     <div className="popup-badges">
                       <span className="popup-category-badge">{party.category}</span>
-                      {party.isVerified && (
-                        <span className="popup-verified-badge">VERIFIED</span>
-                      )}
                       {isHyped && (
                         <span className="popup-hyped-badge">HYPED</span>
                       )}
@@ -244,25 +244,50 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                     {/* Title */}
                     <h3 className="popup-title">{party.title}</h3>
 
-                    {/* Host */}
+                    {/* Host + Verified */}
                     <p className="popup-host">
-                      <span className="popup-host-by">by </span>
+                      <span className="popup-host-by">by&nbsp;</span>
                       <span className="popup-host-name">{party.host}</span>
+                      {party.isVerified && (
+                        <span className="popup-verified-icon">
+                          <img src="/icons/verified-star.svg" alt="" style={{ position: 'absolute', left: '2px', top: '2px', width: '10px', height: '10px' }} />
+                          <img src="/icons/verified-check.svg" alt="" style={{ position: 'absolute', left: '4.5px', top: '5px', width: '5px', height: '4px' }} />
+                        </span>
+                      )}
                     </p>
 
-                    {/* Address + Time Row */}
+                    {/* Time + Address */}
                     <div className="popup-details-row">
-                      <span>{getShortAddress(party.address)}</span>
                       <div className="popup-time">
-                        <svg className="popup-time-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <img src="/icons/clock.svg" alt="" className="popup-time-icon" />
                         <span>{party.doorsOpen}</span>
                       </div>
                     </div>
+                    <div className="popup-details-row">
+                      <div className="popup-time">
+                        <img src="/icons/map-pin.svg" alt="" className="popup-time-icon" />
+                        <span>{getShortAddress(party.address)}</span>
+                      </div>
+                    </div>
+
+                    {/* Ratings */}
+                    <button
+                      className="popup-ratings"
+                      onClick={() => onRateClick(party.id, party.title, party.host, isRatingActive(party.doorsOpen, party.date), isRatingLocked(party.date))}
+                    >
+                      <div className="popup-rating-group">
+                        <img src="/icons/thumbs-up.svg" alt="" className="popup-rating-icon" />
+                        <span>{party.ratingCount > 0 ? Math.round((party.likePercentage / 100) * party.ratingCount) : 0}</span>
+                      </div>
+                      <span className="popup-rating-divider">|</span>
+                      <div className="popup-rating-group">
+                        <img src="/icons/thumbs-up.svg" alt="" className="popup-rating-icon popup-rating-flip" />
+                        <span>{party.ratingCount > 0 ? party.ratingCount - Math.round((party.likePercentage / 100) * party.ratingCount) : 0}</span>
+                      </div>
+                    </button>
                   </div>
 
-                  {/* Action Buttons - flush with popup edges */}
+                  {/* Action Buttons */}
                   <div className="popup-buttons">
                     <button
                       onClick={() => onGoingClick(party.id)}
@@ -283,7 +308,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       }}
                       className="popup-navigate-btn"
                     >
-                      NAVIGATE
+                      <img src="/icons/navigate.svg" alt="Navigate" style={{ width: '20px', height: '20px' }} />
                     </button>
                   </div>
                 </Popup>
@@ -311,27 +336,33 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 <span className="popup-sponsor-badge">SPONSORED</span>
               </div>
               <h3 className="popup-title">{PRIMARY_SPONSOR.name}</h3>
-              <p className="popup-host" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              <p className="popup-host">
                 {PRIMARY_SPONSOR.popupDescription}
               </p>
               {PRIMARY_SPONSOR.tagline && (
-                <p style={{ color: '#FFD666', fontSize: '13px', fontWeight: 600, margin: '2px 0 0 0', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                <p style={{ color: '#e0d4ff', fontSize: '12px', fontWeight: 600, margin: '2px 0 0 0', fontFamily: "'Montserrat', sans-serif" }}>
                   {PRIMARY_SPONSOR.tagline}
                 </p>
               )}
               {PRIMARY_SPONSOR.tagline2 && (
-                <p style={{ color: 'rgba(255, 214, 102, 0.9)', fontSize: '11px', fontWeight: 500, margin: '2px 0 8px 0', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                <p style={{ color: 'rgba(224, 212, 255, 0.75)', fontSize: '11px', fontWeight: 500, margin: '2px 0 8px 0', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
                   {PRIMARY_SPONSOR.tagline2}
                 </p>
               )}
               <div className="popup-details-row">
-                <span>{getShortAddress(PRIMARY_SPONSOR.address)}</span>
-                {PRIMARY_SPONSOR.hoursInfo && (
+                <div className="popup-time">
+                  <img src="/icons/map-pin.svg" alt="" className="popup-time-icon" />
+                  <span>{getShortAddress(PRIMARY_SPONSOR.address)}</span>
+                </div>
+              </div>
+              {PRIMARY_SPONSOR.hoursInfo && (
+                <div className="popup-details-row">
                   <div className="popup-time">
+                    <img src="/icons/clock.svg" alt="" className="popup-time-icon" />
                     <span>{PRIMARY_SPONSOR.hoursInfo}</span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             <div className="popup-buttons">
               {PRIMARY_SPONSOR.orderUrl && (
@@ -358,7 +389,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 className="popup-navigate-btn"
                 style={PRIMARY_SPONSOR.orderUrl ? {} : { borderRadius: '0 0 12px 12px', width: '100%' }}
               >
-                NAVIGATE
+                <img src="/icons/navigate.svg" alt="Navigate" style={{ width: '20px', height: '20px' }} />
               </button>
             </div>
           </Popup>

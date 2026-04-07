@@ -14,13 +14,13 @@ export default function RankingRow({ rank, party, isLast }: RankingRowProps) {
 
   return (
     <div
-      className={`pl-4 pr-3 py-5 ${!isLast ? "border-b border-white/[0.06]" : ""}`}
+      className={`pl-4 pr-3 pt-3 pb-3 ${!isLast ? "border-b border-white/[0.06]" : ""}`}
     >
       {/* Line 1: Rank + Title + Date + Rating */}
       <div className="flex items-center">
         <div className="w-8 flex-shrink-0">
           <span
-            className={`text-xl font-bold font-montserrat ${isTop3 ? "text-[#FFD666]" : "text-white/40"}`}
+            className={`text-xl font-bold font-montserrat ${isTop3 ? "text-[#e0d4ff]" : "text-white/40"}`}
           >
             {rank}
           </span>
@@ -55,22 +55,11 @@ export default function RankingRow({ rank, party, isLast }: RankingRowProps) {
         </div>
 
         {/* Rating — fixed width for alignment */}
-        <div className="w-20 flex-shrink-0 flex items-center justify-end gap-1">
-          <svg
-            className="w-4 h-4 text-white/50"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
-            />
-          </svg>
-          <span className="text-base font-bold text-white/80 font-montserrat">
-            {party.avgRating > 0 ? party.avgRating.toFixed(1) : "—"}
+        <div className="w-24 flex-shrink-0 flex items-center justify-end gap-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icons/thumbs-up.svg" alt="" className="w-4 h-4 opacity-50" />
+          <span className="text-base font-bold text-white font-montserrat">
+            {party.ratingCount >= 5 ? `${Math.round(party.likePercentage)}%` : "—"}
           </span>
           <span className="text-sm text-white/30 font-montserrat font-normal">
             ({party.ratingCount})

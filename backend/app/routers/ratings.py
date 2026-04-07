@@ -119,22 +119,22 @@ async def submit_rating(request: Request, party_id: str, data: RatingCreate):
             "rating": data.rating,
         }).execute()
 
-    # Recompute average and count from source of truth
+    # Recompute like percentage and count from source of truth
     all_ratings = supabase.table("party_ratings").select("rating").eq("party_id", party_id).execute()
     ratings = [r["rating"] for r in all_ratings.data]
-    avg = sum(ratings) / len(ratings) if ratings else 0
     count = len(ratings)
+    like_pct = round((sum(ratings) / count) * 100, 2) if count else 0
 
     # Update denormalized columns on parties table
     supabase.table("parties").update({
-        "avg_rating": round(avg, 2),
+        "like_percentage": like_pct,
         "rating_count": count,
     }).eq("id", party_id).execute()
 
     return RatingResponse(
         partyId=party_id,
         rating=data.rating,
-        avgRating=round(avg, 2),
+        likePercentage=like_pct,
         ratingCount=count,
     )
 
@@ -144,7 +144,7 @@ async def get_party_rating(request: Request, party_id: str):
     """
     Get rating info for a single party, including the current user's rating.
     """
-    party_result = supabase.table("parties").select("avg_rating, rating_count").eq("id", party_id).execute()
+    party_result = supabase.table("parties").select("like_percentage, rating_count").eq("id", party_id).execute()
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
@@ -157,7 +157,7 @@ async def get_party_rating(request: Request, party_id: str):
 
     return {
         "partyId": party_id,
-        "avgRating": float(party.get("avg_rating") or 0),
+        "likePercentage": float(party.get("like_percentage") or 0),
         "ratingCount": party.get("rating_count") or 0,
         "userRating": user_rating,
     }
@@ -171,7 +171,7 @@ async def get_rankings(
     weekend_to: Optional[str] = Query(None, description="Range end Friday date (YYYY-MM-DD)")
 ):
     """
-    Get all parties ranked by average rating.
+    Get all parties ranked by like percentage.
     Supports single weekend (weekend_of) or date range (weekend_from + weekend_to).
     Includes the requesting user's rating per party (by IP).
     """
@@ -185,7 +185,7 @@ async def get_rankings(
         weekend = get_current_weekend()
         query = query.eq("weekend_of", weekend.isoformat())
 
-    result = query.order("avg_rating", desc=True).execute()
+    result = query.order("like_percentage", desc=True).order("rating_count", desc=True).execute()
 
     # Get user's ratings
     client_ip = get_remote_address(request)
@@ -203,7 +203,7 @@ async def get_rankings(
             day=party["day"],
             date=get_party_date(party),
             doorsOpen=party["doors_open"],
-            avgRating=float(party.get("avg_rating") or 0),
+            likePercentage=float(party.get("like_percentage") or 0),
             ratingCount=party.get("rating_count") or 0,
             goingCount=party.get("going_count") or 0,
             userRating=user_ratings_map.get(party["id"]),

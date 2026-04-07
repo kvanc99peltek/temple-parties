@@ -41,7 +41,7 @@ export default function Home() {
   const [sponsorFocus, setSponsorFocus] = useState<{ lat: number; lng: number; sponsorId: string } | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
-  const { getUserRating, getAvgRating, getRatingCount, submitRating } = useRatingStatus();
+  const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
   // Launch-mode: auth + profile UI hidden.
   const isAuthenticated = false;
   const { isAddressVisible, revealAddress } = useAddressVisibility();
@@ -58,8 +58,6 @@ export default function Home() {
     openInviteModal,
     showInviteModal,
     closeInviteModal,
-    handleAddPartyClick,
-    handleAccountClick,
     showAddPartyModal,
     closeAddPartyModal,
   } = modals;
@@ -247,11 +245,7 @@ export default function Home() {
       {currentView === 'home' ? (
         // Home View (List)
         <div className="pb-20">
-          <Header
-            onAddPartyClick={handleAddPartyClick}
-            onAccountClick={handleAccountClick}
-            isAuthenticated={isAuthenticated}
-          />
+          <Header />
 
           <DayTabs
             selectedDay={selectedDay}
@@ -291,15 +285,14 @@ export default function Home() {
                   onNavigateClick={handleNavigateClick}
                   isAddressVisible={isAddressVisible(party.id)}
                   onViewAddressClick={() => revealAddress(party.id)}
-                  avgRating={getAvgRating(party.id, party.avgRating)}
+                  likePercentage={getLikePercentage(party.id, party.likePercentage)}
                   ratingCount={getRatingCount(party.id, party.ratingCount)}
                   userRating={getUserRating(party.id)}
-                  onStarClick={() => handleStarClick(party.id, party.title, party.host, isRatingActive(party.doorsOpen, party.date), isRatingLocked(party.date))}
+                  onRateClick={() => handleStarClick(party.id, party.title, party.host, isRatingActive(party.doorsOpen, party.date), isRatingLocked(party.date))}
                   isRatingActive={isRatingActive(party.doorsOpen, party.date)}
                   isRatingLocked={isRatingLocked(party.date)}
                   isVerified={party.isVerified}
-                  onVerifiedClick={() => showToast('This host has been verified')}
-                  onHypedClick={() => showToast('Most popular party tonight')}
+                  posterImage={party.posterImage}
                 />
               ))
             )}
@@ -308,11 +301,7 @@ export default function Home() {
       ) : currentView === 'map' ? (
         // Map View (Full Screen)
         <div className="h-screen flex flex-col">
-          <Header
-            onAddPartyClick={handleAddPartyClick}
-            onAccountClick={handleAccountClick}
-            isAuthenticated={isAuthenticated}
-          />
+          <Header title="Party Map" />
           <div className="flex-1 pb-16">
             <MapView
               parties={allParties}
@@ -320,6 +309,7 @@ export default function Home() {
               userGoingParties={goingParties}
               onGoingClick={handleGoingClick}
               onNavigateClick={handleNavigateClick}
+              onRateClick={handleStarClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
               sponsorFocus={sponsorFocus}
@@ -356,7 +346,7 @@ export default function Home() {
           onClose={() => setRatingModalParty(null)}
           partyTitle={ratingModalParty.title}
           partyHost={ratingModalParty.host}
-          avgRating={getAvgRating(ratingModalParty.id, 0)}
+          likePercentage={getLikePercentage(ratingModalParty.id, 0)}
           ratingCount={getRatingCount(ratingModalParty.id, 0)}
           userRating={getUserRating(ratingModalParty.id)}
           onRate={handleModalRate}
@@ -380,7 +370,7 @@ export default function Home() {
           onClose={dismissPrompt}
           partyTitle={currentPrompt.title}
           partyHost={currentPrompt.host}
-          avgRating={getAvgRating(currentPrompt.id, 0)}
+          likePercentage={getLikePercentage(currentPrompt.id, 0)}
           ratingCount={getRatingCount(currentPrompt.id, 0)}
           userRating={getUserRating(currentPrompt.id)}
           onRate={handleReminderRate}

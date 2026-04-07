@@ -92,14 +92,13 @@ async def submit_rating(request: Request, party_id: str, data: RatingCreate):
 
     party = party_result.data[0]
 
-    # TEMP: bypassed for testing — revert before deploy
-    # # Check if rating is active (after doors_open)
-    # if not is_rating_active(party):
-    #     raise HTTPException(status_code=403, detail="Rating not yet active. Opens at doors open time.")
-    #
-    # # Check if rating is locked (after Monday)
-    # if is_rating_locked(party):
-    #     raise HTTPException(status_code=403, detail="Rating period has ended.")
+    # Check if rating is active (after doors_open)
+    if not is_rating_active(party):
+        raise HTTPException(status_code=403, detail="Rating not yet active. Opens at doors open time.")
+
+    # Check if rating is locked (after Monday)
+    if is_rating_locked(party):
+        raise HTTPException(status_code=403, detail="Rating period has ended.")
 
     # Get IP hash
     client_ip = get_remote_address(request)

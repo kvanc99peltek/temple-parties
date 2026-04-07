@@ -146,7 +146,6 @@ export function parseDoorsOpen(doorsOpen: string, dateStr: string): Date {
  * Active once current time >= doorsOpen time.
  */
 export function isRatingActive(doorsOpen: string, dateStr: string): boolean {
-  return true; // TEMP: testing like button states — revert before deploy
   const openTime = parseDoorsOpen(doorsOpen, dateStr);
   return new Date() >= openTime;
 }
@@ -237,7 +236,6 @@ export function formatShortDate(dateStr: string): string {
  * dateStr is the party date (YYYY-MM-DD), Friday or Saturday.
  */
 export function isRatingLocked(dateStr: string): boolean {
-  return false; // TEMP: testing like button states — revert before deploy
   const partyDate = new Date(dateStr + 'T00:00:00');
   const dayOfWeek = partyDate.getDay(); // 5=Friday, 6=Saturday
   const daysToMonday = dayOfWeek === 6 ? 2 : 3;

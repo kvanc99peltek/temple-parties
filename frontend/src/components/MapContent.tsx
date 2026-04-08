@@ -230,6 +230,12 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 key={party.id}
                 position={[party.latitude, party.longitude]}
                 icon={icon}
+                eventHandlers={{
+                  click: () => {
+                    track('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
+                    posthog.capture('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
+                  },
+                }}
               >
                 <Popup className="party-popup-dark" closeButton={false}>
                   <div className="popup-content">

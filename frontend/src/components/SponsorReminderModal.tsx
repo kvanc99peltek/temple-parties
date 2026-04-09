@@ -24,11 +24,11 @@ export default function SponsorReminderModal({
     <ModalWrapper
       isOpen={isOpen}
       onClose={onClose}
-      className="!border-[#FFD666]/30 !shadow-[#FFD666]/30 !p-0 overflow-hidden !max-w-[300px]"
+      className="!border-[#b24bf3]/30 !shadow-[#b24bf3]/30 !p-0 overflow-hidden !max-w-[300px]"
     >
       <div className="text-center px-8 pt-8 pb-2">
         <h3 className="text-xl font-bold text-white font-montserrat">
-          Are you starving?<br />Grab food at<br /><span className="text-[#FFD666]">{sponsorName}</span>
+          Are you starving?<br />Grab food at<br /><span className="text-[#b24bf3]">{sponsorName}</span>
         </h3>
       </div>
 
@@ -38,9 +38,9 @@ export default function SponsorReminderModal({
 
       <button
         onClick={handleNavigate}
-        className="w-full h-[49px] rounded-bl-2xl rounded-br-2xl font-bold text-lg uppercase bg-[#FFD666] text-black hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
+        className="w-full h-[49px] rounded-bl-2xl rounded-br-2xl flex items-center justify-center bg-[#e0d4ff] text-white hover:opacity-90 active:scale-[0.98] transition-all duration-150"
       >
-        NAVIGATE
+        <img src="/icons/navigate.svg" alt="Navigate" className="w-6 h-6" />
       </button>
     </ModalWrapper>
   );

@@ -51,21 +51,21 @@ export default function RatingReminderModal({
       <div className="text-center">
         {!submitted ? (
           <>
-            <h3 className="text-xl font-bold text-white font-montserrat mb-2">
+            <h3 className="text-xl font-bold text-white font-montserrat mb-1">
               {variant === 'nextday' ? "Rate Yesterday's Party" : tonightHeader}
             </h3>
 
             <p className="text-white/50 text-xs font-helvetica mb-4">
-              Thank you for using tuparties.
+              Thank you for using tuparties
             </p>
 
             <div className="mb-5">
-              <p className="text-base font-bold text-[#b24bf3] font-montserrat">
+              <p className="text-lg font-bold text-[#b24bf3] font-montserrat">
                 {partyTitle}
               </p>
               <p className="text-sm font-helvetica mt-0.5">
                 <span className="text-white/40">by </span>
-                <span className="text-white/60">{partyHost}</span>
+                <span className="text-[#e0d4ff]">{partyHost}</span>
               </p>
             </div>
 

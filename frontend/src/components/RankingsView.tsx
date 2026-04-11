@@ -55,6 +55,13 @@ export default function RankingsView() {
     fetchRankings();
   }, [apiParams]);
 
+  // Push parties below rating threshold to the end
+  const sortedRankings = useMemo(() => {
+    const rated = rankings.filter(p => p.ratingCount >= 5);
+    const unrated = rankings.filter(p => p.ratingCount < 5);
+    return [...rated, ...unrated];
+  }, [rankings]);
+
   const handleFilterChange = useCallback((filter: RankingsFilter) => {
     setSelectedFilter(filter);
     if (filter === 'custom') {
@@ -109,16 +116,17 @@ export default function RankingsView() {
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           </div>
-        ) : rankings.length === 0 ? (
+        ) : sortedRankings.length === 0 ? (
           <EmptyState message="No ranked parties for this period" />
         ) : (
           <div className="bg-[#202023] rounded-2xl overflow-hidden animate-slide-up-fade">
-            {rankings.map((party, index) => (
+            {sortedRankings.map((party, index) => (
               <RankingRow
                 key={party.id}
                 rank={index + 1}
                 party={party}
-                isLast={index === rankings.length - 1}
+                isLast={index === sortedRankings.length - 1}
+                isBelowThreshold={party.ratingCount < 5}
               />
             ))}
           </div>

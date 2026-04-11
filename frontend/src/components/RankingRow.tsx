@@ -7,14 +7,15 @@ interface RankingRowProps {
   rank: number;
   party: PartyRanking;
   isLast?: boolean;
+  isBelowThreshold?: boolean;
 }
 
-export default function RankingRow({ rank, party, isLast }: RankingRowProps) {
+export default function RankingRow({ rank, party, isLast, isBelowThreshold }: RankingRowProps) {
   const isTop3 = rank <= 3;
 
   return (
     <div
-      className={`pl-4 pr-3 pt-3 pb-3 lg:pl-6 lg:pr-5 lg:pt-4 lg:pb-4 ${!isLast ? "border-b border-white/[0.06]" : ""}`}
+      className={`pl-4 pr-3 pt-3 pb-3 lg:pl-6 lg:pr-5 lg:pt-4 lg:pb-4 ${!isLast ? "border-b border-white/[0.06]" : ""} ${isBelowThreshold ? "opacity-60" : ""}`}
     >
       {/* Line 1: Rank + Title + Date + Rating */}
       <div className="flex items-center">

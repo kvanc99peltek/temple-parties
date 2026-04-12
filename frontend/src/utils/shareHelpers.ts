@@ -65,8 +65,8 @@ export function openMapsDirections(address: string): void {
   const isIPhone = /iPhone/i.test(navigator.userAgent);
 
   const mapsUrl = isIPhone
-    ? `https://maps.apple.com/?daddr=${encodedAddress}`
-    : `https://maps.google.com/maps?daddr=${encodedAddress}`;
+    ? `https://maps.apple.com/?daddr=${encodedAddress}&dirflg=w`
+    : `https://maps.google.com/maps?daddr=${encodedAddress}&dirflg=w`;
 
   window.open(mapsUrl, '_blank');
 }

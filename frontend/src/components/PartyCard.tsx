@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import GoingButton from './GoingButton';
 import ThumbsRating from './ThumbsRating';
 import { openMapsDirections } from '../utils/shareHelpers';
@@ -79,11 +80,12 @@ export default function PartyCard({
       {/* Poster image (left side) */}
       <div className="relative w-[42%] shrink-0 rounded-[12px] lg:rounded-[16px] overflow-hidden bg-[rgba(40,40,40,0.5)]">
         {posterImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={posterImage}
             alt={`${title} poster`}
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 42vw, (max-width: 1024px) 30vw, 20vw"
+            className="object-cover"
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#b24bf3]/30 to-[#252525] flex items-center justify-center">

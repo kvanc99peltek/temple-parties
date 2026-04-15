@@ -22,12 +22,12 @@ import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
 import useRatingReminder from '@/hooks/useRatingReminder';
-import useSponsorReminder from '@/hooks/useSponsorReminder';
+// import useSponsorReminder from '@/hooks/useSponsorReminder';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
-import SponsorBanner from '@/components/SponsorBanner';
-import SponsorReminderModal from '@/components/SponsorReminderModal';
-import { PRIMARY_SPONSOR } from '@/lib/sponsors';
-import { openMapsDirections } from '@/utils/shareHelpers';
+// import SponsorBanner from '@/components/SponsorBanner';
+// import SponsorReminderModal from '@/components/SponsorReminderModal';
+// import { PRIMARY_SPONSOR } from '@/lib/sponsors';
+// import { openMapsDirections } from '@/utils/shareHelpers';
 import { partiesApi } from '@/services/api';
 import { track } from '@vercel/analytics';
 import posthog from 'posthog-js';
@@ -38,7 +38,7 @@ export default function Home() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
   const [lastGoingPartyId, setLastGoingPartyId] = useState<string | null>(null);
-  const [sponsorFocus, setSponsorFocus] = useState<{ lat: number; lng: number; sponsorId: string } | null>(null);
+  // const [sponsorFocus, setSponsorFocus] = useState<{ lat: number; lng: number; sponsorId: string } | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
@@ -51,7 +51,7 @@ export default function Home() {
   const { currentPrompt, dismissPrompt } = useRatingReminder(
     allParties, goingParties, getUserRating, isHydrated, isLoadingParties,
   );
-  const { showSponsorReminder, dismissSponsorReminder } = useSponsorReminder(isHydrated);
+  // const { showSponsorReminder, dismissSponsorReminder } = useSponsorReminder(isHydrated);
   const modals = useModalState(isAuthenticated, toggleGoing);
   const showToast = toast.show;
   const {
@@ -148,31 +148,31 @@ export default function Home() {
     setCurrentView(view);
   }, [currentView]);
 
-  // Handle sponsor banner click
-  const handleSponsorBannerClick = useCallback(() => {
-    setSponsorFocus({
-      lat: PRIMARY_SPONSOR.latitude,
-      lng: PRIMARY_SPONSOR.longitude,
-      sponsorId: PRIMARY_SPONSOR.id,
-    });
-    setCurrentView('map');
-    track('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
-    posthog.capture('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
-  }, []);
+  // // Handle sponsor banner click
+  // const handleSponsorBannerClick = useCallback(() => {
+  //   setSponsorFocus({
+  //     lat: PRIMARY_SPONSOR.latitude,
+  //     lng: PRIMARY_SPONSOR.longitude,
+  //     sponsorId: PRIMARY_SPONSOR.id,
+  //   });
+  //   setCurrentView('map');
+  //   track('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
+  //   posthog.capture('sponsor_banner_clicked', { sponsor: PRIMARY_SPONSOR.id });
+  // }, []);
 
-  // Handle sponsor reminder navigate
-  const handleSponsorReminderNavigate = useCallback(() => {
-    openMapsDirections(PRIMARY_SPONSOR.address);
-    track('sponsor_reminder_navigate', { sponsor: PRIMARY_SPONSOR.id });
-    posthog.capture('sponsor_reminder_navigate', { sponsor: PRIMARY_SPONSOR.id });
-  }, []);
+  // // Handle sponsor reminder navigate
+  // const handleSponsorReminderNavigate = useCallback(() => {
+  //   openMapsDirections(PRIMARY_SPONSOR.address);
+  //   track('sponsor_reminder_navigate', { sponsor: PRIMARY_SPONSOR.id });
+  //   posthog.capture('sponsor_reminder_navigate', { sponsor: PRIMARY_SPONSOR.id });
+  // }, []);
 
-  // Handle sponsor reminder dismiss
-  const handleSponsorReminderDismiss = useCallback(() => {
-    dismissSponsorReminder();
-    track('sponsor_reminder_dismissed', { sponsor: PRIMARY_SPONSOR.id });
-    posthog.capture('sponsor_reminder_dismissed', { sponsor: PRIMARY_SPONSOR.id });
-  }, [dismissSponsorReminder]);
+  // // Handle sponsor reminder dismiss
+  // const handleSponsorReminderDismiss = useCallback(() => {
+  //   dismissSponsorReminder();
+  //   track('sponsor_reminder_dismissed', { sponsor: PRIMARY_SPONSOR.id });
+  //   posthog.capture('sponsor_reminder_dismissed', { sponsor: PRIMARY_SPONSOR.id });
+  // }, [dismissSponsorReminder]);
 
   useSwipeNavigation(currentView, handleViewChange);
 
@@ -254,11 +254,11 @@ export default function Home() {
             saturdayDate={saturdayDate}
           />
 
-          <SponsorBanner
+          {/* <SponsorBanner
             text={PRIMARY_SPONSOR.bannerText}
             sponsorName={PRIMARY_SPONSOR.name}
             onClick={handleSponsorBannerClick}
-          />
+          /> */}
 
           {/* Party Cards */}
           <div className="max-w-xl lg:max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -313,8 +313,6 @@ export default function Home() {
               onRateClick={handleStarClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
-              sponsorFocus={sponsorFocus}
-              onSponsorFocusConsumed={() => setSponsorFocus(null)}
             />
           </div>
         </div>
@@ -355,17 +353,17 @@ export default function Home() {
       )}
 
       {/* Sponsor Reminder Modal — priority over rating reminder */}
-      {showSponsorReminder && !ratingModalParty && (
+      {/* {showSponsorReminder && !ratingModalParty && (
         <SponsorReminderModal
           isOpen={true}
           onClose={handleSponsorReminderDismiss}
           sponsorName={PRIMARY_SPONSOR.name}
           onNavigate={handleSponsorReminderNavigate}
         />
-      )}
+      )} */}
 
-      {/* Rating Reminder Popup — suppressed while sponsor modal is showing */}
-      {currentPrompt && !ratingModalParty && !showSponsorReminder && (
+      {/* Rating Reminder Popup */}
+      {currentPrompt && !ratingModalParty && (
         <RatingReminderModal
           isOpen={true}
           onClose={dismissPrompt}

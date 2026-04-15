@@ -6,7 +6,7 @@ import { getDefaultDay, parseDoorsOpen, isRatingActive, isRatingLocked } from '@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
-import { PRIMARY_SPONSOR } from '@/lib/sponsors';
+// import { PRIMARY_SPONSOR } from '@/lib/sponsors';
 import { track } from '@vercel/analytics';
 import posthog from 'posthog-js';
 
@@ -37,8 +37,6 @@ interface MapContentProps {
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   fridayDate: string;
   saturdayDate: string;
-  sponsorFocus?: { lat: number; lng: number; sponsorId: string } | null;
-  onSponsorFocusConsumed?: () => void;
 }
 
 // Temple University campus center
@@ -111,45 +109,45 @@ function getShortAddress(address: string): string {
   return address.split(',')[0];
 }
 
-// Sponsored marker icon — gold rounded rectangle
-function createSponsorIcon(label: string): L.DivIcon {
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `<div class="sponsor-marker"><span class="sponsor-marker-label">${label}</span></div>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-    popupAnchor: [0, -24],
-  });
-}
+// // Sponsored marker icon — gold rounded rectangle
+// function createSponsorIcon(label: string): L.DivIcon {
+//   return L.divIcon({
+//     className: 'custom-marker',
+//     html: `<div class="sponsor-marker"><span class="sponsor-marker-label">${label}</span></div>`,
+//     iconSize: [48, 48],
+//     iconAnchor: [24, 24],
+//     popupAnchor: [0, -24],
+//   });
+// }
 
-// Pans map to sponsor and opens its popup
-function SponsorFocusHandler({
-  focus,
-  onConsumed,
-  markerRef,
-}: {
-  focus: { lat: number; lng: number } | null;
-  onConsumed?: () => void;
-  markerRef: React.RefObject<L.Marker | null>;
-}) {
-  const map = useMap();
+// // Pans map to sponsor and opens its popup
+// function SponsorFocusHandler({
+//   focus,
+//   onConsumed,
+//   markerRef,
+// }: {
+//   focus: { lat: number; lng: number } | null;
+//   onConsumed?: () => void;
+//   markerRef: React.RefObject<L.Marker | null>;
+// }) {
+//   const map = useMap();
+//
+//   useEffect(() => {
+//     if (focus && markerRef.current) {
+//       map.setView([focus.lat, focus.lng], 17, { animate: true });
+//       const timer = setTimeout(() => {
+//         markerRef.current?.openPopup();
+//         onConsumed?.();
+//       }, 150);
+//       return () => clearTimeout(timer);
+//     }
+//   }, [focus, map, markerRef, onConsumed]);
+//
+//   return null;
+// }
 
-  useEffect(() => {
-    if (focus && markerRef.current) {
-      map.setView([focus.lat, focus.lng], 17, { animate: true });
-      const timer = setTimeout(() => {
-        markerRef.current?.openPopup();
-        onConsumed?.();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [focus, map, markerRef, onConsumed]);
-
-  return null;
-}
-
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate, sponsorFocus, onSponsorFocusConsumed }: MapContentProps) {
-  const sponsorMarkerRef = useRef<L.Marker>(null);
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate }: MapContentProps) {
+  // const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
 
   // Smart default: switch to the other day if the default day has no parties
@@ -323,7 +321,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           });
         })()}
 
-        {/* Sponsored Pin */}
+        {/* Sponsored Pin — commented out (deal cancelled)
         <Marker
           ref={sponsorMarkerRef}
           position={[PRIMARY_SPONSOR.latitude, PRIMARY_SPONSOR.longitude]}
@@ -406,6 +404,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           onConsumed={onSponsorFocusConsumed}
           markerRef={sponsorMarkerRef}
         />
+        */}
       </MapContainer>
     </div>
   );

@@ -467,7 +467,7 @@ html {
   transform: scale(0.98);
 }
 
-/* Sponsored marker - gold rounded rectangle */
+/* Sponsored marker styles — commented out (deal cancelled)
 .sponsor-marker {
   display: flex;
   align-items: center;
@@ -505,7 +505,6 @@ html {
   text-transform: uppercase;
 }
 
-/* Sponsor popup dark theme */
 .sponsor-popup-dark .leaflet-popup-content-wrapper {
   background: #202023;
   border-radius: 16px;
@@ -525,6 +524,7 @@ html {
   border-left: 1px solid rgba(178, 75, 243, 0.3);
   border-bottom: 1px solid rgba(178, 75, 243, 0.3);
 }
+*/
 
 /* Leaflet controls dark theme */
 .leaflet-control-zoom {

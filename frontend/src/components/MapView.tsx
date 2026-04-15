@@ -13,8 +13,6 @@ interface MapViewProps {
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   fridayDate: string;
   saturdayDate: string;
-  sponsorFocus?: { lat: number; lng: number; sponsorId: string } | null;
-  onSponsorFocusConsumed?: () => void;
 }
 
 // Loading placeholder

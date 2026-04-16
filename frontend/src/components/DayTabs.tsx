@@ -9,7 +9,7 @@ interface DayTabsProps {
 
 export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturdayDate }: DayTabsProps) {
   return (
-    <div className="max-w-xl lg:max-w-3xl mx-auto px-4 lg:px-8 py-2 lg:pt-6">
+    <div className="max-w-xl lg:max-w-3xl mx-auto px-4 lg:pwnx-8 pt-4 pb-6 lg:pt-6 lg:pb-6">
       <div className="flex gap-[10px] justify-center">
         <button
           onClick={() => onDayChange('friday')}

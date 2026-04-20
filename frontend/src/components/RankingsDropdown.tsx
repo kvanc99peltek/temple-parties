@@ -2,29 +2,29 @@
 
 import { useState, useRef, useEffect } from 'react';
 
-export type RankingsFilter = 'last-week' | 'this-month' | 'this-semester' | 'custom';
+export type RankingsFilter = 'last-week' | 'this-month' | 'this-semester' | 'by-hosts';
 
 const FILTER_LABELS: Record<RankingsFilter, string> = {
   'last-week': 'Last Weekend',
   'this-month': 'This Month',
   'this-semester': 'This Semester',
-  'custom': 'Custom',
+  'by-hosts': 'By Hosts',
 };
 
-const FILTER_OPTIONS: RankingsFilter[] = ['last-week', 'this-month', 'this-semester', 'custom'];
+const FILTER_OPTIONS: RankingsFilter[] = ['last-week', 'this-month', 'this-semester', 'by-hosts'];
 
 interface RankingsDropdownProps {
   selectedFilter: RankingsFilter;
   onFilterChange: (filter: RankingsFilter) => void;
-  customLabel?: string;
   onOpenChange?: (open: boolean) => void;
+  onInfoClick?: () => void;
 }
 
 export default function RankingsDropdown({
   selectedFilter,
   onFilterChange,
-  customLabel,
   onOpenChange,
+  onInfoClick,
 }: RankingsDropdownProps) {
   const [isOpen, setIsOpenRaw] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -45,10 +45,7 @@ export default function RankingsDropdown({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
-  const displayLabel =
-    selectedFilter === 'custom' && customLabel
-      ? customLabel
-      : FILTER_LABELS[selectedFilter];
+  const displayLabel = FILTER_LABELS[selectedFilter];
 
   return (
     <div className="max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-3" ref={ref}>
@@ -68,7 +65,38 @@ export default function RankingsDropdown({
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          <span>{displayLabel}</span>
+          <span className="flex-1 text-left">{displayLabel}</span>
+          {onInfoClick && (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label="How ranking works"
+              onClick={(e) => {
+                e.stopPropagation();
+                onInfoClick();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onInfoClick();
+                }
+              }}
+              className="p-1 -m-1 rounded-full text-white/40 hover:text-white/80 transition-colors cursor-pointer"
+            >
+              <svg
+                className="w-5 h-5 lg:w-6 lg:h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="11" x2="12" y2="16" strokeLinecap="round" />
+                <circle cx="12" cy="8" r="0.5" fill="currentColor" strokeWidth={2} />
+              </svg>
+            </span>
+          )}
         </button>
 
         {/* Menu */}

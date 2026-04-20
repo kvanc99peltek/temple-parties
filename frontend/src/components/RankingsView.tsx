@@ -1,87 +1,84 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import RankingsDropdown, { RankingsFilter } from './RankingsDropdown';
-import RankingsCalendarPicker from './RankingsCalendarPicker';
 import RankingRow from './RankingRow';
+import HostRankingRow from './HostRankingRow';
+import HostRankingInfoModal from './HostRankingInfoModal';
 import EmptyState from './EmptyState';
-import { PartyRanking } from '@/lib/types';
+import { PartyRanking, HostRanking } from '@/lib/types';
 import { ratingsApi } from '@/services/api';
 import { getLastWeekendFridayISO, getMonthRange, getSemesterRange } from '@/utils/dateHelpers';
 
+type PartyMode = { mode: 'parties'; params: { weekendOf?: string; weekendFrom?: string; weekendTo?: string } };
+type HostsMode = { mode: 'hosts' };
+type FetchSpec = PartyMode | HostsMode;
+
 export default function RankingsView() {
   const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>('this-semester');
-  const [customStart, setCustomStart] = useState<string | null>(null);
-  const [customEnd, setCustomEnd] = useState<string | null>(null);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [rankings, setRankings] = useState<PartyRanking[]>([]);
+  const [partyRankings, setPartyRankings] = useState<PartyRanking[]>([]);
+  const [hostRankings, setHostRankings] = useState<HostRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
-  const apiParams = useMemo(() => {
+  const fetchSpec: FetchSpec = useMemo(() => {
     switch (selectedFilter) {
       case 'last-week':
-        return { weekendOf: getLastWeekendFridayISO() };
+        return { mode: 'parties', params: { weekendOf: getLastWeekendFridayISO() } };
       case 'this-month': {
         const { from, to } = getMonthRange();
-        return { weekendFrom: from, weekendTo: to };
+        return { mode: 'parties', params: { weekendFrom: from, weekendTo: to } };
       }
       case 'this-semester': {
         const { from, to } = getSemesterRange();
-        return { weekendFrom: from, weekendTo: to };
+        return { mode: 'parties', params: { weekendFrom: from, weekendTo: to } };
       }
-      case 'custom':
-        if (customStart && customEnd) {
-          return { weekendFrom: customStart, weekendTo: customEnd };
-        }
-        return { weekendOf: getLastWeekendFridayISO() };
+      case 'by-hosts':
+        return { mode: 'hosts' };
     }
-  }, [selectedFilter, customStart, customEnd]);
+  }, [selectedFilter]);
 
-  // Fetch rankings
   useEffect(() => {
+    let cancelled = false;
+
     const fetchRankings = async () => {
       setIsLoading(true);
       try {
-        const data = await ratingsApi.getRankings(apiParams);
-        setRankings(data);
+        if (fetchSpec.mode === 'parties') {
+          const data = await ratingsApi.getRankings(fetchSpec.params);
+          if (!cancelled) setPartyRankings(data);
+        } else {
+          const data = await ratingsApi.getHostRankings();
+          if (!cancelled) setHostRankings(data);
+        }
       } catch (error) {
         console.error('Failed to fetch rankings:', error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     fetchRankings();
-  }, [apiParams]);
+    return () => { cancelled = true; };
+  }, [fetchSpec]);
 
   // Push parties below rating threshold to the end
-  const sortedRankings = useMemo(() => {
-    const rated = rankings.filter(p => p.ratingCount >= 5);
-    const unrated = rankings.filter(p => p.ratingCount < 5);
+  const sortedPartyRankings = useMemo(() => {
+    const rated = partyRankings.filter(p => p.ratingCount >= 5);
+    const unrated = partyRankings.filter(p => p.ratingCount < 5);
     return [...rated, ...unrated];
-  }, [rankings]);
+  }, [partyRankings]);
 
-  const handleFilterChange = useCallback((filter: RankingsFilter) => {
-    setSelectedFilter(filter);
-    if (filter === 'custom') {
-      setShowCalendar(true);
-    } else {
-      setShowCalendar(false);
-    }
-  }, []);
+  // Push ineligible hosts (<2 parties or <15 ratings) to the end, dimmed.
+  const sortedHostRankings = useMemo(() => {
+    const eligible = hostRankings.filter(h => h.isEligible);
+    const ineligible = hostRankings.filter(h => !h.isEligible);
+    return [...eligible, ...ineligible];
+  }, [hostRankings]);
 
-  const handleCustomRangeChange = useCallback((start: string, end: string) => {
-    setCustomStart(start);
-    setCustomEnd(end);
-    setShowCalendar(false);
-  }, []);
-
-
-  // Custom label for dropdown when range is set
-  const customLabel = customStart && customEnd
-    ? `${formatShort(customStart)} – ${formatShort(customEnd)}`
-    : undefined;
+  const showHosts = fetchSpec.mode === 'hosts';
+  const hasRows = showHosts ? sortedHostRankings.length > 0 : sortedPartyRankings.length > 0;
 
   return (
     <div className="pb-20 lg:pb-8">
@@ -95,50 +92,44 @@ export default function RankingsView() {
 
       <RankingsDropdown
         selectedFilter={selectedFilter}
-        onFilterChange={handleFilterChange}
-        customLabel={customLabel}
+        onFilterChange={setSelectedFilter}
         onOpenChange={setIsDropdownOpen}
+        onInfoClick={selectedFilter === 'by-hosts' ? () => setInfoOpen(true) : undefined}
       />
-
-      {showCalendar && (
-        <div className="max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-          <RankingsCalendarPicker
-            startDate={customStart}
-            endDate={customEnd}
-            onRangeChange={handleCustomRangeChange}
-            onClose={() => setShowCalendar(false)}
-          />
-        </div>
-      )}
 
       <div className={`max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           </div>
-        ) : sortedRankings.length === 0 ? (
-          <EmptyState message="No ranked parties for this period" />
+        ) : !hasRows ? (
+          <EmptyState message={showHosts ? 'No ranked hosts yet' : 'No ranked parties for this period'} />
         ) : (
           <div className="bg-[#202023] rounded-2xl overflow-hidden animate-slide-up-fade">
-            {sortedRankings.map((party, index) => (
-              <RankingRow
-                key={party.id}
-                rank={index + 1}
-                party={party}
-                isLast={index === sortedRankings.length - 1}
-                isBelowThreshold={party.ratingCount < 5}
-              />
-            ))}
+            {showHosts
+              ? sortedHostRankings.map((host, index) => (
+                  <HostRankingRow
+                    key={host.hostCode}
+                    rank={index + 1}
+                    host={host}
+                    isLast={index === sortedHostRankings.length - 1}
+                    isBelowThreshold={!host.isEligible}
+                  />
+                ))
+              : sortedPartyRankings.map((party, index) => (
+                  <RankingRow
+                    key={party.id}
+                    rank={index + 1}
+                    party={party}
+                    isLast={index === sortedPartyRankings.length - 1}
+                    isBelowThreshold={party.ratingCount < 5}
+                  />
+                ))}
           </div>
         )}
       </div>
 
+      <HostRankingInfoModal isOpen={infoOpen} onClose={() => setInfoOpen(false)} />
     </div>
   );
-}
-
-function formatShort(iso: string): string {
-  const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const [, m, d] = iso.split('-').map(Number);
-  return `${SHORT_MONTHS[m - 1]} ${d}`;
 }

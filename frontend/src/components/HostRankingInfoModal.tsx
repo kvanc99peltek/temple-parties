@@ -35,7 +35,7 @@ export default function HostRankingInfoModal({ isOpen, onClose }: Props) {
 
       <p className="text-sm lg:text-base text-white/70 font-montserrat mb-3">
         Higher rating % usually wins, but turnout and track record can shift
-        things when ratings are close.
+        things when ratings are closed.
       </p>
 
       <p className="text-sm lg:text-base text-white/70 font-montserrat mb-6">

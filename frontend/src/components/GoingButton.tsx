@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { memo, startTransition, useState } from 'react';
 
 interface GoingButtonProps {
   partyId: string;
@@ -9,12 +9,14 @@ interface GoingButtonProps {
   onGoingClick: () => void;
 }
 
-export default function GoingButton({ currentCount, userIsGoing, onGoingClick }: GoingButtonProps) {
+function GoingButton({ currentCount, userIsGoing, onGoingClick }: GoingButtonProps) {
   const [isAnimating, setIsAnimating] = useState(false);
 
   const handleClick = () => {
     setIsAnimating(true);
-    onGoingClick();
+    startTransition(() => {
+      onGoingClick();
+    });
     setTimeout(() => setIsAnimating(false), 200);
   };
 
@@ -35,3 +37,5 @@ export default function GoingButton({ currentCount, userIsGoing, onGoingClick }:
     </button>
   );
 }
+
+export default memo(GoingButton);

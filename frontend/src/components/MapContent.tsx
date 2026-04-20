@@ -7,8 +7,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
 // import { PRIMARY_SPONSOR } from '@/lib/sponsors';
-import { track } from '@vercel/analytics';
-import posthog from 'posthog-js';
+import { trackEvent } from '@/utils/analytics';
 
 interface Party {
   id: string;
@@ -149,6 +148,7 @@ function getShortAddress(address: string): string {
 export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate }: MapContentProps) {
   // const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
+  const iconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
 
   // Smart default: switch to the other day if the default day has no parties
   const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
@@ -216,12 +216,18 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           const maxGoingCount = Math.max(...filteredParties.map(p => p.goingCount), 1);
           const now = new Date();
           const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+          const iconCache = iconCacheRef.current;
           return filteredParties.map(party => {
             const isHyped = party.id === topPartyIds[party.day];
             const userIsGoing = userGoingParties.includes(party.id);
             const doorsOpenTime = parseDoorsOpen(party.doorsOpen, party.date);
             const isDimmed = now.getTime() - doorsOpenTime.getTime() >= FOUR_HOURS_MS;
-            const icon = createAvatarIcon(party.pinLabel, party.host, party.goingCount, maxGoingCount, isHyped, userIsGoing, isDimmed);
+            const iconKey = `${party.id}|${party.goingCount}|${maxGoingCount}|${isHyped ? 1 : 0}|${userIsGoing ? 1 : 0}|${isDimmed ? 1 : 0}`;
+            let icon = iconCache.get(iconKey);
+            if (!icon) {
+              icon = createAvatarIcon(party.pinLabel, party.host, party.goingCount, maxGoingCount, isHyped, userIsGoing, isDimmed);
+              iconCache.set(iconKey, icon);
+            }
 
             return (
               <Marker
@@ -230,8 +236,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 icon={icon}
                 eventHandlers={{
                   click: () => {
-                    track('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
-                    posthog.capture('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
+                    trackEvent('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
                   },
                 }}
               >

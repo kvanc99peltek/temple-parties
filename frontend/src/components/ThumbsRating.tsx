@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 interface ThumbsRatingProps {
   userRating: number | null;
   likePercentage: number;
@@ -9,7 +11,7 @@ interface ThumbsRatingProps {
   size?: 'sm' | 'md';
 }
 
-export default function ThumbsRating({
+function ThumbsRating({
   userRating,
   likePercentage,
   ratingCount,
@@ -69,3 +71,5 @@ export default function ThumbsRating({
     </div>
   );
 }
+
+export default memo(ThumbsRating);

@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import { Party, AdminParty, User, PartyRanking, RatingResponse } from '@/lib/types';
+import { Party, AdminParty, User, PartyRanking, HostRanking, RatingResponse } from '@/lib/types';
 
 type ApiError = Error & { status?: number };
 
@@ -258,6 +258,17 @@ export const ratingsApi = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Failed to fetch rankings');
+    }
+
+    return response.json();
+  },
+
+  async getHostRankings(): Promise<HostRanking[]> {
+    const response = await fetch(`${API_URL}/ratings/hosts`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch host rankings');
     }
 
     return response.json();

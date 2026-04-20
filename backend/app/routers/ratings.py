@@ -5,7 +5,7 @@ import hashlib
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
-from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse
+from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse, HostRankingResponse
 from app.routers.parties import get_current_weekend, EASTERN
 from app.constants import RATE_LIMITS
 
@@ -137,6 +137,32 @@ async def submit_rating(request: Request, party_id: str, data: RatingCreate):
         likePercentage=like_pct,
         ratingCount=count,
     )
+
+
+@router.get("/hosts", response_model=List[HostRankingResponse])
+async def get_host_rankings(request: Request):
+    """
+    Get hosts ranked by rating-count-weighted average like percentage.
+    Aggregates across all approved parties; co-hosts (multiple entries in
+    parties.host_codes) each receive full credit for the party's ratings.
+    """
+    result = supabase.rpc("get_host_rankings").execute()
+    rows = result.data or []
+    return [
+        HostRankingResponse(
+            hostCode=row["host_code"],
+            displayName=row["display_name"],
+            logoUrl=row.get("logo_url"),
+            partiesHosted=row.get("parties_hosted") or 0,
+            totalRatingCount=row.get("total_rating_count") or 0,
+            totalGoingCount=row.get("total_going_count") or 0,
+            avgLikePercentage=float(row.get("avg_like_percentage") or 0),
+            bayesianScore=float(row.get("bayesian_score") or 0),
+            finalScore=float(row.get("final_score") or 0),
+            isEligible=bool(row.get("is_eligible")),
+        )
+        for row in rows
+    ]
 
 
 @router.get("/{party_id}")

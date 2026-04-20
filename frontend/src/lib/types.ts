@@ -38,6 +38,19 @@ export interface PartyRanking {
   userRating: number | null;
 }
 
+export interface HostRanking {
+  hostCode: string;
+  displayName: string;
+  logoUrl: string | null;
+  partiesHosted: number;
+  totalRatingCount: number;
+  totalGoingCount: number;
+  avgLikePercentage: number;
+  bayesianScore: number;
+  finalScore: number;
+  isEligible: boolean;
+}
+
 export interface RatingResponse {
   partyId: string;
   rating: number;

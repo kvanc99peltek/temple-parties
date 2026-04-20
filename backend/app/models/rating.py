@@ -25,3 +25,16 @@ class PartyRankingResponse(BaseModel):
     ratingCount: int
     goingCount: int
     userRating: Optional[int] = None
+
+
+class HostRankingResponse(BaseModel):
+    hostCode: str
+    displayName: str
+    logoUrl: Optional[str] = None
+    partiesHosted: int
+    totalRatingCount: int
+    totalGoingCount: int
+    avgLikePercentage: float
+    bayesianScore: float
+    finalScore: float
+    isEligible: bool

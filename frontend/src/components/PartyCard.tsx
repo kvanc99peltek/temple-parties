@@ -4,7 +4,9 @@ import Image from 'next/image';
 import GoingButton from './GoingButton';
 import ThumbsRating from './ThumbsRating';
 import { openMapsDirections } from '../utils/shareHelpers';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+
+const noopRate = () => {};
 
 interface PartyCardProps {
   id: string;
@@ -16,14 +18,14 @@ interface PartyCardProps {
   goingCount: number;
   isHyped: boolean;
   userIsGoing: boolean;
-  onGoingClick: () => void;
+  onGoingClick: (partyId: string) => void;
   onNavigateClick?: (partyId: string) => void | Promise<void>;
   isAddressVisible: boolean;
-  onViewAddressClick: () => void;
+  onViewAddressClick: (partyId: string) => void;
   likePercentage: number;
   ratingCount: number;
   userRating: number | null;
-  onRateClick: () => void;
+  onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   isRatingActive: boolean;
   isRatingLocked: boolean;
   isVerified: boolean;
@@ -31,7 +33,8 @@ interface PartyCardProps {
   onShowToast?: (message: string) => void;
 }
 
-export default function PartyCard({
+
+function PartyCard({
   id,
   title,
   host,
@@ -74,6 +77,13 @@ export default function PartyCard({
     }
     openMapsDirections(address);
   };
+
+  const handleGoing = useCallback(() => onGoingClick(id), [onGoingClick, id]);
+  const handleViewAddress = useCallback(() => onViewAddressClick(id), [onViewAddressClick, id]);
+  const handleRate = useCallback(
+    () => onRateClick(id, title, host, isRatingActive, isRatingLocked),
+    [onRateClick, id, title, host, isRatingActive, isRatingLocked],
+  );
 
   return (
     <div className="flex gap-[2px] w-full mb-3 sm:mb-4 lg:mb-5 animate-slide-up-fade min-h-[200px] lg:min-h-[240px] bg-[rgba(40,40,40,0.5)] rounded-[12px] lg:rounded-[16px]">
@@ -160,7 +170,7 @@ export default function PartyCard({
               {!isAddressVisible ? (
                 <button
                   type="button"
-                  onClick={onViewAddressClick}
+                  onClick={handleViewAddress}
                   className="font-helvetica text-[12px] leading-[16px] lg:text-[15px] lg:leading-[20px] text-white/75 underline underline-offset-2 hover:text-white/90 transition-colors"
                 >
                   View address
@@ -176,7 +186,7 @@ export default function PartyCard({
           {/* Like/Dislike */}
           <button
             type="button"
-            onClick={onRateClick}
+            onClick={handleRate}
             title={!isRatingActive ? 'Ratings unlock when doors open' : isRatingLocked ? 'Ratings are now closed' : undefined}
             className={`${!isRatingActive || isRatingLocked ? 'cursor-default' : 'cursor-pointer'}`}
           >
@@ -184,7 +194,7 @@ export default function PartyCard({
               userRating={userRating}
               likePercentage={likePercentage}
               ratingCount={ratingCount}
-              onRate={() => {}}
+              onRate={noopRate}
               disabled={!isRatingActive || isRatingLocked}
               size="sm"
             />
@@ -197,7 +207,7 @@ export default function PartyCard({
             partyId={id}
             currentCount={goingCount}
             userIsGoing={userIsGoing}
-            onGoingClick={onGoingClick}
+            onGoingClick={handleGoing}
           />
           <button
             onClick={handleNavigate}
@@ -212,3 +222,5 @@ export default function PartyCard({
     </div>
   );
 }
+
+export default memo(PartyCard);

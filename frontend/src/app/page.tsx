@@ -29,8 +29,7 @@ import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 // import { PRIMARY_SPONSOR } from '@/lib/sponsors';
 // import { openMapsDirections } from '@/utils/shareHelpers';
 import { partiesApi } from '@/services/api';
-import { track } from '@vercel/analytics';
-import posthog from 'posthog-js';
+import { trackEvent } from '@/utils/analytics';
 
 export default function Home() {
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
@@ -69,8 +68,7 @@ export default function Home() {
   useEffect(() => {
     setSelectedDay(getDefaultDay());
     setIsHydrated(true);
-    track('view_changed', { from: null, to: 'home' });
-    posthog.capture('view_changed', { from: null, to: 'home' });
+    trackEvent('view_changed', { from: null, to: 'home' });
   }, []);
 
   // Smart default: switch to the other day if the default day has no parties
@@ -103,8 +101,7 @@ export default function Home() {
     const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
 
-    track('going_toggled', { partyId, action: wasGoing ? 'unmarked' : 'marked' });
-    posthog.capture('going_toggled', { partyId, action: wasGoing ? 'unmarked' : 'marked' });
+    trackEvent('going_toggled', { partyId, action: wasGoing ? 'unmarked' : 'marked' });
 
     // Show invite modal when marking as going (not un-going)
     if (!wasGoing) {
@@ -117,8 +114,7 @@ export default function Home() {
     // Fire-and-forget: don't block navigation.
     revealAddress(partyId);
     void ensureGoing(partyId);
-    track('navigate_clicked', { partyId });
-    posthog.capture('navigate_clicked', { partyId });
+    trackEvent('navigate_clicked', { partyId });
   }, [ensureGoing, revealAddress]);
 
   // Handle share
@@ -128,8 +124,7 @@ export default function Home() {
       : topGoingParty;
     const result = await shareContent(partyToShare || undefined);
 
-    track('party_shared', { method: result.method, success: result.success, partyId: partyToShare?.id });
-    posthog.capture('party_shared', { method: result.method, success: result.success, partyId: partyToShare?.id });
+    trackEvent('party_shared', { method: result.method, success: result.success, partyId: partyToShare?.id });
 
     if (result.success && result.method === 'clipboard') {
       showToast('Link copied to clipboard!');
@@ -143,8 +138,7 @@ export default function Home() {
 
   // Handle view change
   const handleViewChange = useCallback((view: 'home' | 'map' | 'rankings') => {
-    track('view_changed', { from: currentView, to: view });
-    posthog.capture('view_changed', { from: currentView, to: view });
+    trackEvent('view_changed', { from: currentView, to: view });
     setCurrentView(view);
   }, [currentView]);
 
@@ -193,16 +187,14 @@ export default function Home() {
   const handleModalRate = useCallback(async (rating: number) => {
     if (!ratingModalParty) return;
     await submitRating(ratingModalParty.id, rating);
-    track('party_rated', { partyId: ratingModalParty.id, rating, source: 'modal' });
-    posthog.capture('party_rated', { partyId: ratingModalParty.id, rating, source: 'modal' });
+    trackEvent('party_rated', { partyId: ratingModalParty.id, rating, source: 'modal' });
   }, [ratingModalParty, submitRating]);
 
   // Handle rating submission from reminder popup
   const handleReminderRate = useCallback(async (rating: number) => {
     if (!currentPrompt) return;
     await submitRating(currentPrompt.id, rating);
-    track('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
-    posthog.capture('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
+    trackEvent('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
   }, [currentPrompt, submitRating]);
 
   // Handle party submission
@@ -218,8 +210,7 @@ export default function Home() {
         date: partyData.date,
       });
 
-      track('party_created', { category: partyData.category });
-      posthog.capture('party_created', { category: partyData.category });
+      trackEvent('party_created', { category: partyData.category });
       showToast('Party submitted for approval!');
     } catch {
       showToast('Failed to submit party');
@@ -281,14 +272,14 @@ export default function Home() {
                   goingCount={party.goingCount}
                   isHyped={party.id === topPartyId}
                   userIsGoing={isGoing(party.id)}
-                  onGoingClick={() => handleGoingClick(party.id)}
+                  onGoingClick={handleGoingClick}
                   onNavigateClick={handleNavigateClick}
                   isAddressVisible={isAddressVisible(party.id)}
-                  onViewAddressClick={() => revealAddress(party.id)}
+                  onViewAddressClick={revealAddress}
                   likePercentage={getLikePercentage(party.id, party.likePercentage)}
                   ratingCount={getRatingCount(party.id, party.ratingCount)}
                   userRating={getUserRating(party.id)}
-                  onRateClick={() => handleStarClick(party.id, party.title, party.host, isRatingActive(party.doorsOpen, party.date), isRatingLocked(party.date))}
+                  onRateClick={handleStarClick}
                   isRatingActive={isRatingActive(party.doorsOpen, party.date)}
                   isRatingLocked={isRatingLocked(party.date)}
                   isVerified={party.isVerified}

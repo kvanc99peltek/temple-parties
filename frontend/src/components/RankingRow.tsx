@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { PartyRanking } from "@/lib/types";
 import { formatShortDate } from "@/utils/dateHelpers";
 
@@ -10,7 +11,7 @@ interface RankingRowProps {
   isBelowThreshold?: boolean;
 }
 
-export default function RankingRow({ rank, party, isLast, isBelowThreshold }: RankingRowProps) {
+function RankingRow({ rank, party, isLast, isBelowThreshold }: RankingRowProps) {
   const isTop3 = rank <= 3;
 
   return (
@@ -95,3 +96,5 @@ export default function RankingRow({ rank, party, isLast, isBelowThreshold }: Ra
     </div>
   );
 }
+
+export default memo(RankingRow);

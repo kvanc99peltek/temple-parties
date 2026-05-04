@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { HostRanking } from "@/lib/types";
 
 interface HostRankingRowProps {
@@ -9,7 +10,7 @@ interface HostRankingRowProps {
   isBelowThreshold?: boolean;
 }
 
-export default function HostRankingRow({ rank, host, isLast, isBelowThreshold }: HostRankingRowProps) {
+function HostRankingRow({ rank, host, isLast, isBelowThreshold }: HostRankingRowProps) {
   const isTop3 = rank <= 3;
 
   return (
@@ -70,3 +71,5 @@ export default function HostRankingRow({ rank, host, isLast, isBelowThreshold }:
     </div>
   );
 }
+
+export default memo(HostRankingRow);

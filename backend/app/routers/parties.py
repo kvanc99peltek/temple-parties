@@ -22,11 +22,15 @@ def today_eastern() -> date:
 
 
 def get_current_weekend() -> date:
-    """Get the Friday of the current or next weekend."""
+    """Get the Friday of the current or next weekend.
+    Sat/Sun/Mon -> this past Friday. Tue-Fri -> upcoming Friday."""
     today = today_eastern()
-    days_until_friday = (4 - today.weekday()) % 7
-    if today.weekday() > 4:  # If Saturday or Sunday, use this weekend's Friday
+    if today.weekday() in (5, 6):  # Sat, Sun
         days_until_friday = (4 - today.weekday()) % 7 - 7
+    elif today.weekday() == 0:  # Mon -> past Friday (rollover at Tuesday 00:00)
+        days_until_friday = -3
+    else:  # Tue-Fri
+        days_until_friday = (4 - today.weekday()) % 7
     return today + timedelta(days=days_until_friday)
 
 

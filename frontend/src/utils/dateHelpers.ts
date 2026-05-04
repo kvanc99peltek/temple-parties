@@ -21,7 +21,7 @@ export function getDefaultDay(): 'friday' | 'saturday' {
 
 /**
  * Get the upcoming weekend's Friday and Saturday dates for display in home page tabs.
- * On Saturday-Sunday, shows this weekend. On Monday-Friday, shows next weekend.
+ * On Saturday-Monday, shows this weekend. On Tuesday-Friday, shows next weekend.
  */
 export function getUpcomingDates(): { friday: string; saturday: string } {
   const friday = getUpcomingFriday();
@@ -54,13 +54,16 @@ function getUpcomingFriday(): Date {
   const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
   let daysToFriday: number;
   if (dayOfWeek === 0) {
-    // Sunday -> this Friday (2 days ago), weekend isn't over yet
+    // Sunday -> this Friday (2 days ago)
     daysToFriday = -2;
+  } else if (dayOfWeek === 1) {
+    // Monday -> this past Friday (3 days ago); rollover happens at Tuesday 00:00
+    daysToFriday = -3;
   } else if (dayOfWeek === 6) {
     // Saturday -> this Friday (yesterday)
     daysToFriday = -1;
   } else {
-    // Mon-Fri -> next Friday
+    // Tue-Fri -> next Friday
     daysToFriday = ((5 - dayOfWeek) + 7) % 7 || 7;
   }
   if (dayOfWeek === 5) daysToFriday = 0; // Friday -> today

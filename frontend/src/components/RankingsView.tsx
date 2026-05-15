@@ -14,7 +14,13 @@ type PartyMode = { mode: 'parties'; params: { weekendOf?: string; weekendFrom?: 
 type HostsMode = { mode: 'hosts' };
 type FetchSpec = PartyMode | HostsMode;
 
-export default function RankingsView() {
+interface RankingsViewProps {
+  // When set, RankingsView ignores its own filter state and pins the parties
+  // leaderboard to this single weekend. Used by /demo for a frozen snapshot.
+  weekendOverride?: string;
+}
+
+export default function RankingsView({ weekendOverride }: RankingsViewProps = {}) {
   const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>('this-semester');
   const [partyRankings, setPartyRankings] = useState<PartyRanking[]>([]);
   const [hostRankings, setHostRankings] = useState<HostRanking[]>([]);
@@ -23,6 +29,9 @@ export default function RankingsView() {
   const [infoOpen, setInfoOpen] = useState(false);
 
   const fetchSpec: FetchSpec = useMemo(() => {
+    if (weekendOverride) {
+      return { mode: 'parties', params: { weekendOf: weekendOverride } };
+    }
     switch (selectedFilter) {
       case 'last-week':
         return { mode: 'parties', params: { weekendOf: getLastWeekendFridayISO() } };
@@ -37,7 +46,7 @@ export default function RankingsView() {
       case 'by-hosts':
         return { mode: 'hosts' };
     }
-  }, [selectedFilter]);
+  }, [selectedFilter, weekendOverride]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,12 +99,14 @@ export default function RankingsView() {
         </div>
       </header>
 
-      <RankingsDropdown
-        selectedFilter={selectedFilter}
-        onFilterChange={setSelectedFilter}
-        onOpenChange={setIsDropdownOpen}
-        onInfoClick={selectedFilter === 'by-hosts' ? () => setInfoOpen(true) : undefined}
-      />
+      {!weekendOverride && (
+        <RankingsDropdown
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+          onOpenChange={setIsDropdownOpen}
+          onInfoClick={selectedFilter === 'by-hosts' ? () => setInfoOpen(true) : undefined}
+        />
+      )}
 
       <div className={`max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
         {isLoading ? (

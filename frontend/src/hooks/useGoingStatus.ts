@@ -42,8 +42,12 @@ const setLocalGoingParties = (parties: string[]) => {
  * Custom hook to manage user's going status and party counts
  * Uses API for persistence and Supabase realtime for live updates
  * Supports anonymous users via localStorage
+ *
+ * readOnly: when true, toggleGoing flips local/localStorage state for UI feedback
+ * but skips the network POST. Used by /demo to avoid mutating historical going_count.
  */
-export function useGoingStatus(): UseGoingStatusReturn {
+export function useGoingStatus(options?: { readOnly?: boolean }): UseGoingStatusReturn {
+  const readOnly = options?.readOnly ?? false;
   const [goingParties, setGoingParties] = useState<string[]>([]);
   const [partyCounts, setPartyCounts] = useState<PartyCounts>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -53,8 +57,11 @@ export function useGoingStatus(): UseGoingStatusReturn {
     setGoingParties(getLocalGoingParties());
   }, []);
 
-  // Subscribe to realtime updates for party going counts
+  // Subscribe to realtime updates for party going counts.
+  // Skip in read-only mode: the demo snapshot must not pick up live counts.
   useEffect(() => {
+    if (readOnly) return;
+
     const channel = supabase
       .channel('party-counts')
       .on(
@@ -77,7 +84,7 @@ export function useGoingStatus(): UseGoingStatusReturn {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [readOnly]);
 
   // Check if user is going to a specific party
   const isGoing = useCallback((partyId: string): boolean => {
@@ -103,6 +110,8 @@ export function useGoingStatus(): UseGoingStatusReturn {
       setLocalGoingParties(newGoing);
       setGoingParties(newGoing);
 
+      if (readOnly) return;
+
       const result = isCurrentlyGoing
         ? await partiesApi.decrementGoingAnonymous(partyId)
         : await partiesApi.incrementGoingAnonymous(partyId);
@@ -120,7 +129,7 @@ export function useGoingStatus(): UseGoingStatusReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [readOnly]);
 
   // Mark going if not already going (used for silent actions like Navigate)
   const ensureGoing = useCallback(async (partyId: string): Promise<void> => {

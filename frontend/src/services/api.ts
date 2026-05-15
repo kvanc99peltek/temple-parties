@@ -207,6 +207,17 @@ export const partiesApi = {
 
     return response.json();
   },
+
+  async getDemoWeekend(): Promise<{ weekendOf: string }> {
+    const response = await fetch(`${API_URL}/parties/demo-weekend`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch demo weekend');
+    }
+
+    return response.json();
+  },
 };
 
 // Ratings API

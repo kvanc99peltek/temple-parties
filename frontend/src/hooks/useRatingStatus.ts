@@ -51,7 +51,8 @@ const setLocalRatings = (ratings: RatingState) => {
   localStorage.setItem(RATING_STORAGE_KEY, JSON.stringify(ratings));
 };
 
-export function useRatingStatus(): UseRatingStatusReturn {
+export function useRatingStatus(options?: { readOnly?: boolean }): UseRatingStatusReturn {
+  const readOnly = options?.readOnly ?? false;
   const [ratedParties, setRatedParties] = useState<RatingState>({});
   const [likePercentages, setLikePercentages] = useState<LikePercentageState>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -83,6 +84,8 @@ export function useRatingStatus(): UseRatingStatusReturn {
       setLocalRatings(newRatings);
       setRatedParties(newRatings);
 
+      if (readOnly) return;
+
       const result = await ratingsApi.submitRating(partyId, rating);
 
       // Update like percentage from response
@@ -98,7 +101,7 @@ export function useRatingStatus(): UseRatingStatusReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [readOnly]);
 
   return {
     getUserRating,

@@ -98,6 +98,72 @@ async def get_user_going_parties(user: dict = Depends(require_auth)):
     return [row["party_id"] for row in result.data]
 
 
+_demo_weekend_cache: dict = {"weekend_of": None, "expires_at": None}
+_DEMO_CACHE_TTL = timedelta(hours=1)
+_DEMO_MIN_PARTIES = 5
+
+
+@router.get("/demo-weekend")
+async def get_demo_weekend():
+    """
+    Return the Friday (YYYY-MM-DD) of the most recent past weekend with enough
+    approved parties to make the /demo page feel alive. Falls back to the
+    highest-traffic past Friday in the last 12 months if nothing recent qualifies.
+    Result cached in-process for 1 hour.
+    """
+    now = datetime.now(EASTERN)
+    if (
+        _demo_weekend_cache["weekend_of"] is not None
+        and _demo_weekend_cache["expires_at"] is not None
+        and _demo_weekend_cache["expires_at"] > now
+    ):
+        return {"weekendOf": _demo_weekend_cache["weekend_of"]}
+
+    today_iso = today_eastern().isoformat()
+
+    rows = (
+        supabase.table("parties")
+        .select("weekend_of, going_count")
+        .eq("status", "approved")
+        .lt("weekend_of", today_iso)
+        .execute()
+    )
+
+    counts: dict[str, int] = {}
+    going_sums: dict[str, int] = {}
+    for row in rows.data or []:
+        wk = row.get("weekend_of")
+        if not wk:
+            continue
+        counts[wk] = counts.get(wk, 0) + 1
+        going_sums[wk] = going_sums.get(wk, 0) + (row.get("going_count") or 0)
+
+    chosen: Optional[str] = None
+
+    # Primary: most recent past Friday with >= _DEMO_MIN_PARTIES approved parties.
+    qualifying = sorted(
+        (wk for wk, c in counts.items() if c >= _DEMO_MIN_PARTIES),
+        reverse=True,
+    )
+    if qualifying:
+        chosen = qualifying[0]
+
+    # Fallback: highest-traffic past Friday in the last 12 months.
+    if chosen is None:
+        cutoff = (today_eastern() - timedelta(days=365)).isoformat()
+        candidates = [wk for wk in counts.keys() if wk >= cutoff]
+        if candidates:
+            chosen = max(candidates, key=lambda wk: going_sums.get(wk, 0))
+
+    if chosen is None:
+        raise HTTPException(status_code=404, detail="No past weekend with party data available")
+
+    _demo_weekend_cache["weekend_of"] = chosen
+    _demo_weekend_cache["expires_at"] = now + _DEMO_CACHE_TTL
+
+    return {"weekendOf": chosen}
+
+
 @router.get("/{party_id}", response_model=PartyResponse)
 async def get_party(party_id: str):
     """

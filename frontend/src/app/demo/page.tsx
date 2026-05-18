@@ -222,7 +222,7 @@ export default function DemoPage() {
       ) : currentView === 'map' ? (
         <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
           <Header title="Party Map" />
-          <DemoBanner weekendOf={demoWeekend} />
+          {/* <DemoBanner weekendOf={demoWeekend} /> */}
           <div className="flex-1 pb-16 lg:pb-0">
             <MapView
               parties={allParties}
@@ -238,7 +238,7 @@ export default function DemoPage() {
         </div>
       ) : (
         <>
-          <DemoBanner weekendOf={demoWeekend} />
+          {/* <DemoBanner weekendOf={demoWeekend} /> */}
           <RankingsView weekendOverride={demoWeekend} />
         </>
       )}

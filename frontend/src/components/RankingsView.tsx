@@ -21,7 +21,9 @@ interface RankingsViewProps {
 }
 
 export default function RankingsView({ weekendOverride }: RankingsViewProps = {}) {
-  const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>('this-semester');
+  const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>(
+    weekendOverride ? 'last-week' : 'this-semester',
+  );
   const [partyRankings, setPartyRankings] = useState<PartyRanking[]>([]);
   const [hostRankings, setHostRankings] = useState<HostRanking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,12 +31,9 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
   const [infoOpen, setInfoOpen] = useState(false);
 
   const fetchSpec: FetchSpec = useMemo(() => {
-    if (weekendOverride) {
-      return { mode: 'parties', params: { weekendOf: weekendOverride } };
-    }
     switch (selectedFilter) {
       case 'last-week':
-        return { mode: 'parties', params: { weekendOf: getLastWeekendFridayISO() } };
+        return { mode: 'parties', params: { weekendOf: weekendOverride ?? getLastWeekendFridayISO() } };
       case 'this-month': {
         const { from, to } = getMonthRange();
         return { mode: 'parties', params: { weekendFrom: from, weekendTo: to } };
@@ -99,14 +98,13 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
         </div>
       </header>
 
-      {!weekendOverride && (
-        <RankingsDropdown
-          selectedFilter={selectedFilter}
-          onFilterChange={setSelectedFilter}
-          onOpenChange={setIsDropdownOpen}
-          onInfoClick={selectedFilter === 'by-hosts' ? () => setInfoOpen(true) : undefined}
-        />
-      )}
+      <RankingsDropdown
+        selectedFilter={selectedFilter}
+        onFilterChange={setSelectedFilter}
+        onOpenChange={setIsDropdownOpen}
+        onInfoClick={selectedFilter === 'by-hosts' ? () => setInfoOpen(true) : undefined}
+      />
+
 
       <div className={`max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
         {isLoading ? (

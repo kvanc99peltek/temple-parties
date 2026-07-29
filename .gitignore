@@ -41,3 +41,7 @@ prd_v1.md
 host_rating.md
 host_feature_migration.md
 AUTH file explained.md
+specs/version1/v1_snapshot.md
+
+# Claude Code local settings (contains machine-local secrets)
+.claude/

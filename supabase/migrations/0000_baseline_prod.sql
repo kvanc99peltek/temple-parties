@@ -1,21 +1,9 @@
 -- 0000_baseline_prod.sql
--- Captured from live PROD (owner SQL dumps → specs/version2/schema-capture/Prod/)
--- Capture date: 2026-08-06
+-- Captured from live PROD (owner SQL dumps) — 2026-08-06
 --
 -- INTENT: document PROD reality as a sibling to 0000_baseline_dev.sql.
--- Do NOT re-apply blindly to a project that already has these objects.
--- This is a capture / reference artifact — not an apply-to-prod migration.
---
--- Security snapshot at capture time (see also SCHEMA_CAPTURE_NOTES.md):
---   - RLS ENABLED on all five public tables (relforcerowsecurity = false)
---   - Three policies: parties SELECT approved; parties INSERT if auth.uid();
---     party_ratings ALL denied (qual=false)
---   - hosts / party_going / user_profiles: RLS on, ZERO policies → deny for
---     anon/authenticated via PostgREST (service_role bypasses RLS)
---   - Table grants still wide open (anon/authenticated full DML) — RLS is the
---     effective gate for those roles
---   - No public tables in a realtime postgres_changes publication
---   - Storage: public `posters` bucket (1MB; mime list includes typo image/wenp)
+-- Do NOT re-apply blindly. Capture / reference only — not an apply-to-prod migration.
+-- Detailed security review notes are local-only (not in this public repo).
 
 -- =============================================================================
 -- TABLES
@@ -301,7 +289,6 @@ ALTER TABLE public.parties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.party_going ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.party_ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
--- relforcerowsecurity = false on all five (FORCE ROW LEVEL SECURITY not set)
 
 CREATE POLICY "Public can read approved parties"
   ON public.parties
@@ -324,33 +311,10 @@ CREATE POLICY "No direct access"
   TO public
   USING (false);
 
--- hosts / party_going / user_profiles: no policies (RLS on → deny for non-bypass roles)
-
 -- =============================================================================
--- GRANTS (captured state — still wide open at table privilege level)
+-- GRANTS / REALTIME / STORAGE (as captured — see local review notes)
 -- =============================================================================
--- anon, authenticated, and service_role each have:
---   SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
--- on every public table listed above.
--- Effective PostgREST access for anon/authenticated is gated by RLS above;
--- service_role bypasses RLS.
 
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO service_role;
-
--- =============================================================================
--- REALTIME PUBLICATION (captured state)
--- =============================================================================
--- Dump listed only `supabase_realtime_messages_publication` → realtime.messages_*
--- partitions. No public.app tables appear in any publication — frontend
--- postgres_changes on parties would be inert on PROD until a table is added, e.g.:
---   ALTER PUBLICATION supabase_realtime ADD TABLE public.parties;
--- (Not applied here — capture only.)
-
--- =============================================================================
--- STORAGE (captured state — not SQL-applied here)
--- =============================================================================
--- Bucket `posters`: public=true, file_size_limit=1048576,
---   allowed_mime_types=["image/jpeg","image/wenp"]  -- note: wenp typo vs webp
--- Bucket `avatars`: absent

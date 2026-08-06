@@ -77,7 +77,7 @@ FastAPI app in `backend/app/`: routers (`auth`, `parties`, `admin`, `ratings`), 
 
 `backend/schema/` holds numbered SQL files (`001_baseline.sql` …). They are **not auto-applied** — schema changes are made in the Supabase dashboard, then recorded as a new sequentially-numbered file. Host ranking math (Bayesian/Wilson scores) lives in SQL — see files 008–013.
 
-v2 baseline captures: `supabase/migrations/0000_baseline_dev.sql` and `0000_baseline_prod.sql` (capture/reference only — do not re-apply blindly). Notes in `supabase/SCHEMA_CAPTURE_NOTES.md`. **`tuparties-dev` must never be promoted to prod** (synthetic `party_ratings`) — see `supabase/DEV_NEVER_PROMOTE.md`. Supabase has no project-description field for a dashboard warning.
+v2 baseline captures: `supabase/migrations/0000_baseline_dev.sql` and `0000_baseline_prod.sql` (capture/reference only — do not re-apply blindly). Security review writeups (`SCHEMA_CAPTURE_NOTES.md`, `DEV_NEVER_PROMOTE.md`) are gitignored — local only; public repo. **Never promote `tuparties-dev` data/schema into prod** (synthetic ratings live there).
 
 ### Analytics
 

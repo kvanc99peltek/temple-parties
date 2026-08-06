@@ -283,35 +283,9 @@ CREATE TRIGGER hosts_code_delete_guard_trg
   FOR EACH ROW EXECUTE FUNCTION public.hosts_code_delete_guard();
 
 -- =============================================================================
--- RLS / POLICIES (captured state: NONE)
+-- RLS / POLICIES / GRANTS / REALTIME (as captured — see local review notes)
 -- =============================================================================
--- All public tables have relrowsecurity = false.
--- Zero rows in pg_policies for schemaname = 'public'.
--- Do not enable RLS here without adding policies first (would lock out clients).
-
--- ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;  -- NOT applied
--- ALTER TABLE public.parties ENABLE ROW LEVEL SECURITY;         -- NOT applied
--- ALTER TABLE public.party_going ENABLE ROW LEVEL SECURITY;     -- NOT applied
--- ALTER TABLE public.party_ratings ENABLE ROW LEVEL SECURITY;   -- NOT applied
--- ALTER TABLE public.hosts ENABLE ROW LEVEL SECURITY;           -- NOT applied
-
--- =============================================================================
--- GRANTS (captured state — wide open)
--- =============================================================================
--- anon, authenticated, and service_role each have:
---   SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
--- on every public table listed above.
--- (postgres has the same with is_grantable = YES.)
 
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO service_role;
-
--- =============================================================================
--- REALTIME PUBLICATION (captured state)
--- =============================================================================
--- Publication `supabase_realtime` exists but has ZERO public tables attached.
--- Frontend v1 subscribes to postgres_changes on parties — on DEV that subscription
--- has nothing to receive until a table is added, e.g.:
---   ALTER PUBLICATION supabase_realtime ADD TABLE public.parties;
--- (Not applied here — capture only.)

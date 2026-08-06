@@ -312,33 +312,10 @@ CREATE POLICY "No direct access"
   TO public
   USING (false);
 
--- hosts / party_going / user_profiles: no policies (RLS on → deny for non-bypass roles)
-
 -- =============================================================================
--- GRANTS (captured state — still wide open at table privilege level)
+-- GRANTS / REALTIME / STORAGE (as captured — see local review notes)
 -- =============================================================================
--- anon, authenticated, and service_role each have:
---   SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
--- on every public table listed above.
--- Effective PostgREST access for anon/authenticated is gated by RLS above;
--- service_role bypasses RLS.
 
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO service_role;
-
--- =============================================================================
--- REALTIME PUBLICATION (captured state)
--- =============================================================================
--- Dump listed only `supabase_realtime_messages_publication` → realtime.messages_*
--- partitions. No public.app tables appear in any publication — frontend
--- postgres_changes on parties would be inert on PROD until a table is added, e.g.:
---   ALTER PUBLICATION supabase_realtime ADD TABLE public.parties;
--- (Not applied here — capture only.)
-
--- =============================================================================
--- STORAGE (captured state — not SQL-applied here)
--- =============================================================================
--- Bucket `posters`: public=true, file_size_limit=1048576,
---   allowed_mime_types=["image/jpeg","image/wenp"]  -- note: wenp typo vs webp
--- Bucket `avatars`: absent

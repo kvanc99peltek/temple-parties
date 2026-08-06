@@ -1,6 +1,0 @@
-relname,relrowsecurity,relforcerowsecurity
-hosts,true,false
-parties,true,false
-party_going,true,false
-party_ratings,true,false
-user_profiles,true,false

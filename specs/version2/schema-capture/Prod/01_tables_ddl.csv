@@ -1,0 +1,50 @@
+ddl
+"CREATE TABLE public.hosts (
+  code character varying(20) NOT NULL,
+  display_name character varying(60) NOT NULL,
+  logo_url text,
+  created_at timestamp with time zone DEFAULT now()
+);"
+"CREATE TABLE public.parties (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title character varying(50) NOT NULL,
+  host character varying(30) NOT NULL,
+  category character varying(50) NOT NULL,
+  day character varying(10) NOT NULL,
+  doors_open character varying(20) NOT NULL,
+  address character varying(500) NOT NULL,
+  latitude numeric(10,8) NOT NULL,
+  longitude numeric(11,8) NOT NULL,
+  going_count integer DEFAULT 0,
+  created_by uuid,
+  status character varying(20) DEFAULT 'pending'::character varying,
+  weekend_of date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  rating_count integer DEFAULT 0,
+  is_verified boolean DEFAULT false,
+  pin_label text,
+  like_percentage numeric(5,2) DEFAULT 0,
+  poster_image text,
+  host_codes text[] DEFAULT '{}'::text[]
+);"
+"CREATE TABLE public.party_going (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  party_id uuid,
+  user_id uuid,
+  created_at timestamp with time zone DEFAULT now()
+);"
+"CREATE TABLE public.party_ratings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  party_id uuid NOT NULL,
+  ip_hash character varying(64) NOT NULL,
+  rating smallint NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);"
+"CREATE TABLE public.user_profiles (
+  id uuid NOT NULL,
+  username character varying(20),
+  is_admin boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  email character varying
+);"

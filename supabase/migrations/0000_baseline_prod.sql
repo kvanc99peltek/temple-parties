@@ -1,67 +1,25 @@
--- 0000_baseline_dev.sql
--- Captured from live tuparties-dev (ref: xmiksyhonrugakqwydhn) via Supabase MCP
+-- 0000_baseline_prod.sql
+-- Captured from live PROD (owner SQL dumps → specs/version2/schema-capture/Prod/)
 -- Capture date: 2026-08-06
 --
--- INTENT: document reality as the first migration. Do NOT re-apply blindly to a
--- project that already has these objects (dev/prod already have them).
--- Sibling prod capture: 0000_baseline_prod.sql (owner SQL dumps, 2026-08-06).
+-- INTENT: document PROD reality as a sibling to 0000_baseline_dev.sql.
+-- Do NOT re-apply blindly to a project that already has these objects.
+-- This is a capture / reference artifact — not an apply-to-prod migration.
 --
 -- Security snapshot at capture time (see also SCHEMA_CAPTURE_NOTES.md):
---   - RLS DISABLED on all five public tables; zero policies
---   - anon + authenticated hold full DML/DDL-ish table privileges (SELECT/INSERT/
---     UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER)
---   - supabase_realtime publication exists but has NO public tables attached
+--   - RLS ENABLED on all five public tables (relforcerowsecurity = false)
+--   - Three policies: parties SELECT approved; parties INSERT if auth.uid();
+--     party_ratings ALL denied (qual=false)
+--   - hosts / party_going / user_profiles: RLS on, ZERO policies → deny for
+--     anon/authenticated via PostgREST (service_role bypasses RLS)
+--   - Table grants still wide open (anon/authenticated full DML) — RLS is the
+--     effective gate for those roles
+--   - No public tables in a realtime postgres_changes publication
+--   - Storage: public `posters` bucket (1MB; mime list includes typo image/wenp)
 
 -- =============================================================================
 -- TABLES
 -- =============================================================================
-
-CREATE TABLE public.user_profiles (
-  id uuid NOT NULL,
-  email character varying,
-  username character varying,
-  is_admin boolean DEFAULT false,
-  created_at timestamp with time zone DEFAULT now()
-);
-
-CREATE TABLE public.parties (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  title character varying(50) NOT NULL,
-  host character varying(30) NOT NULL,
-  pin_label text,
-  category character varying(50) NOT NULL,
-  day character varying,
-  date date,
-  doors_open character varying(20) NOT NULL,
-  address character varying(500) NOT NULL,
-  latitude numeric(10,8) NOT NULL,
-  longitude numeric(11,8) NOT NULL,
-  going_count integer DEFAULT 0,
-  created_by uuid,
-  status character varying DEFAULT 'pending'::character varying,
-  weekend_of date NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  rating_count integer DEFAULT 0,
-  is_verified boolean DEFAULT false,
-  like_percentage numeric(5,2) DEFAULT 0,
-  poster_image text,
-  host_codes text[] DEFAULT '{}'::text[]
-);
-
-CREATE TABLE public.party_going (
-  party_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  created_at timestamp with time zone DEFAULT now()
-);
-
-CREATE TABLE public.party_ratings (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  party_id uuid NOT NULL,
-  ip_hash text NOT NULL,
-  rating integer NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now()
-);
 
 CREATE TABLE public.hosts (
   code character varying(20) NOT NULL,
@@ -70,43 +28,56 @@ CREATE TABLE public.hosts (
   created_at timestamp with time zone DEFAULT now()
 );
 
+CREATE TABLE public.parties (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title character varying(50) NOT NULL,
+  host character varying(30) NOT NULL,
+  category character varying(50) NOT NULL,
+  day character varying(10) NOT NULL,
+  doors_open character varying(20) NOT NULL,
+  address character varying(500) NOT NULL,
+  latitude numeric(10,8) NOT NULL,
+  longitude numeric(11,8) NOT NULL,
+  going_count integer DEFAULT 0,
+  created_by uuid,
+  status character varying(20) DEFAULT 'pending'::character varying,
+  weekend_of date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  rating_count integer DEFAULT 0,
+  is_verified boolean DEFAULT false,
+  pin_label text,
+  like_percentage numeric(5,2) DEFAULT 0,
+  poster_image text,
+  host_codes text[] DEFAULT '{}'::text[]
+);
+
+CREATE TABLE public.party_going (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  party_id uuid,
+  user_id uuid,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.party_ratings (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  party_id uuid NOT NULL,
+  ip_hash character varying(64) NOT NULL,
+  rating smallint NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE public.user_profiles (
+  id uuid NOT NULL,
+  username character varying(20),
+  is_admin boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  email character varying
+);
+
 -- =============================================================================
 -- CONSTRAINTS
 -- =============================================================================
-
-ALTER TABLE ONLY public.user_profiles
-  ADD CONSTRAINT user_profiles_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.user_profiles
-  ADD CONSTRAINT user_profiles_username_key UNIQUE (username);
-ALTER TABLE ONLY public.user_profiles
-  ADD CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id);
-
-ALTER TABLE ONLY public.parties
-  ADD CONSTRAINT parties_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.parties
-  ADD CONSTRAINT parties_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.user_profiles(id);
-ALTER TABLE ONLY public.parties
-  ADD CONSTRAINT parties_day_check CHECK (((day)::text = ANY ((ARRAY['friday'::character varying, 'saturday'::character varying])::text[])));
-ALTER TABLE ONLY public.parties
-  ADD CONSTRAINT parties_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[])));
-ALTER TABLE ONLY public.parties
-  ADD CONSTRAINT parties_host_codes_clean_chk CHECK (((host_codes IS NULL) OR ((NOT (host_codes && ARRAY[NULL::text])) AND (NOT (''::text = ANY (host_codes))))));
-
-ALTER TABLE ONLY public.party_going
-  ADD CONSTRAINT party_going_pkey PRIMARY KEY (party_id, user_id);
-ALTER TABLE ONLY public.party_going
-  ADD CONSTRAINT party_going_party_id_fkey FOREIGN KEY (party_id) REFERENCES public.parties(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.party_going
-  ADD CONSTRAINT party_going_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.party_ratings
-  ADD CONSTRAINT party_ratings_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY public.party_ratings
-  ADD CONSTRAINT party_ratings_party_id_ip_hash_key UNIQUE (party_id, ip_hash);
-ALTER TABLE ONLY public.party_ratings
-  ADD CONSTRAINT party_ratings_party_id_fkey FOREIGN KEY (party_id) REFERENCES public.parties(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public.party_ratings
-  ADD CONSTRAINT party_ratings_rating_check CHECK ((rating = ANY (ARRAY[0, 1])));
 
 ALTER TABLE ONLY public.hosts
   ADD CONSTRAINT hosts_pkey PRIMARY KEY (code);
@@ -117,12 +88,52 @@ ALTER TABLE ONLY public.hosts
 ALTER TABLE ONLY public.hosts
   ADD CONSTRAINT hosts_display_name_nonempty_chk CHECK ((char_length(btrim((display_name)::text)) > 0));
 
+ALTER TABLE ONLY public.parties
+  ADD CONSTRAINT parties_pkey PRIMARY KEY (id);
+-- PROD: created_by → auth.users (dev points at user_profiles)
+ALTER TABLE ONLY public.parties
+  ADD CONSTRAINT parties_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.parties
+  ADD CONSTRAINT parties_day_check CHECK (((day)::text = ANY ((ARRAY['friday'::character varying, 'saturday'::character varying])::text[])));
+ALTER TABLE ONLY public.parties
+  ADD CONSTRAINT parties_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[])));
+ALTER TABLE ONLY public.parties
+  ADD CONSTRAINT parties_host_codes_clean_chk CHECK (((host_codes IS NULL) OR ((NOT (host_codes && ARRAY[NULL::text])) AND (NOT (''::text = ANY (host_codes))))));
+
+ALTER TABLE ONLY public.party_going
+  ADD CONSTRAINT party_going_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.party_going
+  ADD CONSTRAINT party_going_party_id_user_id_key UNIQUE (party_id, user_id);
+ALTER TABLE ONLY public.party_going
+  ADD CONSTRAINT party_going_party_id_fkey FOREIGN KEY (party_id) REFERENCES public.parties(id) ON DELETE CASCADE;
+-- PROD: user_id → auth.users (dev points at user_profiles)
+ALTER TABLE ONLY public.party_going
+  ADD CONSTRAINT party_going_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.party_ratings
+  ADD CONSTRAINT party_ratings_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.party_ratings
+  ADD CONSTRAINT party_ratings_party_id_ip_hash_key UNIQUE (party_id, ip_hash);
+ALTER TABLE ONLY public.party_ratings
+  ADD CONSTRAINT party_ratings_party_id_fkey FOREIGN KEY (party_id) REFERENCES public.parties(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.party_ratings
+  ADD CONSTRAINT party_ratings_rating_check CHECK ((rating = ANY (ARRAY[0, 1])));
+
+ALTER TABLE ONLY public.user_profiles
+  ADD CONSTRAINT user_profiles_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.user_profiles
+  ADD CONSTRAINT user_profiles_username_key UNIQUE (username);
+ALTER TABLE ONLY public.user_profiles
+  ADD CONSTRAINT user_profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id);
+
 -- =============================================================================
--- INDEXES (non-constraint)
+-- INDEXES (non-constraint extras called out; PK/UNIQUE indexes implied above)
 -- =============================================================================
 -- NOTE: parties(weekend_of) and parties(status) indexes are ABSENT (v1 §6 gap → epic 2.3)
 
 CREATE INDEX parties_host_codes_gin ON public.parties USING gin (host_codes);
+CREATE INDEX idx_party_ratings_ip_hash ON public.party_ratings USING btree (ip_hash);
+CREATE INDEX idx_party_ratings_party_id ON public.party_ratings USING btree (party_id);
 
 -- =============================================================================
 -- FUNCTIONS
@@ -134,22 +145,16 @@ CREATE OR REPLACE FUNCTION public.parties_host_codes_fk_check()
 AS $function$
 DECLARE
     missing TEXT[];
-    distinct_count INT;
 BEGIN
     IF NEW.host_codes IS NULL OR cardinality(NEW.host_codes) = 0 THEN
         RETURN NEW;
     END IF;
 
-    -- Reject duplicates within the array (e.g. {PHIKAP_TEMPLE_001, PHIKAP_TEMPLE_001}).
-    SELECT COUNT(DISTINCT c) INTO distinct_count
-    FROM unnest(NEW.host_codes) AS c;
-
-    IF distinct_count <> cardinality(NEW.host_codes) THEN
+    IF (SELECT COUNT(DISTINCT c) FROM unnest(NEW.host_codes) AS c) <> cardinality(NEW.host_codes) THEN
         RAISE EXCEPTION 'parties.host_codes contains duplicate entries: %', NEW.host_codes
             USING ERRCODE = 'check_violation';
     END IF;
 
-    -- Reject entries not present in hosts.code.
     SELECT COALESCE(array_agg(c), '{}')
     INTO missing
     FROM unnest(NEW.host_codes) AS c
@@ -169,9 +174,7 @@ CREATE OR REPLACE FUNCTION public.hosts_code_delete_guard()
  LANGUAGE plpgsql
 AS $function$
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM parties WHERE OLD.code = ANY (host_codes)
-    ) THEN
+    IF EXISTS (SELECT 1 FROM parties WHERE OLD.code = ANY (host_codes)) THEN
         RAISE EXCEPTION 'cannot delete hosts.code % — referenced by parties.host_codes', OLD.code
             USING ERRCODE = 'foreign_key_violation';
     END IF;
@@ -290,25 +293,47 @@ CREATE TRIGGER hosts_code_delete_guard_trg
   FOR EACH ROW EXECUTE FUNCTION public.hosts_code_delete_guard();
 
 -- =============================================================================
--- RLS / POLICIES (captured state: NONE)
+-- RLS / POLICIES (captured state)
 -- =============================================================================
--- All public tables have relrowsecurity = false.
--- Zero rows in pg_policies for schemaname = 'public'.
--- Do not enable RLS here without adding policies first (would lock out clients).
 
--- ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;  -- NOT applied
--- ALTER TABLE public.parties ENABLE ROW LEVEL SECURITY;         -- NOT applied
--- ALTER TABLE public.party_going ENABLE ROW LEVEL SECURITY;     -- NOT applied
--- ALTER TABLE public.party_ratings ENABLE ROW LEVEL SECURITY;   -- NOT applied
--- ALTER TABLE public.hosts ENABLE ROW LEVEL SECURITY;           -- NOT applied
+ALTER TABLE public.hosts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.party_going ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.party_ratings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+-- relforcerowsecurity = false on all five (FORCE ROW LEVEL SECURITY not set)
+
+CREATE POLICY "Public can read approved parties"
+  ON public.parties
+  AS PERMISSIVE
+  FOR SELECT
+  TO public
+  USING (((status)::text = 'approved'::text));
+
+CREATE POLICY "Authenticated can insert parties"
+  ON public.parties
+  AS PERMISSIVE
+  FOR INSERT
+  TO public
+  WITH CHECK ((auth.uid() IS NOT NULL));
+
+CREATE POLICY "No direct access"
+  ON public.party_ratings
+  AS PERMISSIVE
+  FOR ALL
+  TO public
+  USING (false);
+
+-- hosts / party_going / user_profiles: no policies (RLS on → deny for non-bypass roles)
 
 -- =============================================================================
--- GRANTS (captured state — wide open)
+-- GRANTS (captured state — still wide open at table privilege level)
 -- =============================================================================
 -- anon, authenticated, and service_role each have:
 --   SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
 -- on every public table listed above.
--- (postgres has the same with is_grantable = YES.)
+-- Effective PostgREST access for anon/authenticated is gated by RLS above;
+-- service_role bypasses RLS.
 
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public TO authenticated;
@@ -317,8 +342,15 @@ GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLE
 -- =============================================================================
 -- REALTIME PUBLICATION (captured state)
 -- =============================================================================
--- Publication `supabase_realtime` exists but has ZERO public tables attached.
--- Frontend v1 subscribes to postgres_changes on parties — on DEV that subscription
--- has nothing to receive until a table is added, e.g.:
+-- Dump listed only `supabase_realtime_messages_publication` → realtime.messages_*
+-- partitions. No public.app tables appear in any publication — frontend
+-- postgres_changes on parties would be inert on PROD until a table is added, e.g.:
 --   ALTER PUBLICATION supabase_realtime ADD TABLE public.parties;
 -- (Not applied here — capture only.)
+
+-- =============================================================================
+-- STORAGE (captured state — not SQL-applied here)
+-- =============================================================================
+-- Bucket `posters`: public=true, file_size_limit=1048576,
+--   allowed_mime_types=["image/jpeg","image/wenp"]  -- note: wenp typo vs webp
+-- Bucket `avatars`: absent

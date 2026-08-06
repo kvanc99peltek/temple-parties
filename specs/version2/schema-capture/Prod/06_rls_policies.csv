@@ -1,0 +1,4 @@
+schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check
+public,parties,Authenticated can insert parties,PERMISSIVE,{public},INSERT,null,(auth.uid() IS NOT NULL)
+public,parties,Public can read approved parties,PERMISSIVE,{public},SELECT,((status)::text = 'approved'::text),null
+public,party_ratings,No direct access,PERMISSIVE,{public},ALL,false,null

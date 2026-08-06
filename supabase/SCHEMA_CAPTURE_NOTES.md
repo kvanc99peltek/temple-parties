@@ -1,14 +1,16 @@
 # Schema capture notes — Epic 0
 
-> Captured **dev only** (`tuparties-dev`, ref `xmiksyhonrugakqwydhn`) on 2026-08-06.
-> Prod stays owner-manual for now — re-run this capture against prod before trusting
-> launch-hardening decisions that depend on prod RLS/realtime.
-
-Source migration: `supabase/migrations/0000_baseline_dev.sql`
+> Captured **dev** (`tuparties-dev`, ref `xmiksyhonrugakqwydhn`) and **prod** (owner SQL dumps)
+> on 2026-08-06.
+>
+> Sources:
+> - Dev: `supabase/migrations/0000_baseline_dev.sql`
+> - Prod: `supabase/migrations/0000_baseline_prod.sql`
+> - Raw prod CSVs: `specs/version2/schema-capture/Prod/` (local; `to-do.md` gitignored, dumps not)
 
 ---
 
-## 0.4 — What was captured
+## Dev — 0.4 inventory
 
 | Object | Present on dev |
 |--------|----------------|
@@ -24,7 +26,7 @@ Row counts at capture: parties 53 · party_ratings 477 · hosts 15 · party_goin
 
 ---
 
-## 0.5 — Drift vs `backend/schema/` (record only — do not "fix" yet)
+## Dev — 0.5 drift vs `backend/schema/` (record only — do not "fix" yet)
 
 | Finding | Notes |
 |---------|-------|
@@ -37,7 +39,7 @@ Row counts at capture: parties 53 · party_ratings 477 · hosts 15 · party_goin
 
 ---
 
-## 0.6 — RLS review (dev)
+## Dev — 0.6 RLS review
 
 **Verdict: wider than the to-do hoped.** Epic 0.6 hoped anon could "only SELECT approved parties." Reality on **dev**:
 
@@ -53,7 +55,7 @@ Other advisor noise (defer): mutable `search_path` on the three public functions
 
 ---
 
-## 0.7 — Synthetic `party_ratings` on dev
+## Dev — 0.7 Synthetic `party_ratings`
 
 | Check | Result |
 |-------|--------|
@@ -63,6 +65,97 @@ Other advisor noise (defer): mutable `search_path` on the three public functions
 
 ---
 
-## Prod follow-up (manual)
+## Prod — 0.4 inventory
 
-When ready, owner dumps prod the same way (or re-auths MCP on prod briefly) and we diff against this file. Until then, treat this capture as **dev truth**, not launch truth.
+Raw dumps renamed under `specs/version2/schema-capture/Prod/`:
+`01_tables_ddl` … `07_grants`, `08_publications`, `09_row_counts`, `10_storage_buckets`, `12_rls_flags`.
+
+| Object | Present on prod |
+|--------|-----------------|
+| Tables | Same five: `user_profiles`, `parties`, `party_going`, `party_ratings`, `hosts` |
+| Functions | Same three host-guard + rankings functions |
+| Triggers | Same two |
+| RLS | **ON** all five (`relrowsecurity=true`, `relforcerowsecurity=false`) |
+| Policies | 3 — see 0.6 below |
+| Realtime | Only `supabase_realtime_messages_publication` → `realtime.messages_*`; **no public tables** in any publication |
+| Storage | `posters` bucket (public, 1MB, mime `image/jpeg` + typo `image/wenp`); **no `avatars`** |
+
+Row counts at capture: parties 61 · party_ratings 570 · hosts 15 · party_going 0 · user_profiles 2.
+
+---
+
+## Prod ↔ Dev drift (structural)
+
+| Area | Prod | Dev |
+|------|------|-----|
+| RLS | **ON** all five tables | **OFF** all five |
+| Policies | 3 (parties SELECT/INSERT, party_ratings deny-all) | none |
+| `parties.date` column | **absent** | present (`date`) |
+| `parties.day` | `varchar(10) NOT NULL` | `varchar` nullable |
+| `parties.status` | `varchar(20)` | `varchar` (no length) |
+| `parties.created_by` FK | → `auth.users` | → `user_profiles` |
+| `party_going` shape | surrogate `id` PK; `party_id`/`user_id` nullable; UNIQUE(party_id,user_id); user FK → `auth.users` | composite PK `(party_id,user_id)` both NOT NULL; FKs → `user_profiles` |
+| `party_ratings.ip_hash` | `varchar(64)` | `text` |
+| `party_ratings.rating` | `smallint` | `integer` |
+| Extra indexes | `idx_party_ratings_ip_hash`, `idx_party_ratings_party_id` | neither |
+| Hot-path indexes (`weekend_of`/`status`) | absent | absent |
+| Storage | `posters` only | none |
+| Realtime public tables | none | none |
+| Host ranking SQL | same Wilson/Bayesian logic | same |
+
+Drift vs `backend/schema/` on prod matches the same themes as dev (end-state of 001–013, missing weekend/status indexes, docs never recorded RLS/grants). Prod `party_going` / FK targets diverge from both the docs files and **dev** — treat carefully in epic 2 migrations.
+
+---
+
+## Prod — 0.6 RLS review (definitive with `12_rls_flags.csv`)
+
+**RLS flags (all public tables):**
+
+| Table | `relrowsecurity` | `relforcerowsecurity` |
+|-------|------------------|------------------------|
+| `hosts` | true | false |
+| `parties` | true | false |
+| `party_going` | true | false |
+| `party_ratings` | true | false |
+| `user_profiles` | true | false |
+
+**Policies:**
+
+| Table | Policy | Effect |
+|-------|--------|--------|
+| `parties` | `Public can read approved parties` | SELECT where `status = 'approved'` (`TO public`) |
+| `parties` | `Authenticated can insert parties` | INSERT with check `auth.uid() IS NOT NULL` |
+| `party_ratings` | `No direct access` | ALL with `USING (false)` — blocks direct PostgREST access |
+| `hosts` | *(none)* | RLS on + no policy → **deny** for anon/authenticated |
+| `party_going` | *(none)* | same deny |
+| `user_profiles` | *(none)* | same deny |
+
+**Anon effective access (PostgREST + anon key), after RLS:**
+
+| Table | Effective anon access |
+|-------|------------------------|
+| `parties` | SELECT approved rows only; INSERT fails (`auth.uid()` null); UPDATE/DELETE denied (no policy) |
+| `party_ratings` | none (deny-all policy) |
+| `hosts` | none |
+| `party_going` | none |
+| `user_profiles` | none |
+
+Table-level **grants** still give anon/authenticated full DML on every table — RLS is what actually blocks. `service_role` (backend) bypasses RLS and retains full access.
+
+**Verdict vs the 0.6 hope ("anon only SELECT approved parties"):**
+
+- **Closer than dev, but not launch-clean.** Approved-party SELECT matches the hope; ratings/hosts/going/profiles are locked for anon.
+- Still flagged for **10.4**: revoke excess table grants from `anon`; decide whether authenticated INSERT-on-parties should stay; add explicit policies (or keep intentional deny-by-absence) for tables that need documented intent; add `parties` to realtime publication if going-count live updates remain a product requirement; fix `posters` mime typo (`wenp` → `webp`) when touching storage in 2.4.
+
+---
+
+## Epic 0 status
+
+| Item | Dev | Prod |
+|------|-----|------|
+| 0.4 capture | done | done |
+| 0.5 drift notes | done | done (vs schema docs + vs each other) |
+| 0.6 RLS review | FAIL (wide open) | Partial pass — approved SELECT ok; grants + gaps → 10.4 |
+| 0.7 synthetic ratings | confirmed; never promote | n/a (real ratings) |
+
+Epic 0 is **closed** for both environments (0.1 waived; 0.3 adapted MCP/dev-only link).

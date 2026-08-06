@@ -43,6 +43,11 @@ host_feature_migration.md
 AUTH file explained.md
 specs/version1/v1_snapshot.md
 specs/version1/v1-sitemap.md
+# v2 specs stay local until launch hardening (Epic 10) — they document live v1 vulnerabilities
+specs/version2/ai_specs/
+specs/version2/to-do.md
+# Raw SQL dump CSVs — provenance only; baselines live in supabase/migrations/
+specs/version2/schema-capture/
 
 # Claude Code local settings (contains machine-local secrets)
 .claude/

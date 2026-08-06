@@ -289,7 +289,6 @@ ALTER TABLE public.parties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.party_going ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.party_ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
--- relforcerowsecurity = false on all five (FORCE ROW LEVEL SECURITY not set)
 
 CREATE POLICY "Public can read approved parties"
   ON public.parties

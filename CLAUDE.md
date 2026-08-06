@@ -77,6 +77,8 @@ FastAPI app in `backend/app/`: routers (`auth`, `parties`, `admin`, `ratings`), 
 
 `backend/schema/` holds numbered SQL files (`001_baseline.sql` …). They are **not auto-applied** — schema changes are made in the Supabase dashboard, then recorded as a new sequentially-numbered file. Host ranking math (Bayesian/Wilson scores) lives in SQL — see files 008–013.
 
+v2 baseline capture lives in `supabase/migrations/0000_baseline_dev.sql` (dev only; prod capture deferred). **`tuparties-dev` must never be promoted to prod** (synthetic `party_ratings`) — see `supabase/DEV_NEVER_PROMOTE.md`. Supabase has no project-description field for a dashboard warning.
+
 ### Analytics
 
 Use `trackEvent()` from `utils/analytics.ts` — it fires both Vercel Analytics and PostHog, deferred via `requestIdleCallback`, and never throws. Note: new custom PostHog events can take hours to appear in the PostHog dropdown.
@@ -90,3 +92,4 @@ Tailwind with a dark theme (black bg, purple `#b24bf3` primary, green `#10B981`)
 - `frontend_local_backup/` and `backend_local_backup/` are stale copies — never edit them.
 - Ratings are binary thumbs up/down (`ThumbsRating`); `StarRating` is legacy.
 - Root-level `.md` files (`host_rating.md`, `host_feature_migration.md`, etc.) are feature/design docs.
+- Living build status: `progress.md`. Ordered v2 work: `specs/version2/to-do.md` (local-only / gitignored).

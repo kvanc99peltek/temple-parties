@@ -1,16 +1,9 @@
 -- 0000_baseline_dev.sql
--- Captured from live tuparties-dev (ref: xmiksyhonrugakqwydhn) via Supabase MCP
--- Capture date: 2026-08-06
+-- Captured from live tuparties-dev via Supabase MCP — 2026-08-06
 --
 -- INTENT: document reality as the first migration. Do NOT re-apply blindly to a
--- project that already has these objects (dev/prod already have them).
--- Sibling prod capture: 0000_baseline_prod.sql (owner SQL dumps, 2026-08-06).
---
--- Security snapshot at capture time (see also SCHEMA_CAPTURE_NOTES.md):
---   - RLS DISABLED on all five public tables; zero policies
---   - anon + authenticated hold full DML/DDL-ish table privileges (SELECT/INSERT/
---     UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER)
---   - supabase_realtime publication exists but has NO public tables attached
+-- project that already has these objects. Sibling: 0000_baseline_prod.sql
+-- Detailed security review notes are local-only (not in this public repo).
 
 -- =============================================================================
 -- TABLES

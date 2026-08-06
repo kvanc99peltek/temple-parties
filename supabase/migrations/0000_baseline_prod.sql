@@ -1,21 +1,9 @@
 -- 0000_baseline_prod.sql
--- Captured from live PROD (owner SQL dumps → specs/version2/schema-capture/Prod/)
--- Capture date: 2026-08-06
+-- Captured from live PROD (owner SQL dumps) — 2026-08-06
 --
 -- INTENT: document PROD reality as a sibling to 0000_baseline_dev.sql.
--- Do NOT re-apply blindly to a project that already has these objects.
--- This is a capture / reference artifact — not an apply-to-prod migration.
---
--- Security snapshot at capture time (see also SCHEMA_CAPTURE_NOTES.md):
---   - RLS ENABLED on all five public tables (relforcerowsecurity = false)
---   - Three policies: parties SELECT approved; parties INSERT if auth.uid();
---     party_ratings ALL denied (qual=false)
---   - hosts / party_going / user_profiles: RLS on, ZERO policies → deny for
---     anon/authenticated via PostgREST (service_role bypasses RLS)
---   - Table grants still wide open (anon/authenticated full DML) — RLS is the
---     effective gate for those roles
---   - No public tables in a realtime postgres_changes publication
---   - Storage: public `posters` bucket (1MB; mime list includes typo image/wenp)
+-- Do NOT re-apply blindly. Capture / reference only — not an apply-to-prod migration.
+-- Detailed security review notes are local-only (not in this public repo).
 
 -- =============================================================================
 -- TABLES

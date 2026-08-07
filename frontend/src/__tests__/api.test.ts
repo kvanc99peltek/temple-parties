@@ -411,15 +411,19 @@ describe('API Service', () => {
   });
 
   describe('adminApi', () => {
-    describe('getPendingParties', () => {
+    describe('getParties', () => {
       it('should fetch pending parties', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve([{ id: '1', status: 'pending' }]),
         });
 
-        const result = await adminApi.getPendingParties();
+        const result = await adminApi.getParties('pending');
 
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/admin/parties?status=pending'),
+          expect.any(Object)
+        );
         expect(result[0].status).toBe('pending');
       });
 
@@ -429,7 +433,7 @@ describe('API Service', () => {
           json: () => Promise.resolve({ detail: 'Admin access required' }),
         });
 
-        await expect(adminApi.getPendingParties()).rejects.toThrow('Admin');
+        await expect(adminApi.getParties('pending')).rejects.toThrow('Admin');
       });
     });
 

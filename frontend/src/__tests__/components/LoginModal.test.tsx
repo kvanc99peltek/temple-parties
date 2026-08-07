@@ -234,11 +234,10 @@ describe('LoginModal', () => {
       expect(mockOnClose).toHaveBeenCalled();
     });
 
-    it('should close on close button click', () => {
+    it('should close when backdrop is clicked', () => {
       render(<LoginModal {...defaultProps} />);
 
-      const closeButton = screen.getByLabelText(/close modal/i);
-      fireEvent.click(closeButton);
+      fireEvent.click(screen.getByTestId('modal-backdrop'));
 
       expect(mockOnClose).toHaveBeenCalled();
     });

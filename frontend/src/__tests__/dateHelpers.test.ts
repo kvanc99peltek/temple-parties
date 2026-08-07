@@ -12,8 +12,9 @@ describe('dateHelpers', () => {
       global.Date = originalDate;
     });
 
-    const mockDate = (dayOfWeek: number) => {
-      const date = new Date(2024, 0, 7 + dayOfWeek); // Jan 2024, Sunday is 7th
+    // Use noon so the 6 AM "previous day" rule does not shift the weekday.
+    const mockDate = (dayOfWeek: number, hour = 12) => {
+      const date = new Date(2024, 0, 7 + dayOfWeek, hour, 0, 0); // Jan 2024, Sunday is 7th
       jest.spyOn(global, 'Date').mockImplementation(() => date as unknown as Date);
     };
 
@@ -50,6 +51,16 @@ describe('dateHelpers', () => {
     it('should return friday on Sunday', () => {
       mockDate(0);
       expect(getDefaultDay()).toBe('friday');
+    });
+
+    it('should treat Saturday before 6 AM as Friday', () => {
+      mockDate(6, 3);
+      expect(getDefaultDay()).toBe('friday');
+    });
+
+    it('should treat Sunday before 6 AM as Saturday', () => {
+      mockDate(0, 3);
+      expect(getDefaultDay()).toBe('saturday');
     });
   });
 

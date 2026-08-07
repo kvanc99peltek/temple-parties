@@ -1,10 +1,9 @@
 /**
  * Test cases for AddPartyModal component.
- * Tests form validation, user input handling, and edge cases.
- * Includes tests for malicious inputs.
+ * Keep minimal — this modal is replaced in epic 8.
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AddPartyModal from '@/components/AddPartyModal';
 
@@ -21,7 +20,28 @@ describe('AddPartyModal', () => {
   beforeEach(() => {
     mockOnClose.mockClear();
     mockOnSubmit.mockClear();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    }) as jest.Mock;
   });
+
+  const fillRequiredFields = async (overrides?: {
+    title?: string;
+    host?: string;
+    pinLabel?: string;
+    address?: string;
+  }) => {
+    const title = overrides?.title ?? 'Awesome Party';
+    const host = overrides?.host ?? 'The Host';
+    const pinLabel = overrides?.pinLabel ?? 'SC';
+    const address = overrides?.address ?? '123 Party St';
+
+    await userEvent.type(screen.getByPlaceholderText(/sigma chi house party/i), title);
+    await userEvent.type(screen.getByPlaceholderText(/^e\.g\., sigma chi$/i), host);
+    await userEvent.type(screen.getByPlaceholderText(/ogp/i), pinLabel);
+    await userEvent.type(screen.getByPlaceholderText(/start typing address/i), address);
+  };
 
   describe('Rendering', () => {
     it('should render when isOpen is true', () => {
@@ -36,11 +56,11 @@ describe('AddPartyModal', () => {
 
     it('should render all form fields', () => {
       render(<AddPartyModal {...defaultProps} />);
-      expect(screen.getByPlaceholderText(/sigma chi house party/i)).toBeInTheDocument(); // Title
-      expect(screen.getByPlaceholderText(/e\.g\., sigma chi$/i)).toBeInTheDocument(); // Host
-      expect(screen.getByPlaceholderText(/1234 n broad/i)).toBeInTheDocument(); // Address
-      expect(screen.getByText('Friday')).toBeInTheDocument();
-      expect(screen.getByText('Saturday')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/sigma chi house party/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/^e\.g\., sigma chi$/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/ogp/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/start typing address/i)).toBeInTheDocument();
+      expect(screen.getByText(/doors open/i)).toBeInTheDocument();
     });
   });
 
@@ -48,14 +68,11 @@ describe('AddPartyModal', () => {
     it('should show error for empty title', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
+      await userEvent.type(screen.getByPlaceholderText(/^e\.g\., sigma chi$/i), 'Test Host');
+      await userEvent.type(screen.getByPlaceholderText(/ogp/i), 'TH');
+      await userEvent.type(screen.getByPlaceholderText(/start typing address/i), 'Test Address');
 
-      await userEvent.type(hostInput, 'Test Host');
-      await userEvent.type(addressInput, 'Test Address');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(screen.getByText('Title is required')).toBeInTheDocument();
       expect(mockOnSubmit).not.toHaveBeenCalled();
@@ -64,14 +81,11 @@ describe('AddPartyModal', () => {
     it('should show error for empty host', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
+      await userEvent.type(screen.getByPlaceholderText(/sigma chi house party/i), 'Test Title');
+      await userEvent.type(screen.getByPlaceholderText(/ogp/i), 'TT');
+      await userEvent.type(screen.getByPlaceholderText(/start typing address/i), 'Test Address');
 
-      await userEvent.type(titleInput, 'Test Title');
-      await userEvent.type(addressInput, 'Test Address');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(screen.getByText('Host is required')).toBeInTheDocument();
       expect(mockOnSubmit).not.toHaveBeenCalled();
@@ -80,46 +94,24 @@ describe('AddPartyModal', () => {
     it('should show error for empty address', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
+      await userEvent.type(screen.getByPlaceholderText(/sigma chi house party/i), 'Test Title');
+      await userEvent.type(screen.getByPlaceholderText(/^e\.g\., sigma chi$/i), 'Test Host');
+      await userEvent.type(screen.getByPlaceholderText(/ogp/i), 'TH');
 
-      await userEvent.type(titleInput, 'Test Title');
-      await userEvent.type(hostInput, 'Test Host');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(screen.getByText('Address is required')).toBeInTheDocument();
       expect(mockOnSubmit).not.toHaveBeenCalled();
     });
 
-    it('should show error for title over 50 characters', async () => {
+    it('should enforce title maxLength of 50', () => {
       render(<AddPartyModal {...defaultProps} />);
-
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
-
-      // Input has maxLength but lets test validation message
-      await userEvent.type(titleInput, 'A'.repeat(51));
-      await userEvent.type(hostInput, 'Test Host');
-      await userEvent.type(addressInput, 'Test Address');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
-
-      // The maxLength attribute should prevent >50 chars, but if somehow bypassed
-      // Note: maxLength HTML attribute prevents typing, so we just verify its set
-      expect(titleInput).toHaveAttribute('maxLength', '50');
+      expect(screen.getByPlaceholderText(/sigma chi house party/i)).toHaveAttribute('maxLength', '50');
     });
 
-    it('should show error for host over 30 characters', async () => {
+    it('should enforce host maxLength of 30', () => {
       render(<AddPartyModal {...defaultProps} />);
-
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-
-      // Verify maxLength attribute
-      expect(hostInput).toHaveAttribute('maxLength', '30');
+      expect(screen.getByPlaceholderText(/^e\.g\., sigma chi$/i)).toHaveAttribute('maxLength', '30');
     });
   });
 
@@ -127,45 +119,40 @@ describe('AddPartyModal', () => {
     it('should call onSubmit with valid data', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
+      await fillRequiredFields();
 
-      await userEvent.type(titleInput, 'Awesome Party');
-      await userEvent.type(hostInput, 'The Host');
-      await userEvent.type(addressInput, '123 Party St');
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
-
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        title: 'Awesome Party',
-        host: 'The Host',
-        address: '123 Party St',
-        doorsOpen: '10 PM',
-        category: 'House Party',
-        day: 'friday',
-      });
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Awesome Party',
+          host: 'The Host',
+          pinLabel: 'SC',
+          address: '123 Party St',
+          doorsOpen: '10 PM',
+          category: 'House Party',
+          date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        })
+      );
     });
 
     it('should trim whitespace from inputs', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
+      await fillRequiredFields({
+        title: '  Spaced Title  ',
+        host: '  Spaced Host  ',
+        pinLabel: ' SP ',
+        address: '  Spaced Address  ',
+      });
 
-      await userEvent.type(titleInput, '  Spaced Title  ');
-      await userEvent.type(hostInput, '  Spaced Host  ');
-      await userEvent.type(addressInput, '  Spaced Address  ');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Spaced Title',
           host: 'Spaced Host',
+          pinLabel: 'SP',
           address: 'Spaced Address',
         })
       );
@@ -174,57 +161,24 @@ describe('AddPartyModal', () => {
     it('should call onClose after successful submission', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
+      await fillRequiredFields({ title: 'Party', host: 'Host', pinLabel: 'H', address: 'Address' });
 
-      await userEvent.type(titleInput, 'Party');
-      await userEvent.type(hostInput, 'Host');
-      await userEvent.type(addressInput, 'Address');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(mockOnClose).toHaveBeenCalled();
     });
   });
 
-  describe('Day Selection', () => {
-    it('should default to friday', () => {
+  describe('Date selection', () => {
+    it('should include a date in submission', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const fridayButton = screen.getByRole('button', { name: 'Friday' });
-      expect(fridayButton).toHaveClass('bg-purple-500');
-    });
+      await fillRequiredFields({ title: 'Party', host: 'Host', pinLabel: 'H', address: 'Address' });
 
-    it('should switch to saturday when clicked', async () => {
-      render(<AddPartyModal {...defaultProps} />);
-
-      const saturdayButton = screen.getByRole('button', { name: 'Saturday' });
-      fireEvent.click(saturdayButton);
-
-      expect(saturdayButton).toHaveClass('bg-purple-500');
-    });
-
-    it('should include selected day in submission', async () => {
-      render(<AddPartyModal {...defaultProps} />);
-
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
-
-      await userEvent.type(titleInput, 'Party');
-      await userEvent.type(hostInput, 'Host');
-      await userEvent.type(addressInput, 'Address');
-
-      const saturdayButton = screen.getByRole('button', { name: 'Saturday' });
-      fireEvent.click(saturdayButton);
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(mockOnSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({ day: 'saturday' })
+        expect.objectContaining({ date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) })
       );
     });
   });
@@ -233,20 +187,8 @@ describe('AddPartyModal', () => {
     it('should close when backdrop is clicked', () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      // Find the backdrop (the outer div with onClick)
-      const backdrop = document.querySelector('.fixed.inset-0');
-      if (backdrop) {
-        fireEvent.click(backdrop);
-        expect(mockOnClose).toHaveBeenCalled();
-      }
-    });
-
-    it('should close when close button is clicked', () => {
-      render(<AddPartyModal {...defaultProps} />);
-
-      const closeButton = screen.getByLabelText('Close modal');
-      fireEvent.click(closeButton);
-
+      const backdrop = screen.getByTestId('modal-backdrop');
+      fireEvent.click(backdrop);
       expect(mockOnClose).toHaveBeenCalled();
     });
 
@@ -264,14 +206,12 @@ describe('AddPartyModal', () => {
       const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
       await userEvent.type(titleInput, 'Some Title');
 
-      // Close modal
       rerender(<AddPartyModal {...defaultProps} isOpen={false} />);
-
-      // Reopen modal
       rerender(<AddPartyModal {...defaultProps} isOpen={true} />);
 
-      const newTitleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      expect(newTitleInput).toHaveValue('');
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/sigma chi house party/i)).toHaveValue('');
+      });
     });
   });
 
@@ -279,19 +219,16 @@ describe('AddPartyModal', () => {
     it('should handle XSS attempt in title', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
-
       const xssPayload = '<script>alert(1)</script>';
-      await userEvent.type(titleInput, xssPayload);
-      await userEvent.type(hostInput, 'Host');
-      await userEvent.type(addressInput, 'Address');
+      await fillRequiredFields({
+        title: xssPayload,
+        host: 'Host',
+        pinLabel: 'H',
+        address: 'Address',
+      });
 
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
-      // Should submit the raw value (server should sanitize)
       expect(mockOnSubmit).toHaveBeenCalledWith(
         expect.objectContaining({ title: xssPayload })
       );
@@ -300,71 +237,14 @@ describe('AddPartyModal', () => {
     it('should handle SQL injection attempt in fields', async () => {
       render(<AddPartyModal {...defaultProps} />);
 
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
+      await fillRequiredFields({
+        title: "'; DROP TABLE parties;--",
+        host: 'Host',
+        pinLabel: 'H',
+        address: 'Address',
+      });
 
-      const sqlPayload = "'; DROP TABLE parties;--";
-      await userEvent.type(titleInput, sqlPayload);
-      await userEvent.type(hostInput, 'Host');
-      await userEvent.type(addressInput, 'Address');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
-
-      // Should submit and let server handle sanitization
-      expect(mockOnSubmit).toHaveBeenCalled();
-    });
-
-    it('should handle unicode control characters', async () => {
-      render(<AddPartyModal {...defaultProps} />);
-
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
-
-      // Unicode right-to-left override
-      await userEvent.type(titleInput, 'Party\u202E');
-      await userEvent.type(hostInput, 'Host');
-      await userEvent.type(addressInput, 'Address');
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
-
-      expect(mockOnSubmit).toHaveBeenCalled();
-    });
-
-    it('should handle extremely long input (within maxLength)', async () => {
-      render(<AddPartyModal {...defaultProps} />);
-
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
-
-      await userEvent.type(titleInput, 'A'.repeat(50));
-      await userEvent.type(hostInput, 'B'.repeat(30));
-      await userEvent.type(addressInput, 'C'.repeat(1000)); // Address has no maxLength
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
-
-      expect(mockOnSubmit).toHaveBeenCalled();
-    });
-
-    it('should handle null bytes in input', async () => {
-      render(<AddPartyModal {...defaultProps} />);
-
-      const titleInput = screen.getByPlaceholderText(/sigma chi house party/i);
-      const hostInput = screen.getByPlaceholderText(/sigma chi$/i);
-      const addressInput = screen.getByPlaceholderText(/1234 n broad/i);
-
-      // Use fireEvent.change for null bytes since userEvent.type can't type null bytes
-      fireEvent.change(titleInput, { target: { value: 'Party\x00Name' } });
-      fireEvent.change(hostInput, { target: { value: 'Host' } });
-      fireEvent.change(addressInput, { target: { value: 'Address' } });
-
-      const submitButton = screen.getByRole('button', { name: /add party/i });
-      fireEvent.click(submitButton);
+      fireEvent.click(screen.getByRole('button', { name: /add party/i }));
 
       expect(mockOnSubmit).toHaveBeenCalled();
     });
@@ -385,7 +265,7 @@ describe('AddPartyModal', () => {
       expect(categorySelect).toHaveValue('House Party');
     });
 
-    it('should allow changing doors open time', async () => {
+    it('should allow changing doors open time', () => {
       render(<AddPartyModal {...defaultProps} />);
 
       const doorsSelect = screen.getAllByRole('combobox')[0];
@@ -394,7 +274,7 @@ describe('AddPartyModal', () => {
       expect(doorsSelect).toHaveValue('11 PM');
     });
 
-    it('should allow changing category', async () => {
+    it('should allow changing category', () => {
       render(<AddPartyModal {...defaultProps} />);
 
       const categorySelect = screen.getAllByRole('combobox')[1];

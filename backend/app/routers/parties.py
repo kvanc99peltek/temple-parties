@@ -1,50 +1,28 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Optional
 from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
-from app.models.party import PartyCreate, PartyResponse
+from app.models.party import PartyCreate, PartyResponse, PartiesListResponse
 from app.routers.auth import get_current_user, require_auth
 from app.services.geocoding import geocode_address, generate_fallback_coordinates
+from app.services import weekend as weekend_service
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/parties", tags=["parties"])
 limiter = Limiter(key_func=get_remote_address)
 
-EASTERN = ZoneInfo("America/New_York")
-
-
-def today_eastern() -> date:
-    """Get today's date in US/Eastern timezone."""
-    return datetime.now(EASTERN).date()
-
-
-def get_current_weekend() -> date:
-    """Get the Friday of the current or next weekend.
-    Sat/Sun/Mon -> this past Friday. Tue-Fri -> upcoming Friday."""
-    today = today_eastern()
-    if today.weekday() in (5, 6):  # Sat, Sun
-        days_until_friday = (4 - today.weekday()) % 7 - 7
-    elif today.weekday() == 0:  # Mon -> past Friday (rollover at Tuesday 00:00)
-        days_until_friday = -3
-    else:  # Tue-Fri
-        days_until_friday = (4 - today.weekday()) % 7
-    return today + timedelta(days=days_until_friday)
+# Re-export for callers that still import from this module (admin, ratings).
+EASTERN = weekend_service.EASTERN
+today_eastern = weekend_service.today_eastern
+get_current_weekend = weekend_service.get_current_weekend
 
 
 def db_to_response(party: dict) -> PartyResponse:
     """Convert database party to API response format."""
-    # Compute date from weekend_of + day if date column is empty
-    party_date = party.get("date") or ""
-    if not party_date and party.get("weekend_of") and party.get("day"):
-        weekend_of_str = party["weekend_of"]
-        if party["day"] == "saturday":
-            friday = date.fromisoformat(weekend_of_str)
-            party_date = (friday + timedelta(days=1)).isoformat()
-        else:
-            party_date = weekend_of_str
+    party_date = weekend_service.resolve_party_date(party)
+    rating_open, rating_locked = weekend_service.rating_window(party)
 
     return PartyResponse(
         id=party["id"],
@@ -64,19 +42,35 @@ def db_to_response(party: dict) -> PartyResponse:
         ratingCount=party.get("rating_count") or 0,
         isVerified=party.get("is_verified", False),
         posterImage=party.get("poster_image"),
+        description=party.get("description"),
+        ticketPrice=party.get("ticket_price"),
+        ratingOpen=rating_open,
+        ratingLocked=rating_locked,
     )
 
 
-@router.get("", response_model=List[PartyResponse])
+@router.get("", response_model=PartiesListResponse)
 async def get_parties(
     day: Optional[str] = Query(None, description="Filter by day (friday/saturday)"),
     weekend_of: Optional[str] = Query(None, description="Friday date (YYYY-MM-DD) of the weekend to query"),
     user: Optional[dict] = Depends(get_current_user)
 ):
     """
-    Get all approved parties for the current weekend.
+    Get all approved parties for the requested (or current) weekend,
+    plus authoritative weekend metadata for the frontend.
     """
-    weekend = date.fromisoformat(weekend_of) if weekend_of else get_current_weekend()
+    if weekend_of:
+        try:
+            weekend = weekend_service.parse_weekend_of(weekend_of)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid weekend_of; expected a Friday date as YYYY-MM-DD",
+            )
+    else:
+        weekend = weekend_service.get_current_weekend()
+
+    meta = weekend_service.weekend_meta(weekend)
 
     query = supabase.table("parties").select("*").eq("status", "approved").eq("weekend_of", weekend.isoformat())
 
@@ -85,7 +79,12 @@ async def get_parties(
 
     result = query.order("going_count", desc=True).execute()
 
-    return [db_to_response(party) for party in result.data]
+    return PartiesListResponse(
+        weekendOf=meta.weekend_of.isoformat(),
+        fridayDate=meta.friday_date.isoformat(),
+        saturdayDate=meta.saturday_date.isoformat(),
+        parties=[db_to_response(party) for party in result.data],
+    )
 
 
 @router.get("/user/going", response_model=List[str])
@@ -111,7 +110,7 @@ async def get_demo_weekend():
     highest-traffic past Friday in the last 12 months if nothing recent qualifies.
     Result cached in-process for 1 hour.
     """
-    now = datetime.now(EASTERN)
+    now = weekend_service.now_eastern()
     if (
         _demo_weekend_cache["weekend_of"] is not None
         and _demo_weekend_cache["expires_at"] is not None

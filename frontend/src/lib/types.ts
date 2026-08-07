@@ -16,6 +16,10 @@ export interface Party {
   ratingCount: number;
   isVerified: boolean;
   posterImage?: string;
+  description?: string | null;
+  ticketPrice?: string | null;
+  ratingOpen?: boolean;
+  ratingLocked?: boolean;
 }
 
 export interface AdminParty extends Party {

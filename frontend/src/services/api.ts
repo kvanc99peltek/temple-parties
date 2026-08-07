@@ -108,7 +108,13 @@ export const partiesApi = {
       throw new Error(error.detail || 'Failed to fetch parties');
     }
 
-    return response.json();
+    const payload = await response.json();
+    // Epic 2: GET /parties returns { weekendOf, fridayDate, saturdayDate, parties }.
+    // Keep returning Party[] for existing callers; weekend meta consumed in later epics.
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    return payload.parties ?? [];
   },
 
   async getParty(partyId: string): Promise<Party> {

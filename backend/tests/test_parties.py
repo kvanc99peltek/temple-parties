@@ -24,8 +24,14 @@ class TestGetParties:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["title"] == mock_party["title"]
+        assert "parties" in data
+        assert "weekendOf" in data
+        assert "fridayDate" in data
+        assert "saturdayDate" in data
+        assert len(data["parties"]) == 1
+        assert data["parties"][0]["title"] == mock_party["title"]
+        assert "ratingOpen" in data["parties"][0]
+        assert "ratingLocked" in data["parties"][0]
 
     def test_get_parties_filter_by_day_friday(self, client, mock_supabase, mock_party):
         """Should filter parties by friday."""
@@ -54,9 +60,9 @@ class TestGetParties:
 
         response = client.get("/parties?day=monday")
 
-        # Should return empty list or handle gracefully
+        # Should return empty parties list or handle gracefully
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["parties"] == []
 
     def test_get_parties_sql_injection_in_day(self, client, mock_supabase):
         """Should safely handle SQL injection in day parameter."""
@@ -75,14 +81,24 @@ class TestGetParties:
             assert response.status_code == 200
 
     def test_get_parties_empty_result(self, client, mock_supabase):
-        """Should return empty list when no parties exist."""
+        """Should return empty parties list when no parties exist."""
         mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = \
             create_mock_db_response([])
 
         response = client.get("/parties")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["parties"] == []
+
+    def test_get_parties_invalid_weekend_of(self, client, mock_supabase):
+        """Garbage weekend_of should 422, not 500."""
+        response = client.get("/parties?weekend_of=not-a-date")
+        assert response.status_code == 422
+
+    def test_get_parties_non_friday_weekend_of(self, client, mock_supabase):
+        """Non-Friday weekend_of should 422."""
+        response = client.get("/parties?weekend_of=2025-08-09")  # Saturday
+        assert response.status_code == 422
 
     def test_get_parties_unauthenticated(self, client, mock_supabase, mock_party):
         """Should allow unauthenticated access to parties list."""
@@ -92,6 +108,7 @@ class TestGetParties:
         response = client.get("/parties")
 
         assert response.status_code == 200
+        assert "parties" in response.json()
 
 
 class TestGetParty:

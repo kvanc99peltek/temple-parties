@@ -8,25 +8,27 @@
 
 ## Current Phase
 
-**Active Phase:** Phase 1 — Epic 1 complete on `pic2`; Epic 2 next
+**Active Phase:** Phase 1 — Epic 2 complete on `epic-2` (dev); Epic 3 next
 
 ## Status Summary
 
-Epic 1 closed: frontend/backend suites green, CI workflow added, env/deps hygiene done.
+Epic 2 closed on **tuparties-dev**: safe-early + cutover migrations applied to DEV only;
+weekend service + GET /parties envelope + rating window fields; backend tests green (143).
+**Prod:** owner still needs to apply safe-early (2.1–2.4). Cutover (2.6–2.7) stays off prod until 10.1.
 
 ---
 
 ## Completed
 
-- [x] Epic 0 — Security & repo preconditions (2026-08-06): baselines captured; review notes local-only
-- [x] Epic 0.7 — Dev synthetic data confirmed; dashboard project-description field unavailable — local warning file
-- [x] Epic 1 — Stabilize the base (2026-08-07): tests green, CI, env examples, pinned deps, root package cruft removed
+- [x] Epic 0 — Security & repo preconditions (2026-08-06)
+- [x] Epic 1 — Stabilize the base (2026-08-07): tests/CI/env/deps (PR #65 / cherry-picked onto epic-2)
+- [x] Epic 2 — Backend groundwork (2026-08-07): migrations on DEV, weekend authority, API envelope
 
 ---
 
 ## In Progress
 
-- [ ] _(none — ready for Epic 2)_
+- [ ] _(none — ready for Epic 3)_
 
 ---
 
@@ -34,23 +36,24 @@ Epic 1 closed: frontend/backend suites green, CI workflow added, env/deps hygien
 
 | Item | Reason | Owner |
 |------|--------|-------|
-| _(none)_ | | |
+| Prod apply 2.1–2.4 | Safe-early migrations written + on DEV; prod apply is owner-manual | Owner |
+| Prod apply 2.6–2.7 | Cutover — blocked until Epic 10.1 | — |
 
 ---
 
 ## Up Next
 
-- [ ] Epic 2 — Backend groundwork: v2 data model + weekend authority
+- [ ] Epic 3 — Auth activation (Supabase OTP + backend verification)
 
 ---
 
 ## Decisions / context (durable)
 
 - **Dev vs prod:** agents use **dev** MCP/env; prod changes are owner-manual.
-- **No Docker / Supabase CLI** on owner machine — capture was MCP (dev) + owner SQL dumps (prod).
-- **Never promote tuparties-dev → prod** (synthetic ratings). Warning file is local/gitignored.
-- Schema baselines are in git; security posture writeups are not (public repo).
-- Backend `SUPABASE_ANON_KEY` is optional/unused (service key only); frontend keeps `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- **Never promote tuparties-dev → prod** (synthetic ratings).
+- Backend `SUPABASE_ANON_KEY` is optional/unused (service key only).
+- `GET /parties` now returns `{ weekendOf, fridayDate, saturdayDate, parties }`; frontend unwraps `.parties`.
+- Cutover trigger on DEV means anon going deltas can fight trigger recounts if backend points at DEV — expected until 10.1 removes anon endpoints.
 
 ---
 
@@ -58,7 +61,7 @@ Epic 1 closed: frontend/backend suites green, CI workflow added, env/deps hygien
 
 | Date | What Was Done |
 |------|---------------|
-| 2026-08-07 | Epic 1 done on `pic2`: fixed red tests, CI workflow, env examples, pinned Python/deps, dropped required backend anon key |
-| 2026-08-06 | Untrack schema-capture CSVs + security note markdowns from public git; keep migration baselines |
+| 2026-08-07 | Epic 2 on `epic-2`: migrations 0001–0004 on DEV; weekend.py; parties envelope + ratingOpen/Locked; 143 backend tests |
+| 2026-08-07 | Epic 1 done on `pic2`: fixed red tests, CI workflow, env examples, pinned Python/deps |
 | 2026-08-06 | Epic 0 closed (dev + prod baselines) |
 | 2026-08-02 | Epic 0.2 done; planning_v2 / to-do established |

@@ -50,9 +50,22 @@ class PartyResponse(BaseModel):
     ratingCount: int = 0
     isVerified: bool = False
     posterImage: Optional[str] = None
+    description: Optional[str] = None
+    ticketPrice: Optional[str] = None
+    ratingOpen: bool = False
+    ratingLocked: bool = False
 
     class Config:
         from_attributes = True
+
+
+class PartiesListResponse(BaseModel):
+    """GET /parties envelope with authoritative weekend metadata."""
+
+    weekendOf: str
+    fridayDate: str
+    saturdayDate: str
+    parties: list[PartyResponse]
 
 
 class AdminPartyResponse(PartyResponse):

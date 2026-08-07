@@ -171,7 +171,12 @@ describe('API Service', () => {
         ];
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve(mockParties),
+          json: () => Promise.resolve({
+            weekendOf: '2025-08-08',
+            fridayDate: '2025-08-08',
+            saturdayDate: '2025-08-09',
+            parties: mockParties,
+          }),
         });
 
         const result = await partiesApi.getParties();
@@ -181,6 +186,21 @@ describe('API Service', () => {
           expect.stringContaining('/parties'),
           expect.any(Object)
         );
+      });
+
+      it('should unwrap parties from weekend metadata envelope', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            weekendOf: '2025-08-08',
+            fridayDate: '2025-08-08',
+            saturdayDate: '2025-08-09',
+            parties: [{ id: '1', title: 'Meta Party' }],
+          }),
+        });
+
+        const result = await partiesApi.getParties();
+        expect(result).toEqual([{ id: '1', title: 'Meta Party' }]);
       });
 
       it('should filter by day', async () => {

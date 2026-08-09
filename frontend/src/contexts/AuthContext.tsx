@@ -39,8 +39,6 @@ type AuthAction =
   | { type: 'CLEAR_AUTH'; keepLoading?: boolean }
   | { type: 'FINISH_LOADING' };
 
-const AUTH_V2_ENABLED = process.env.NEXT_PUBLIC_AUTH_V2 === 'true';
-
 const initialState: AuthState = {
   user: null,
   session: null,
@@ -137,26 +135,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       if (requestId !== requestIdRef.current) return;
 
-      if (profile) {
-        const user = profileToUser(profile);
-        posthog.identify(user.id, {
-          email: user.email,
-          username: user.username,
-        });
-        dispatch({
-          type: 'SET_AUTH',
-          session: nextSession,
-          user,
-          needsUsername: !profile.username,
-        });
-      } else {
-        dispatch({
-          type: 'SET_AUTH',
-          session: nextSession,
-          user: sessionToUser(nextSession),
-          needsUsername: true,
-        });
-      }
+      const user = profileToUser(profile);
+      posthog.identify(user.id, {
+        email: user.email,
+        username: user.username,
+      });
+      dispatch({
+        type: 'SET_AUTH',
+        session: nextSession,
+        user,
+        needsUsername: !profile.username,
+      });
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
       const apiError = error as ApiError;
@@ -215,43 +204,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncAuthState]);
 
+  // Epic 3: OTP request is proxied through the backend (@temple.edu enforced server-side).
+  // Full code-entry UI lands in Epic 6; this keeps the request path on the new API.
   const sendMagicLink = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
     if (!email.toLowerCase().endsWith('@temple.edu')) {
       return { success: false, error: 'Please use your Temple.edu email' };
     }
 
     try {
-      const configuredRedirect = process.env.NEXT_PUBLIC_AUTH_REDIRECT_URL?.trim();
-      const fallbackRedirect = AUTH_V2_ENABLED
-        ? `${window.location.origin}/auth/callback`
-        : `${window.location.origin}/`;
-      const redirectUrl = configuredRedirect && configuredRedirect.length > 0
-        ? configuredRedirect
-        : fallbackRedirect;
-
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Auth] Magic link redirect URL:', redirectUrl);
-      }
-
-      posthog.capture('login_started', { method: 'magic_link' });
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email.toLowerCase(),
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: redirectUrl,
-        },
-      });
-
-      if (error) {
-        posthog.capture('login_failed', { error: error.message });
-        return { success: false, error: error.message };
-      }
-
-      posthog.capture('magic_link_sent');
+      posthog.capture('login_started', { method: 'email_otp' });
+      await authApi.requestOtp(email.toLowerCase());
+      posthog.capture('otp_requested');
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to send magic link' };
+      const message = error instanceof Error ? error.message : 'Failed to send verification code';
+      posthog.capture('login_failed', { error: message });
+      return { success: false, error: message };
     }
   }, []);
 

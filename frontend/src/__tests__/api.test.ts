@@ -31,19 +31,19 @@ describe('API Service', () => {
       it('should send signup request with email', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ message: 'Magic link sent to your email' }),
+          json: () => Promise.resolve({ message: 'Verification code sent to your email' }),
         });
 
         const result = await authApi.signup('user@temple.edu');
 
         expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/auth/signup'),
+          expect.stringContaining('/auth/otp/request'),
           expect.objectContaining({
             method: 'POST',
             body: JSON.stringify({ email: 'user@temple.edu' }),
           })
         );
-        expect(result.message).toBe('Magic link sent to your email');
+        expect(result.message).toMatch(/code|sent/i);
       });
 
       it('should throw error for non-temple email', async () => {
@@ -84,18 +84,24 @@ describe('API Service', () => {
     });
 
     describe('setUsername', () => {
-      it('should send username set request', async () => {
+      it('should patch username via /profiles/me', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ message: 'Username set successfully', username: 'testuser' }),
+          json: () => Promise.resolve({
+            id: '123',
+            email: 'user@temple.edu',
+            username: 'testuser',
+            is_admin: false,
+            created_at: '2024-01-01T00:00:00',
+          }),
         });
 
         const result = await authApi.setUsername('testuser');
 
         expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/auth/set-username'),
+          expect.stringContaining('/profiles/me'),
           expect.objectContaining({
-            method: 'POST',
+            method: 'PATCH',
             body: JSON.stringify({ username: 'testuser' }),
           })
         );
@@ -105,7 +111,8 @@ describe('API Service', () => {
       it('should handle empty username', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: false,
-          json: () => Promise.resolve({ detail: 'Username must be at least 2 characters' }),
+          status: 400,
+          json: () => Promise.resolve({ detail: 'Username must be 2–30 characters: letters, numbers, underscore' }),
         });
 
         await expect(authApi.setUsername('')).rejects.toThrow();
@@ -113,13 +120,12 @@ describe('API Service', () => {
 
       it('should handle XSS in username', async () => {
         mockFetch.mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ message: 'Username set successfully', username: '<script>' }),
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({ detail: 'Username must be 2–30 characters: letters, numbers, underscore' }),
         });
 
-        // Should not throw - server should sanitize/store safely
-        const result = await authApi.setUsername('<script>alert(1)</script>');
-        expect(result).toBeDefined();
+        await expect(authApi.setUsername('<script>alert(1)</script>')).rejects.toThrow();
       });
     });
 
@@ -132,12 +138,17 @@ describe('API Service', () => {
             email: 'user@temple.edu',
             username: 'testuser',
             is_admin: false,
+            created_at: '2024-01-01T00:00:00',
           }),
         });
 
         const result = await authApi.getMe();
 
-        expect(result?.username).toBe('testuser');
+        expect(result.username).toBe('testuser');
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/profiles/me'),
+          expect.any(Object),
+        );
       });
 
       it('should throw for unauthenticated', async () => {
@@ -148,16 +159,6 @@ describe('API Service', () => {
         });
 
         await expect(authApi.getMe()).rejects.toThrow('Not authenticated');
-      });
-
-      it('should return null when backend returns null profile', async () => {
-        mockFetch.mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve(null),
-        });
-
-        const result = await authApi.getMe();
-        expect(result).toBeNull();
       });
     });
   });
@@ -171,7 +172,12 @@ describe('API Service', () => {
         ];
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve(mockParties),
+          json: () => Promise.resolve({
+            weekendOf: '2025-08-08',
+            fridayDate: '2025-08-08',
+            saturdayDate: '2025-08-09',
+            parties: mockParties,
+          }),
         });
 
         const result = await partiesApi.getParties();
@@ -181,6 +187,21 @@ describe('API Service', () => {
           expect.stringContaining('/parties'),
           expect.any(Object)
         );
+      });
+
+      it('should unwrap parties from weekend metadata envelope', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            weekendOf: '2025-08-08',
+            fridayDate: '2025-08-08',
+            saturdayDate: '2025-08-09',
+            parties: [{ id: '1', title: 'Meta Party' }],
+          }),
+        });
+
+        const result = await partiesApi.getParties();
+        expect(result).toEqual([{ id: '1', title: 'Meta Party' }]);
       });
 
       it('should filter by day', async () => {

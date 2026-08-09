@@ -23,6 +23,7 @@ def mock_supabase():
 
     with patch('app.database.supabase', mock_db), \
          patch('app.routers.auth.supabase', mock_db), \
+         patch('app.routers.profiles.supabase', mock_db), \
          patch('app.routers.parties.supabase', mock_db), \
          patch('app.routers.admin.supabase', mock_db), \
          patch('app.routers.ratings.supabase', mock_db), \
@@ -40,18 +41,28 @@ def client(mock_supabase):
     limiter.enabled = False
 
     # Also disable rate limiters in routers
-    from app.routers.auth import limiter as auth_limiter
+    from app.routers.auth import (
+        limiter as auth_limiter,
+        _otp_request_by_email,
+        _otp_verify_by_email,
+    )
+    from app.routers.profiles import limiter as profiles_limiter
     from app.routers.parties import limiter as parties_limiter
     from app.routers.ratings import limiter as ratings_limiter
     auth_limiter.enabled = False
+    profiles_limiter.enabled = False
     parties_limiter.enabled = False
     ratings_limiter.enabled = False
+    # Per-email limiters are in-process and sticky — clear between tests.
+    _otp_request_by_email._hits.clear()
+    _otp_verify_by_email._hits.clear()
 
     yield TestClient(app)
 
     # Re-enable rate limiting after test
     limiter.enabled = True
     auth_limiter.enabled = True
+    profiles_limiter.enabled = True
     parties_limiter.enabled = True
     ratings_limiter.enabled = True
 

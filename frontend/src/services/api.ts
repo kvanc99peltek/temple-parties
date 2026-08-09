@@ -49,10 +49,31 @@ async function buildApiError(response: Response, fallbackMessage: string): Promi
   return apiError;
 }
 
-// Auth API
+export type ProfileUpdate = {
+  username?: string;
+  school_year?: string;
+  greek_life?: string;
+  instagram?: string;
+  avatar_url?: string;
+};
+
+export type OtpSession = {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number | null;
+  token_type: string;
+  user: { id: string | null; email: string };
+};
+
+// Auth / profile API (Epic 3 — OTP + /profiles/me)
 export const authApi = {
+  /** @deprecated Prefer requestOtp — kept as alias for older callers/tests. */
   async signup(email: string): Promise<{ message: string }> {
-    const response = await fetch(`${API_URL}/auth/signup`, {
+    return this.requestOtp(email);
+  },
+
+  async requestOtp(email: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_URL}/auth/otp/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -60,36 +81,52 @@ export const authApi = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Signup failed');
+      throw new Error(error.detail || 'Failed to send verification code');
     }
 
     return response.json();
   },
 
-  async setUsername(username: string): Promise<{ message: string; username: string }> {
-    const response = await fetchWithAuth(`${API_URL}/auth/set-username`, {
+  async verifyOtp(email: string, code: string): Promise<OtpSession> {
+    const response = await fetch(`${API_URL}/auth/otp/verify`, {
       method: 'POST',
-      body: JSON.stringify({ username }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to set username');
+      throw new Error(error.detail || 'Invalid or expired code');
     }
 
     return response.json();
   },
 
-  async getMe(): Promise<User | null> {
-    const response = await fetchWithAuth(`${API_URL}/auth/me`);
+  async setUsername(username: string): Promise<User> {
+    return this.updateProfile({ username });
+  },
+
+  async updateProfile(fields: ProfileUpdate): Promise<User> {
+    const response = await fetchWithAuth(`${API_URL}/profiles/me`, {
+      method: 'PATCH',
+      body: JSON.stringify(fields),
+    });
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to update profile');
+    }
+
+    return response.json();
+  },
+
+  async getMe(): Promise<User> {
+    const response = await fetchWithAuth(`${API_URL}/profiles/me`);
 
     if (!response.ok) {
       throw await buildApiError(response, 'Failed to get user');
     }
 
-    const data = await response.json();
-    // Backend returns null if user exists in auth but not in user_profiles
-    return data;
+    return response.json();
   },
 };
 
@@ -108,7 +145,13 @@ export const partiesApi = {
       throw new Error(error.detail || 'Failed to fetch parties');
     }
 
-    return response.json();
+    const payload = await response.json();
+    // Epic 2: GET /parties returns { weekendOf, fridayDate, saturdayDate, parties }.
+    // Keep returning Party[] for existing callers; weekend meta consumed in later epics.
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    return payload.parties ?? [];
   },
 
   async getParty(partyId: string): Promise<Party> {

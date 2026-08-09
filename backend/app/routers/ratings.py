@@ -1,80 +1,30 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from typing import List, Optional
-from datetime import date, datetime, timedelta
+from datetime import date
 import hashlib
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse, HostRankingResponse
-from app.routers.parties import get_current_weekend, EASTERN
+from app.services import weekend as weekend_service
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/ratings", tags=["ratings"])
 limiter = Limiter(key_func=get_remote_address)
 
+# Thin aliases so existing imports/tests stay stable where needed.
+get_current_weekend = weekend_service.get_current_weekend
+EASTERN = weekend_service.EASTERN
+get_party_date = weekend_service.resolve_party_date
+is_rating_active = weekend_service.is_rating_active
+is_rating_locked = weekend_service.is_rating_locked
+parse_doors_open = weekend_service.parse_doors_open
+get_monday_cutoff = weekend_service.get_monday_cutoff
+
 
 def hash_ip(ip: str) -> str:
     """Hash IP address for privacy-safe storage."""
     return hashlib.sha256(ip.encode()).hexdigest()
-
-
-def parse_doors_open(doors_open: str, party_date: str) -> datetime:
-    """
-    Parse doors_open string (e.g., '10 PM', '9:30 PM') combined with party date
-    into a timezone-aware datetime object in Eastern time.
-    """
-    party_dt = date.fromisoformat(party_date)
-    time_str = doors_open.strip().upper()
-    for fmt in ("%I %p", "%I:%M %p", "%I%p", "%I:%M%p"):
-        try:
-            parsed_time = datetime.strptime(time_str, fmt).time()
-            return datetime.combine(party_dt, parsed_time, tzinfo=EASTERN)
-        except ValueError:
-            continue
-    # Fallback: assume 10 PM if parsing fails
-    return datetime.combine(party_dt, datetime.strptime("10 PM", "%I %p").time(), tzinfo=EASTERN)
-
-
-def get_monday_cutoff(weekend_of: str) -> datetime:
-    """
-    Given weekend_of (the Friday date), return Monday 11:59 PM Eastern.
-    Friday + 3 days = Monday.
-    """
-    friday = date.fromisoformat(weekend_of)
-    monday = friday + timedelta(days=3)
-    return datetime.combine(monday, datetime.max.time(), tzinfo=EASTERN)
-
-
-def get_party_date(party: dict) -> str:
-    """Get party date, computing from weekend_of + day if date column is empty."""
-    party_date = party.get("date") or ""
-    if not party_date and party.get("weekend_of") and party.get("day"):
-        if party["day"] == "saturday":
-            friday = date.fromisoformat(party["weekend_of"])
-            party_date = (friday + timedelta(days=1)).isoformat()
-        else:
-            party_date = party["weekend_of"]
-    return party_date
-
-
-def is_rating_active(party: dict) -> bool:
-    """Check if rating is currently active (after doors_open time)."""
-    now = datetime.now(EASTERN)
-    party_date = get_party_date(party)
-    if not party_date:
-        return False
-    doors_open_dt = parse_doors_open(party["doors_open"], party_date)
-    return now >= doors_open_dt
-
-
-def is_rating_locked(party: dict) -> bool:
-    """Check if rating is locked (after Monday 11:59 PM)."""
-    now = datetime.now(EASTERN)
-    weekend_of = party.get("weekend_of", "")
-    if not weekend_of:
-        return False
-    cutoff = get_monday_cutoff(weekend_of)
-    return now > cutoff
 
 
 @router.post("/{party_id}", response_model=RatingResponse)
@@ -110,7 +60,7 @@ async def submit_rating(request: Request, party_id: str, data: RatingCreate):
     if existing.data:
         supabase.table("party_ratings").update({
             "rating": data.rating,
-            "updated_at": datetime.now().isoformat()
+            "updated_at": weekend_service.now_eastern().isoformat()
         }).eq("party_id", party_id).eq("ip_hash", ip).execute()
     else:
         supabase.table("party_ratings").insert({
@@ -204,8 +154,27 @@ async def get_rankings(
     query = supabase.table("parties").select("*").eq("status", "approved")
 
     if weekend_from and weekend_to:
+        # Range bounds only need to be real dates — they feed >= / <= comparisons,
+        # so unlike weekend_of they don't have to land exactly on a Friday.
+        # Without this check, garbage input reaches the database layer and blows
+        # up as a 500 (same defect class as v1 §8.12).
+        try:
+            date.fromisoformat(weekend_from)
+            date.fromisoformat(weekend_to)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid weekend_from/weekend_to; expected dates as YYYY-MM-DD",
+            )
         query = query.gte("weekend_of", weekend_from).lte("weekend_of", weekend_to)
     elif weekend_of:
+        try:
+            weekend_service.parse_weekend_of(weekend_of)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid weekend_of; expected a Friday date as YYYY-MM-DD",
+            )
         query = query.eq("weekend_of", weekend_of)
     else:
         weekend = get_current_weekend()

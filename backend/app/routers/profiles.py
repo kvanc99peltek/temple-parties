@@ -1,0 +1,182 @@
+import logging
+import re
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+from app.constants import RATE_LIMITS
+from app.database import supabase
+from app.models.user import ALLOWED_SCHOOL_YEARS, ProfileUpdate, User
+from app.routers.auth import require_auth
+
+router = APIRouter(prefix="/profiles", tags=["profiles"])
+limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
+
+_USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{2,30}$")
+_INSTAGRAM_RE = re.compile(r"^[a-zA-Z0-9._]{1,30}$")
+
+
+def _profile_to_user(profile: dict, email: Optional[str]) -> User:
+    return User(
+        id=profile["id"],
+        email=email or profile.get("email") or "",
+        username=profile.get("username"),
+        is_admin=profile.get("is_admin", False),
+        created_at=profile["created_at"],
+        school_year=profile.get("school_year"),
+        greek_life=profile.get("greek_life"),
+        instagram=profile.get("instagram"),
+        avatar_url=profile.get("avatar_url"),
+    )
+
+
+def ensure_profile(user: dict) -> dict:
+    """
+    Return the user_profiles row, creating a stub if the auth trigger missed
+    (e.g. users created before Epic 3.4).
+    """
+    result = (
+        supabase.table("user_profiles")
+        .select("*")
+        .eq("id", user["id"])
+        .execute()
+    )
+    if result.data:
+        return result.data[0]
+
+    created = (
+        supabase.table("user_profiles")
+        .insert(
+            {
+                "id": user["id"],
+                "email": user.get("email"),
+                "is_admin": False,
+            }
+        )
+        .execute()
+    )
+    if not created.data:
+        raise HTTPException(status_code=500, detail="Failed to create profile")
+    return created.data[0]
+
+
+def _validate_username(username: str) -> str:
+    cleaned = username.strip()
+    if not _USERNAME_RE.match(cleaned):
+        raise HTTPException(
+            status_code=400,
+            detail="Username must be 2–30 characters: letters, numbers, underscore",
+        )
+    return cleaned
+
+
+def _validate_school_year(value: str) -> str:
+    cleaned = value.strip().lower()
+    if cleaned not in ALLOWED_SCHOOL_YEARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"school_year must be one of: {', '.join(ALLOWED_SCHOOL_YEARS)}",
+        )
+    return cleaned
+
+
+def _validate_instagram(value: str) -> str:
+    cleaned = value.strip().lstrip("@")
+    if cleaned == "":
+        return ""
+    if not _INSTAGRAM_RE.match(cleaned):
+        raise HTTPException(
+            status_code=400,
+            detail="instagram must be a valid handle (letters, numbers, . _)",
+        )
+    return cleaned
+
+
+def _validate_optional_text(value: str, field: str, max_len: int = 100) -> str:
+    cleaned = value.strip()
+    if len(cleaned) > max_len:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field} must be {max_len} characters or less",
+        )
+    return cleaned
+
+
+@router.get("/me", response_model=User)
+async def get_my_profile(user: dict = Depends(require_auth)):
+    """Return the authenticated user's profile (creates stub if missing)."""
+    try:
+        profile = ensure_profile(user)
+        return _profile_to_user(profile, user.get("email"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("GET /profiles/me failed")
+        raise HTTPException(status_code=400, detail="Failed to load profile") from e
+
+
+@router.patch("/me", response_model=User)
+@limiter.limit(RATE_LIMITS["profile_update"])
+async def update_my_profile(
+    request: Request,
+    data: ProfileUpdate,
+    user: dict = Depends(require_auth),
+):
+    """
+    Update onboarding / profile fields for the authenticated user.
+    Absorbs v1 POST /auth/set-username (username is one of the patchable fields).
+    """
+    updates: dict = {}
+
+    if data.username is not None:
+        updates["username"] = _validate_username(data.username)
+    if data.school_year is not None:
+        updates["school_year"] = _validate_school_year(data.school_year)
+    if data.greek_life is not None:
+        updates["greek_life"] = _validate_optional_text(data.greek_life, "greek_life") or None
+    if data.instagram is not None:
+        handle = _validate_instagram(data.instagram)
+        updates["instagram"] = handle or None
+    if data.avatar_url is not None:
+        updates["avatar_url"] = _validate_optional_text(data.avatar_url, "avatar_url", 500) or None
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    try:
+        ensure_profile(user)
+
+        # Username uniqueness — surface a clean 409 instead of a raw DB error.
+        if "username" in updates:
+            clash = (
+                supabase.table("user_profiles")
+                .select("id")
+                .eq("username", updates["username"])
+                .neq("id", user["id"])
+                .execute()
+            )
+            if clash.data:
+                raise HTTPException(status_code=409, detail="Username already taken")
+
+        result = (
+            supabase.table("user_profiles")
+            .update(updates)
+            .eq("id", user["id"])
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Failed to update profile")
+
+        return _profile_to_user(result.data[0], user.get("email"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("PATCH /profiles/me failed")
+        # Unique constraint races still possible under concurrency.
+        msg = str(e).lower()
+        if "unique" in msg or "duplicate" in msg:
+            raise HTTPException(status_code=409, detail="Username already taken") from e
+        raise HTTPException(status_code=400, detail="Failed to update profile") from e

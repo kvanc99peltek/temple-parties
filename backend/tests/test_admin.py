@@ -339,38 +339,74 @@ class TestAdminPrivilegeEscalation:
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
 
-        # Attempt to set admin through username endpoint (which creates/updates profile)
-        response = client.post(
-            "/auth/set-username",
+        # Attempt to set admin through profile patch (malicious extra field)
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{
+                "id": mock_user["id"],
+                "email": mock_user["email"],
+                "username": None,
+                "is_admin": False,
+                "created_at": "2024-01-01T00:00:00",
+                "school_year": None,
+                "greek_life": None,
+                "instagram": None,
+                "avatar_url": None,
+            }])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.neq.return_value.execute.return_value = \
+            create_mock_db_response([])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{
+                "id": mock_user["id"],
+                "email": mock_user["email"],
+                "username": "hacker",
+                "is_admin": False,
+                "created_at": "2024-01-01T00:00:00",
+                "school_year": None,
+                "greek_life": None,
+                "instagram": None,
+                "avatar_url": None,
+            }])
+
+        response = client.patch(
+            "/profiles/me",
             json={"username": "hacker", "is_admin": True},  # Malicious field
             headers={"Authorization": "Bearer valid_token"}
         )
 
         # Should succeed for username but ignore is_admin
         assert response.status_code == 200
-        # The response should not indicate admin status was changed
+        update_payload = mock_supabase.table.return_value.update.call_args[0][0]
+        assert "is_admin" not in update_payload
 
     def test_forged_admin_flag_in_profile_creation(self, client, mock_supabase, mock_user):
         """New users should not be able to create profile with admin=true."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
-        # No existing profile
+        # No existing profile — ensure_profile inserts stub with is_admin=False
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([])
-        # Mock insert - check that is_admin is set to False
         mock_supabase.table.return_value.insert.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "username": "test", "is_admin": False}])
+            create_mock_db_response([{
+                "id": mock_user["id"],
+                "email": mock_user["email"],
+                "username": None,
+                "is_admin": False,
+                "created_at": "2024-01-01T00:00:00",
+                "school_year": None,
+                "greek_life": None,
+                "instagram": None,
+                "avatar_url": None,
+            }])
 
-        response = client.post(
-            "/auth/set-username",
-            json={"username": "newuser"},
+        response = client.get(
+            "/profiles/me",
             headers={"Authorization": "Bearer valid_token"}
         )
 
         assert response.status_code == 200
-        # Verify that the insert was called with is_admin=False
-        # (The actual implementation should hardcode this)
+        insert_payload = mock_supabase.table.return_value.insert.call_args[0][0]
+        assert insert_payload.get("is_admin") is False
 
     def test_admin_cannot_access_without_valid_token(self, client, mock_supabase, mock_admin_user):
         """Even admin users need valid tokens."""

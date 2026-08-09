@@ -11,8 +11,11 @@ TEMPLE_BOUNDS = {
 
 # Rate limit configurations
 RATE_LIMITS = {
-    "signup": "5/minute",
-    "set_username": "10/minute",
+    # OTP request/verify: per-IP via slowapi; per-email via EmailRateLimiter in auth.py
+    "otp_request": "5/minute",
+    "otp_verify": "10/minute",
+    "signup": "5/minute",  # alias of otp_request (legacy path)
+    "profile_update": "20/minute",
     "create_party": "10/minute",
     "toggle_going_auth": "30/minute",
     "toggle_going_anon": "10/minute",

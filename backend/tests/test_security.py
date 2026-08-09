@@ -299,13 +299,15 @@ class TestAuthenticationBypass:
             ("DELETE", "/parties/some-id"),
             ("POST", "/parties/some-id/going"),
             ("GET", "/parties/user/going"),
-            ("POST", "/auth/set-username"),
-            ("GET", "/auth/me"),
+            ("GET", "/profiles/me"),
+            ("PATCH", "/profiles/me"),
         ]
 
         for method, endpoint in protected_endpoints:
             if method == "POST":
                 response = client.post(endpoint, json={})
+            elif method == "PATCH":
+                response = client.patch(endpoint, json={})
             elif method == "DELETE":
                 response = client.delete(endpoint)
             elif method == "GET":
@@ -317,8 +319,8 @@ class TestAuthenticationBypass:
         """Should reject invalid bearer tokens."""
         mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Invalid token"))
 
-        response = client.post(
-            "/auth/set-username",
+        response = client.patch(
+            "/profiles/me",
             json={"username": "test"},
             headers={"Authorization": "Bearer invalid_token_12345"}
         )
@@ -330,7 +332,7 @@ class TestAuthenticationBypass:
         mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Token expired"))
 
         response = client.get(
-            "/auth/me",
+            "/profiles/me",
             headers={"Authorization": "Bearer expired_token"}
         )
 
@@ -348,7 +350,7 @@ class TestAuthenticationBypass:
         ]
 
         for headers in malformed_headers:
-            response = client.get("/auth/me", headers=headers)
+            response = client.get("/profiles/me", headers=headers)
             # Should either reject (401), handle gracefully (200), or return
             # bad request (400) if the token causes downstream issues
             assert response.status_code in [400, 401, 200]
@@ -401,7 +403,7 @@ class TestAuthorizationBypass:
 
         # Attempt to include admin flag in signup
         response = client.post(
-            "/auth/signup",
+            "/auth/otp/request",
             json={"email": "user@temple.edu", "is_admin": True}
         )
 
@@ -419,7 +421,7 @@ class TestRateLimiting:
         # Simulate rapid requests
         for _ in range(20):
             response = client.post(
-                "/auth/signup",
+                "/auth/otp/request",
                 json={"email": "user@temple.edu"}
             )
             # Should all succeed or be rate limited

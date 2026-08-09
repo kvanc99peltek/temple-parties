@@ -68,4 +68,8 @@ export interface User {
   username: string | null;
   is_admin: boolean;
   created_at: string;
+  school_year?: string | null;
+  greek_life?: string | null;
+  instagram?: string | null;
+  avatar_url?: string | null;
 }

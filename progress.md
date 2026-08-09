@@ -8,13 +8,14 @@
 
 ## Current Phase
 
-**Active Phase:** Phase 1 — Epic 2 complete on `epic-2` (dev); Epic 3 next
+**Active Phase:** Phase 1 — Epic 3 complete on `epic-2` (dev); Epic 4 next
 
 ## Status Summary
 
-Epic 2 closed on **tuparties-dev**: safe-early + cutover migrations applied to DEV only;
-weekend service + GET /parties envelope + rating window fields; backend tests green (143).
-**Prod:** owner still needs to apply safe-early (2.1–2.4). Cutover (2.6–2.7) stays off prod until 10.1.
+Epic 3 closed on **tuparties-dev**: OTP request/verify + `/profiles/me`, profile trigger,
+domain hook function, token path proven E2E. Backend 146 / frontend 87 green.
+**Owner still needs:** dashboard OTP template + hook enablement (`specs/version2/auth-otp-setup.md`);
+prod apply of safe-early migrations from Epic 2.
 
 ---
 
@@ -23,12 +24,13 @@ weekend service + GET /parties envelope + rating window fields; backend tests gr
 - [x] Epic 0 — Security & repo preconditions (2026-08-06)
 - [x] Epic 1 — Stabilize the base (2026-08-07): tests/CI/env/deps (PR #65 / cherry-picked onto epic-2)
 - [x] Epic 2 — Backend groundwork (2026-08-07): migrations on DEV, weekend authority, API envelope
+- [x] Epic 3 — Auth activation (2026-08-07): OTP + profiles API + E2E token proof on DEV
 
 ---
 
 ## In Progress
 
-- [ ] _(none — ready for Epic 3)_
+- [ ] _(none — ready for Epic 4)_
 
 ---
 
@@ -38,12 +40,13 @@ weekend service + GET /parties envelope + rating window fields; backend tests gr
 |------|--------|-------|
 | Prod apply 2.1–2.4 | Safe-early migrations written + on DEV; prod apply is owner-manual | Owner |
 | Prod apply 2.6–2.7 | Cutover — blocked until Epic 10.1 | — |
+| Dev Auth OTP template + Before User Created hook | MCP cannot flip Auth config; steps in `auth-otp-setup.md` | Owner |
 
 ---
 
 ## Up Next
 
-- [ ] Epic 3 — Auth activation (Supabase OTP + backend verification)
+- [ ] Epic 4 — Design system (designed during build)
 
 ---
 
@@ -54,6 +57,7 @@ weekend service + GET /parties envelope + rating window fields; backend tests gr
 - Backend `SUPABASE_ANON_KEY` is optional/unused (service key only).
 - `GET /parties` now returns `{ weekendOf, fridayDate, saturdayDate, parties }`; frontend unwraps `.parties`.
 - Cutover trigger on DEV means anon going deltas can fight trigger recounts if backend points at DEV — expected until 10.1 removes anon endpoints.
+- **Auth (Epic 3):** email OTP via `POST /auth/otp/request` + `/auth/otp/verify`; profiles at `GET/PATCH /profiles/me`. `NEXT_PUBLIC_AUTH_V2` and `/auth/callback` retired. Code-entry UI is Epic 6.
 
 ---
 
@@ -61,6 +65,7 @@ weekend service + GET /parties envelope + rating window fields; backend tests gr
 
 | Date | What Was Done |
 |------|---------------|
+| 2026-08-07 | Epic 3 on `epic-2`: OTP endpoints, profiles router, migration 0005 (trigger+hook fn), prove script PASS, retired AUTH_V2/callback |
 | 2026-08-07 | Epic 2 on `epic-2`: migrations 0001–0004 on DEV; weekend.py; parties envelope + ratingOpen/Locked; 143 backend tests |
 | 2026-08-07 | Epic 1 done on `pic2`: fixed red tests, CI workflow, env examples, pinned Python/deps |
 | 2026-08-06 | Epic 0 closed (dev + prod baselines) |

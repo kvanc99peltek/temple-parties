@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from typing import List, Optional
-from datetime import datetime
+from datetime import date
 import hashlib
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -154,6 +154,18 @@ async def get_rankings(
     query = supabase.table("parties").select("*").eq("status", "approved")
 
     if weekend_from and weekend_to:
+        # Range bounds only need to be real dates — they feed >= / <= comparisons,
+        # so unlike weekend_of they don't have to land exactly on a Friday.
+        # Without this check, garbage input reaches the database layer and blows
+        # up as a 500 (same defect class as v1 §8.12).
+        try:
+            date.fromisoformat(weekend_from)
+            date.fromisoformat(weekend_to)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid weekend_from/weekend_to; expected dates as YYYY-MM-DD",
+            )
         query = query.gte("weekend_of", weekend_from).lte("weekend_of", weekend_to)
     elif weekend_of:
         try:

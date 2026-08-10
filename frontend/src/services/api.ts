@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import { Party, AdminParty, User, PartyRanking, HostRanking, RatingResponse } from '@/lib/types';
+import { Party, AdminParty, User, PartyRanking, HostRanking, RatingResponse, PartiesListResponse } from '@/lib/types';
 
 type ApiError = Error & { status?: number };
 
@@ -132,7 +132,7 @@ export const authApi = {
 
 // Parties API
 export const partiesApi = {
-  async getParties(day?: string, weekendOf?: string): Promise<Party[]> {
+  async getParties(day?: string, weekendOf?: string): Promise<PartiesListResponse> {
     const params = new URLSearchParams();
     if (day) params.set('day', day);
     if (weekendOf) params.set('weekend_of', weekendOf);
@@ -146,12 +146,21 @@ export const partiesApi = {
     }
 
     const payload = await response.json();
-    // Epic 2: GET /parties returns { weekendOf, fridayDate, saturdayDate, parties }.
-    // Keep returning Party[] for existing callers; weekend meta consumed in later epics.
+    // Back-compat: older payloads were a bare Party[] (pre–Epic 2 envelope).
     if (Array.isArray(payload)) {
-      return payload;
+      return {
+        weekendOf: weekendOf ?? '',
+        fridayDate: '',
+        saturdayDate: '',
+        parties: payload,
+      };
     }
-    return payload.parties ?? [];
+    return {
+      weekendOf: payload.weekendOf ?? '',
+      fridayDate: payload.fridayDate ?? '',
+      saturdayDate: payload.saturdayDate ?? '',
+      parties: payload.parties ?? [],
+    };
   },
 
   async getParty(partyId: string): Promise<Party> {

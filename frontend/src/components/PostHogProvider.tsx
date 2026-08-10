@@ -32,7 +32,7 @@ function PostHogPageView() {
 
   useEffect(() => {
     if (pathname && ph) {
-      let url = window.origin + pathname;
+      let url = window.location.origin + pathname;
       if (searchParams.toString()) {
         url += '?' + searchParams.toString();
       }

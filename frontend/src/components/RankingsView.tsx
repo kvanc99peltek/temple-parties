@@ -112,7 +112,10 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
           </div>
         ) : !hasRows ? (
-          <EmptyState message={showHosts ? 'No ranked hosts yet' : 'No ranked parties for this period'} />
+          <EmptyState
+            message={showHosts ? 'No ranked hosts yet' : 'No ranked parties for this period'}
+            leaderboardsHref={null}
+          />
         ) : (
           <div className="bg-[#202023] rounded-2xl overflow-hidden animate-slide-up-fade">
             {showHosts

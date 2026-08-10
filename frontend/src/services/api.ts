@@ -65,13 +65,8 @@ export type OtpSession = {
   user: { id: string | null; email: string };
 };
 
-// Auth / profile API (Epic 3 — OTP + /profiles/me)
+// Auth / profile API (Epic 3 — OTP + /profiles/me; Epic 6 — username check + avatar)
 export const authApi = {
-  /** @deprecated Prefer requestOtp — kept as alias for older callers/tests. */
-  async signup(email: string): Promise<{ message: string }> {
-    return this.requestOtp(email);
-  },
-
   async requestOtp(email: string): Promise<{ message: string }> {
     const response = await fetch(`${API_URL}/auth/otp/request`, {
       method: 'POST',
@@ -102,6 +97,21 @@ export const authApi = {
     return response.json();
   },
 
+  async checkUsernameAvailable(
+    username: string
+  ): Promise<{ username: string; available: boolean; reason: string | null }> {
+    const params = new URLSearchParams({ username });
+    const response = await fetchWithAuth(
+      `${API_URL}/profiles/username-available?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to check username');
+    }
+
+    return response.json();
+  },
+
   async setUsername(username: string): Promise<User> {
     return this.updateProfile({ username });
   },
@@ -114,6 +124,30 @@ export const authApi = {
 
     if (!response.ok) {
       throw await buildApiError(response, 'Failed to update profile');
+    }
+
+    return response.json();
+  },
+
+  async uploadAvatar(blob: Blob, filename = 'avatar.jpg'): Promise<User> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not signed in');
+    }
+
+    const form = new FormData();
+    form.append('file', blob, filename);
+
+    const response = await fetch(`${API_URL}/profiles/me/avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: form,
+    });
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to upload avatar');
     }
 
     return response.json();

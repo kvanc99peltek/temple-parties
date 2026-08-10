@@ -12,6 +12,7 @@ import EmptyState from '@/components/EmptyState';
 import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
+import RequireOnboarding from '@/components/RequireOnboarding';
 import { getDefaultDay, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
@@ -23,8 +24,10 @@ import useAddressVisibility from '@/hooks/useAddressVisibility';
 import useRatingReminder from '@/hooks/useRatingReminder';
 import { partiesApi } from '@/services/api';
 import { trackEvent } from '@/utils/analytics';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
@@ -32,10 +35,7 @@ export default function HomePage() {
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
-  // Launch-mode: auth + profile UI hidden. Epic 6 turns this on.
-  const isAuthenticated = false;
   const { isAddressVisible, revealAddress } = useAddressVisibility();
-  // Omit weekendOf — backend returns authoritative current weekend (Epic 5.6).
   const {
     filteredParties,
     allParties,
@@ -58,7 +58,21 @@ export default function HomePage() {
     closeInviteModal,
     showAddPartyModal,
     closeAddPartyModal,
+    requireAuthForGoing,
+    replayPendingAuthAction,
   } = modals;
+
+  const replayedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || replayedRef.current) return;
+    replayedRef.current = true;
+    void (async () => {
+      const action = await replayPendingAuthAction();
+      if (action?.type === 'going') {
+        showToast("You're marked as going!");
+      }
+    })();
+  }, [authLoading, isAuthenticated, replayPendingAuthAction, showToast]);
 
   useEffect(() => {
     setSelectedDay(getDefaultDay());
@@ -86,6 +100,7 @@ export default function HomePage() {
   })();
 
   const handleGoingClick = useCallback(async (partyId: string) => {
+    if (requireAuthForGoing(partyId)) return;
     revealAddress(partyId);
     const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
@@ -94,13 +109,14 @@ export default function HomePage() {
       setLastGoingPartyId(partyId);
       openInviteModal();
     }
-  }, [toggleGoing, isGoing, openInviteModal, revealAddress]);
+  }, [toggleGoing, isGoing, openInviteModal, revealAddress, requireAuthForGoing]);
 
   const handleNavigateClick = useCallback((partyId: string) => {
+    if (requireAuthForGoing(partyId)) return;
     revealAddress(partyId);
     void ensureGoing(partyId);
     trackEvent('navigate_clicked', { partyId });
-  }, [ensureGoing, revealAddress]);
+  }, [ensureGoing, revealAddress, requireAuthForGoing]);
 
   const handleShare = useCallback(async () => {
     const partyToShare = lastGoingPartyId
@@ -173,6 +189,7 @@ export default function HomePage() {
 
   return (
     <AppShell>
+      <RequireOnboarding>
       <div className="pb-20 lg:pb-8">
         <Header />
 
@@ -266,6 +283,7 @@ export default function HomePage() {
         isVisible={toast.isVisible}
         onClose={toast.hide}
       />
+      </RequireOnboarding>
     </AppShell>
   );
 }

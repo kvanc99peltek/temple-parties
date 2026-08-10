@@ -1,41 +1,60 @@
 'use client';
 
-import { createContext, useContext, useReducer, useEffect, useCallback, ReactNode, useRef } from 'react';
+import {
+  createContext,
+  useContext,
+  useReducer,
+  useEffect,
+  useCallback,
+  ReactNode,
+  useRef,
+} from 'react';
 import { supabase } from '@/lib/supabase';
 import { authApi } from '@/services/api';
 import type { Session } from '@supabase/supabase-js';
-import posthog from 'posthog-js';
+import type { User as ProfileUser } from '@/lib/types';
+import { needsOnboarding } from '@/lib/onboarding';
+import { trackEvent } from '@/utils/analytics';
 
-interface User {
+export type AuthUser = {
   id: string;
   email: string;
   username: string | null;
   isAdmin: boolean;
   createdAt: string;
-}
+  schoolYear: string | null;
+  greekLife: string | null;
+  instagram: string | null;
+  avatarUrl: string | null;
+};
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  needsOnboarding: boolean;
+  /** @deprecated Prefer needsOnboarding — kept for transitional callers. */
   needsUsername: boolean;
-  sendMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
-  setUsername: (username: string) => Promise<{ success: boolean; error?: string }>;
+  requestOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+  verifyOtp: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (
+    fields: Parameters<typeof authApi.updateProfile>[0]
+  ) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
+  uploadAvatar: (blob: Blob) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
 type ApiError = Error & { status?: number };
 type AuthState = {
-  user: User | null;
+  user: AuthUser | null;
   session: Session | null;
   isLoading: boolean;
-  needsUsername: boolean;
 };
 
 type AuthAction =
   | { type: 'START_LOADING' }
-  | { type: 'SET_AUTH'; session: Session; user: User; needsUsername: boolean }
+  | { type: 'SET_AUTH'; session: Session; user: AuthUser }
   | { type: 'CLEAR_AUTH'; keepLoading?: boolean }
   | { type: 'FINISH_LOADING' };
 
@@ -43,7 +62,6 @@ const initialState: AuthState = {
   user: null,
   session: null,
   isLoading: true,
-  needsUsername: false,
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -55,14 +73,12 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         ...state,
         session: action.session,
         user: action.user,
-        needsUsername: action.needsUsername,
         isLoading: false,
       };
     case 'CLEAR_AUTH':
       return {
         user: null,
         session: null,
-        needsUsername: false,
         isLoading: action.keepLoading ?? false,
       };
     case 'FINISH_LOADING':
@@ -72,29 +88,45 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
   }
 }
 
-function profileToUser(profile: {
-  id: string;
-  email: string;
-  username: string | null;
-  is_admin: boolean;
-  created_at: string;
-}): User {
+function profileToAuthUser(profile: ProfileUser): AuthUser {
   return {
     id: profile.id,
     email: profile.email,
     username: profile.username,
     isAdmin: profile.is_admin,
     createdAt: profile.created_at,
+    schoolYear: profile.school_year ?? null,
+    greekLife: profile.greek_life ?? null,
+    instagram: profile.instagram ?? null,
+    avatarUrl: profile.avatar_url ?? null,
   };
 }
 
-function sessionToUser(session: Session): User {
+function authUserToProfile(user: AuthUser): ProfileUser {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    is_admin: user.isAdmin,
+    created_at: user.createdAt,
+    school_year: user.schoolYear,
+    greek_life: user.greekLife,
+    instagram: user.instagram,
+    avatar_url: user.avatarUrl,
+  };
+}
+
+function sessionToAuthUser(session: Session): AuthUser {
   return {
     id: session.user.id,
     email: session.user.email || '',
     username: null,
     isAdmin: false,
     createdAt: new Date().toISOString(),
+    schoolYear: null,
+    greekLife: null,
+    instagram: null,
+    avatarUrl: null,
   };
 }
 
@@ -116,7 +148,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [{ user, session, isLoading, needsUsername }, dispatch] = useReducer(authReducer, initialState);
+  const [{ user, session, isLoading }, dispatch] = useReducer(authReducer, initialState);
   const requestIdRef = useRef(0);
 
   const syncAuthState = useCallback(async (nextSession: Session | null) => {
@@ -135,19 +167,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       if (requestId !== requestIdRef.current) return;
 
-      const user = profileToUser(profile);
-      posthog.identify(user.id, {
-        email: user.email,
-        username: user.username,
-      });
+      const nextUser = profileToAuthUser(profile);
+      try {
+        const posthog = (await import('posthog-js')).default;
+        posthog.identify(nextUser.id, {
+          email: nextUser.email,
+          username: nextUser.username,
+        });
+      } catch {
+        // analytics must never break auth
+      }
+
       dispatch({
         type: 'SET_AUTH',
         session: nextSession,
-        user,
-        needsUsername: !profile.username,
+        user: nextUser,
       });
     } catch (error) {
-      console.error('Failed to fetch user profile:', error);
       const apiError = error as ApiError;
       if (apiError.status === 401) {
         await supabase.auth.signOut();
@@ -157,13 +193,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (requestId !== requestIdRef.current) return;
+      // Profile fetch failed (network etc.) — keep session, treat as incomplete onboarding.
       dispatch({
         type: 'SET_AUTH',
         session: nextSession,
-        user: sessionToUser(nextSession),
-        // If we can't load the profile, default to requiring username so the user
-        // sees a deterministic next step instead of a blank profile.
-        needsUsername: true,
+        user: sessionToAuthUser(nextSession),
       });
     }
   }, []);
@@ -172,14 +206,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initAuth = async () => {
       dispatch({ type: 'START_LOADING' });
       try {
-        const { data: { session: activeSession } } = await withTimeout(
+        const {
+          data: { session: activeSession },
+        } = await withTimeout(
           supabase.auth.getSession(),
           10000,
           'Timed out while checking auth session'
         );
         await syncAuthState(activeSession);
-      } catch (error) {
-        console.error('Auth init error:', error);
+      } catch {
         dispatch({ type: 'CLEAR_AUTH' });
       } finally {
         dispatch({ type: 'FINISH_LOADING' });
@@ -188,9 +223,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, activeSession) => {
-      console.log('Auth event:', event, 'Session:', !!activeSession);
-
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, activeSession) => {
       if (event === 'SIGNED_OUT') {
         dispatch({ type: 'CLEAR_AUTH' });
         return;
@@ -204,44 +239,100 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncAuthState]);
 
-  // Epic 3: OTP request is proxied through the backend (@temple.edu enforced server-side).
-  // Full code-entry UI lands in Epic 6; this keeps the request path on the new API.
-  const sendMagicLink = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
-    if (!email.toLowerCase().endsWith('@temple.edu')) {
+  const requestOtp = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized.endsWith('@temple.edu')) {
       return { success: false, error: 'Please use your Temple.edu email' };
     }
 
     try {
-      posthog.capture('login_started', { method: 'email_otp' });
-      await authApi.requestOtp(email.toLowerCase());
-      posthog.capture('otp_requested');
+      trackEvent('signup_started', { method: 'email_otp' });
+      await authApi.requestOtp(normalized);
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to send verification code';
-      posthog.capture('login_failed', { error: message });
       return { success: false, error: message };
     }
   }, []);
 
-  const setUsernameHandler = useCallback(async (username: string): Promise<{ success: boolean; error?: string }> => {
-    if (username.length < 2) {
-      return { success: false, error: 'Username must be at least 2 characters' };
-    }
+  const verifyOtp = useCallback(
+    async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
+      const normalized = email.trim().toLowerCase();
+      const cleanedCode = code.trim();
 
-    try {
-      await authApi.setUsername(username);
-      if (session) {
-        await syncAuthState(session);
+      try {
+        trackEvent('code_entered');
+        const otpSession = await authApi.verifyOtp(normalized, cleanedCode);
+        const { error: setErr } = await supabase.auth.setSession({
+          access_token: otpSession.access_token,
+          refresh_token: otpSession.refresh_token,
+        });
+        if (setErr) throw setErr;
+
+        trackEvent('login', { method: 'email_otp' });
+        // onAuthStateChange will sync profile; force a sync for immediate UX.
+        const {
+          data: { session: active },
+        } = await supabase.auth.getSession();
+        await syncAuthState(active);
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Invalid or expired code';
+        return { success: false, error: message };
       }
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to set username' };
-    }
-  }, [session, syncAuthState]);
+    },
+    [syncAuthState]
+  );
+
+  const updateProfile = useCallback(
+    async (
+      fields: Parameters<typeof authApi.updateProfile>[0]
+    ): Promise<{ success: boolean; error?: string; user?: AuthUser }> => {
+      try {
+        const profile = await authApi.updateProfile(fields);
+        const nextUser = profileToAuthUser(profile);
+        if (session) {
+          dispatch({ type: 'SET_AUTH', session, user: nextUser });
+        }
+        return { success: true, user: nextUser };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to update profile',
+        };
+      }
+    },
+    [session]
+  );
+
+  const uploadAvatar = useCallback(
+    async (blob: Blob): Promise<{ success: boolean; error?: string; user?: AuthUser }> => {
+      try {
+        const profile = await authApi.uploadAvatar(blob);
+        const nextUser = profileToAuthUser(profile);
+        if (session) {
+          dispatch({ type: 'SET_AUTH', session, user: nextUser });
+        }
+        return { success: true, user: nextUser };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to upload avatar',
+        };
+      }
+    },
+    [session]
+  );
 
   const logout = useCallback(async () => {
+    trackEvent('logout');
     await supabase.auth.signOut();
-    posthog.reset();
+    try {
+      const posthog = (await import('posthog-js')).default;
+      posthog.reset();
+    } catch {
+      // ignore
+    }
     dispatch({ type: 'CLEAR_AUTH' });
   }, []);
 
@@ -251,15 +342,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session, syncAuthState]);
 
+  const onboardingIncomplete = needsOnboarding(user ? authUserToProfile(user) : null);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!session && !!user,
         isLoading,
-        needsUsername,
-        sendMagicLink,
-        setUsername: setUsernameHandler,
+        needsOnboarding: onboardingIncomplete,
+        needsUsername: onboardingIncomplete,
+        requestOtp,
+        verifyOtp,
+        updateProfile,
+        uploadAvatar,
         logout,
         refreshUser,
       }}

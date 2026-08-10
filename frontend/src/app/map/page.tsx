@@ -1,21 +1,25 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import MapView from '@/components/MapView';
 import RatingModal from '@/components/RatingModal';
 import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
+import RequireOnboarding from '@/components/RequireOnboarding';
 import { getDefaultDay } from '@/utils/dateHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
 import useParties from '@/hooks/useParties';
 import useToast from '@/hooks/useToast';
+import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
 import { trackEvent } from '@/utils/analytics';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function MapPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedDay] = useState<'friday' | 'saturday'>(() => getDefaultDay());
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
@@ -26,23 +30,33 @@ export default function MapPage() {
   const { allParties, topPartyIds, fridayDate, saturdayDate, isLoadingParties } = useParties(selectedDay, getCount);
   const toast = useToast();
   const showToast = toast.show;
+  const { requireAuthForGoing, replayPendingAuthAction } = useModalState(isAuthenticated, toggleGoing);
+
+  const replayedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || replayedRef.current) return;
+    replayedRef.current = true;
+    void replayPendingAuthAction();
+  }, [authLoading, isAuthenticated, replayPendingAuthAction]);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   const handleGoingClick = useCallback(async (partyId: string) => {
+    if (requireAuthForGoing(partyId, '/map')) return;
     revealAddress(partyId);
     const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
     trackEvent('going_toggled', { partyId, action: wasGoing ? 'unmarked' : 'marked', source: 'map' });
-  }, [toggleGoing, isGoing, revealAddress]);
+  }, [toggleGoing, isGoing, revealAddress, requireAuthForGoing]);
 
   const handleNavigateClick = useCallback((partyId: string) => {
+    if (requireAuthForGoing(partyId, '/map')) return;
     revealAddress(partyId);
     void ensureGoing(partyId);
     trackEvent('navigate_clicked', { partyId, source: 'map' });
-  }, [ensureGoing, revealAddress]);
+  }, [ensureGoing, revealAddress, requireAuthForGoing]);
 
   const handleStarClick = useCallback((partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => {
     if (!ratingActive) {
@@ -72,6 +86,7 @@ export default function MapPage() {
 
   return (
     <AppShell mapMode>
+      <RequireOnboarding>
       <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
         <Header title="Party Map" />
         <div className="flex-1 pb-16 lg:pb-0">
@@ -112,6 +127,7 @@ export default function MapPage() {
         isVisible={toast.isVisible}
         onClose={toast.hide}
       />
+      </RequireOnboarding>
     </AppShell>
   );
 }

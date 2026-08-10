@@ -207,3 +207,90 @@ class TestPatchProfileMe:
             headers={"Authorization": "Bearer valid_token"},
         )
         assert response.status_code == 404
+
+
+class TestUsernameAvailable:
+    def test_available(self, client, mock_supabase, mock_user):
+        _auth(mock_supabase, mock_user)
+        mock_supabase.table.return_value.select.return_value.eq.return_value.neq.return_value.execute.return_value = \
+            create_mock_db_response([])
+
+        response = client.get(
+            "/profiles/username-available",
+            params={"username": "fresh_owl"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["available"] is True
+
+    def test_taken(self, client, mock_supabase, mock_user):
+        _auth(mock_supabase, mock_user)
+        mock_supabase.table.return_value.select.return_value.eq.return_value.neq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": "other"}])
+
+        response = client.get(
+            "/profiles/username-available",
+            params={"username": "taken"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["available"] is False
+        assert data["reason"] == "taken"
+
+    def test_invalid_charset(self, client, mock_supabase, mock_user):
+        _auth(mock_supabase, mock_user)
+
+        response = client.get(
+            "/profiles/username-available",
+            params={"username": "bad name!"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["available"] is False
+        assert response.json()["reason"] == "invalid"
+
+    def test_requires_auth(self, client, mock_supabase):
+        response = client.get(
+            "/profiles/username-available",
+            params={"username": "anyone"},
+        )
+        assert response.status_code == 401
+
+
+class TestAvatarUpload:
+    def test_rejects_bad_mime(self, client, mock_supabase, mock_user):
+        _auth(mock_supabase, mock_user)
+
+        response = client.post(
+            "/profiles/me/avatar",
+            files={"file": ("x.gif", b"GIF89a", "image/gif")},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 400
+        assert "JPEG" in response.json()["detail"]
+
+    def test_upload_success(self, client, mock_supabase, mock_user):
+        _auth(mock_supabase, mock_user)
+        existing = _profile_row(mock_user)
+        updated = _profile_row(mock_user, avatar_url="https://example.com/a.jpg")
+
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([existing])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([updated])
+        mock_supabase.storage.from_.return_value.upload.return_value = {"path": "ok"}
+
+        response = client.post(
+            "/profiles/me/avatar",
+            files={"file": ("avatar.jpg", b"\xff\xd8\xfffakejpeg", "image/jpeg")},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["avatar_url"]
+        mock_supabase.storage.from_.assert_called_with("avatars")

@@ -22,6 +22,14 @@ export interface Party {
   ratingLocked?: boolean;
 }
 
+/** GET /parties envelope — weekend dates are authoritative (US/Eastern). */
+export interface PartiesListResponse {
+  weekendOf: string;
+  fridayDate: string;
+  saturdayDate: string;
+  parties: Party[];
+}
+
 export interface AdminParty extends Party {
   createdByUsername: string | null;
   createdByEmail: string | null;

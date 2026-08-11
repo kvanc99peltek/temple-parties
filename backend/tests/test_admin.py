@@ -21,7 +21,7 @@ class TestAdminAuthorization:
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([{"is_admin": True}])
-        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = \
+        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value = \
             create_mock_db_response([])
 
         response = client.get(
@@ -30,6 +30,11 @@ class TestAdminAuthorization:
         )
 
         assert response.status_code == 200
+        body = response.json()
+        assert body["parties"] == []
+        assert body["total"] == 0
+        assert body["limit"] == 20
+        assert body["offset"] == 0
 
     def test_admin_endpoint_with_regular_user(self, client, mock_supabase, mock_user):
         """Regular users should be denied access to admin endpoints."""
@@ -73,15 +78,15 @@ class TestGetPendingParties:
     """Tests for GET /admin/parties/pending endpoint."""
 
     def test_get_pending_parties_success(self, client, mock_supabase, mock_admin_user, mock_party):
-        """Should return list of pending parties."""
+        """Should return paginated envelope of pending parties."""
         mock_party["status"] = "pending"
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_admin_user["id"], mock_admin_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([{"is_admin": True}])
-        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = \
-            create_mock_db_response([mock_party])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value = \
+            create_mock_db_response([mock_party], count=1)
 
         response = client.get(
             "/admin/parties/pending",
@@ -90,17 +95,20 @@ class TestGetPendingParties:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["status"] == "pending"
+        assert len(data["parties"]) == 1
+        assert data["parties"][0]["status"] == "pending"
+        assert data["total"] == 1
+        assert data["limit"] == 20
+        assert data["offset"] == 0
 
     def test_get_pending_parties_empty(self, client, mock_supabase, mock_admin_user):
-        """Should return empty list when no pending parties."""
+        """Should return empty paginated envelope when no pending parties."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_admin_user["id"], mock_admin_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([{"is_admin": True}])
-        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = \
+        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value = \
             create_mock_db_response([])
 
         response = client.get(
@@ -109,7 +117,89 @@ class TestGetPendingParties:
         )
 
         assert response.status_code == 200
-        assert response.json() == []
+        data = response.json()
+        assert data["parties"] == []
+        assert data["total"] == 0
+
+
+class TestGetAdminParties:
+    """Tests for GET /admin/parties pagination and filters."""
+
+    def _auth_admin(self, mock_supabase, mock_admin_user):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_admin_user["id"], mock_admin_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"is_admin": True}])
+
+    def test_list_parties_envelope_defaults(self, client, mock_supabase, mock_admin_user, mock_party):
+        """Should return paginated envelope with default limit/offset."""
+        self._auth_admin(mock_supabase, mock_admin_user)
+        mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute.return_value = \
+            create_mock_db_response([mock_party], count=1)
+
+        response = client.get(
+            "/admin/parties",
+            headers={"Authorization": "Bearer valid_token"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "parties" in data
+        assert data["total"] == 1
+        assert data["limit"] == 20
+        assert data["offset"] == 0
+        assert len(data["parties"]) == 1
+
+    def test_list_parties_status_filter(self, client, mock_supabase, mock_admin_user, mock_party):
+        """Should filter by status query param."""
+        mock_party["status"] = "approved"
+        self._auth_admin(mock_supabase, mock_admin_user)
+        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value = \
+            create_mock_db_response([mock_party], count=1)
+
+        response = client.get(
+            "/admin/parties?status=approved",
+            headers={"Authorization": "Bearer valid_token"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["parties"][0]["status"] == "approved"
+        assert data["total"] == 1
+
+    def test_list_parties_custom_pagination(self, client, mock_supabase, mock_admin_user, mock_party):
+        """Should honor limit and offset query params."""
+        self._auth_admin(mock_supabase, mock_admin_user)
+        mock_supabase.table.return_value.select.return_value.order.return_value.range.return_value.execute.return_value = \
+            create_mock_db_response([mock_party], count=45)
+
+        response = client.get(
+            "/admin/parties?limit=10&offset=20",
+            headers={"Authorization": "Bearer valid_token"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["limit"] == 10
+        assert data["offset"] == 20
+        assert data["total"] == 45
+        mock_supabase.table.return_value.select.return_value.order.return_value.range.assert_called_with(20, 29)
+
+    def test_list_parties_limit_validation(self, client, mock_supabase, mock_admin_user):
+        """Should reject limit outside 1–100."""
+        self._auth_admin(mock_supabase, mock_admin_user)
+
+        response = client.get(
+            "/admin/parties?limit=101",
+            headers={"Authorization": "Bearer valid_token"}
+        )
+        assert response.status_code == 422
+
+    def test_delete_party_has_rate_limit_decorator(self):
+        """DELETE /parties/{id} should be rate-limited (parity with create)."""
+        from app.routers import parties as parties_router
+        assert hasattr(parties_router.delete_party, "__wrapped__")
 
 
 class TestApproveParty:

@@ -50,10 +50,12 @@ def client(mock_supabase):
     from app.routers.profiles import limiter as profiles_limiter
     from app.routers.parties import limiter as parties_limiter
     from app.routers.ratings import limiter as ratings_limiter
+    from app.routers.admin import limiter as admin_limiter
     auth_limiter.enabled = False
     profiles_limiter.enabled = False
     parties_limiter.enabled = False
     ratings_limiter.enabled = False
+    admin_limiter.enabled = False
     # Per-email limiters are in-process and sticky — clear between tests.
     _otp_request_by_email._hits.clear()
     _otp_verify_by_email._hits.clear()
@@ -66,6 +68,7 @@ def client(mock_supabase):
     profiles_limiter.enabled = True
     parties_limiter.enabled = True
     ratings_limiter.enabled = True
+    admin_limiter.enabled = True
 
 
 @pytest.fixture
@@ -144,8 +147,9 @@ def create_mock_auth_response(user_id: str, email: str):
     return mock_response
 
 
-def create_mock_db_response(data: list):
+def create_mock_db_response(data: list, count=None):
     """Helper to create a mock database response."""
     mock_response = Mock()
     mock_response.data = data
+    mock_response.count = count if count is not None else len(data)
     return mock_response

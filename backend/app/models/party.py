@@ -122,3 +122,12 @@ class AdminPartyResponse(PartyResponse):
     createdByUsername: Optional[str] = None
     createdByEmail: Optional[str] = None
     createdAt: Optional[str] = None
+
+
+class AdminPartiesListResponse(BaseModel):
+    """GET /admin/parties paginated envelope."""
+
+    parties: list[AdminPartyResponse]
+    total: int
+    limit: int
+    offset: int

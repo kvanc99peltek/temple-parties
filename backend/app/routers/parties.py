@@ -431,7 +431,8 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
 
 
 @router.delete("/{party_id}")
-async def delete_party(party_id: str, user: dict = Depends(require_auth)):
+@limiter.limit(RATE_LIMITS["delete_party"])
+async def delete_party(request: Request, party_id: str, user: dict = Depends(require_auth)):
     """
     Delete a party. Only the creator can delete their party.
     """

@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import { Party, AdminParty, User, PartyRanking, HostRanking, RatingResponse, PartiesListResponse } from '@/lib/types';
+import { Party, AdminPartiesListResponse, User, PartyRanking, HostRanking, RatingResponse, PartiesListResponse } from '@/lib/types';
 
 type ApiError = Error & { status?: number };
 
@@ -438,11 +438,15 @@ export const ratingsApi = {
 
 // Admin API
 export const adminApi = {
-  async getParties(status?: string): Promise<AdminParty[]> {
-    const url = status
-      ? `${API_URL}/admin/parties?status=${status}`
-      : `${API_URL}/admin/parties`;
-    const response = await fetchWithAuth(url);
+  async getParties(
+    status?: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<AdminPartiesListResponse> {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    params.set('limit', String(opts?.limit ?? 20));
+    params.set('offset', String(opts?.offset ?? 0));
+    const response = await fetchWithAuth(`${API_URL}/admin/parties?${params.toString()}`);
 
     if (!response.ok) {
       const error = await response.json();

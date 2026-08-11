@@ -5,7 +5,6 @@ import Header from '@/components/Header';
 import DayTabs from '@/components/DayTabs';
 import PartyCard from '@/components/PartyCard';
 import InviteModal from '@/components/InviteModal';
-import AddPartyModal from '@/components/AddPartyModal';
 import RatingModal from '@/components/RatingModal';
 import RatingReminderModal from '@/components/RatingReminderModal';
 import EmptyState from '@/components/EmptyState';
@@ -22,7 +21,6 @@ import useToast from '@/hooks/useToast';
 import useModalState from '@/hooks/useModalState';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
 import useRatingReminder from '@/hooks/useRatingReminder';
-import { partiesApi } from '@/services/api';
 import { trackEvent } from '@/utils/analytics';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -56,8 +54,6 @@ export default function HomePage() {
     openInviteModal,
     showInviteModal,
     closeInviteModal,
-    showAddPartyModal,
-    closeAddPartyModal,
     openLogin,
     requireAuthForGoing,
     requireAuthForRating,
@@ -170,32 +166,6 @@ export default function HomePage() {
     trackEvent('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
   }, [currentPrompt, submitRating]);
 
-  const handlePartySubmit = useCallback(async (partyData: {
-    title: string;
-    host: string;
-    pinLabel: string;
-    address: string;
-    doorsOpen: string;
-    category: string;
-    date: string;
-  }) => {
-    try {
-      await partiesApi.createParty({
-        title: partyData.title,
-        host: partyData.host,
-        pin_label: partyData.pinLabel,
-        address: partyData.address,
-        doors_open: partyData.doorsOpen,
-        category: partyData.category,
-        date: partyData.date,
-      });
-      trackEvent('party_created', { category: partyData.category });
-      showToast('Party submitted for approval!');
-    } catch {
-      showToast('Failed to submit party');
-    }
-  }, [showToast]);
-
   if (!isHydrated) {
     return (
       <AppShell>
@@ -264,12 +234,6 @@ export default function HomePage() {
         isOpen={showInviteModal}
         onClose={closeInviteModal}
         onShare={handleShare}
-      />
-
-      <AddPartyModal
-        isOpen={showAddPartyModal}
-        onClose={closeAddPartyModal}
-        onSubmit={handlePartySubmit}
       />
 
       {ratingModalParty && (

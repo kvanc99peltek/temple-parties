@@ -13,12 +13,38 @@ class PartyCreate(BaseModel):
     address: str = Field(..., min_length=1, max_length=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
-    poster_image: Optional[str] = Field(None, max_length=2000)
+    # Storage path only (e.g. "{user_id}/{uuid}.jpg") — arbitrary URLs rejected.
+    poster_image: Optional[str] = Field(None, max_length=500)
+    description: Optional[str] = Field(None, max_length=1000)
+    ticket_price: Optional[str] = Field(None, max_length=50)
 
     @field_validator('title', 'host', 'pin_label', 'category', 'doors_open', 'address')
     @classmethod
     def strip_whitespace(cls, v: str) -> str:
         return v.strip()
+
+    @field_validator('description', 'ticket_price')
+    @classmethod
+    def strip_optional_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        stripped = v.strip()
+        return stripped or None
+
+    @field_validator('poster_image')
+    @classmethod
+    def reject_external_poster_urls(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        stripped = v.strip()
+        if not stripped:
+            return None
+        lower = stripped.lower()
+        if lower.startswith("http://") or lower.startswith("https://") or lower.startswith("//"):
+            raise ValueError("poster_image must be a storage path, not a URL")
+        if ".." in stripped or stripped.startswith("/"):
+            raise ValueError("Invalid poster_image path")
+        return stripped
 
     @field_validator('date')
     @classmethod
@@ -30,6 +56,16 @@ class PartyCreate(BaseModel):
         if parsed.weekday() not in (4, 5):  # 4 = Friday, 5 = Saturday
             raise ValueError('Date must be a Friday or Saturday.')
         return v
+
+
+class PosterUploadResponse(BaseModel):
+    path: str
+
+
+class AddressSuggestion(BaseModel):
+    display_name: str
+    lat: float
+    lon: float
 
 
 class PartyResponse(BaseModel):
@@ -67,6 +103,19 @@ class PartiesListResponse(BaseModel):
     fridayDate: str
     saturdayDate: str
     parties: list[PartyResponse]
+
+
+class WeekendOption(BaseModel):
+    weekendOf: str
+    fridayDate: str
+    saturdayDate: str
+
+
+class CreateWeekendOptionsResponse(BaseModel):
+    """Weekends hosts may schedule onto (today onward — never a past weekend)."""
+
+    today: str
+    weekends: list[WeekendOption]
 
 
 class AdminPartyResponse(PartyResponse):

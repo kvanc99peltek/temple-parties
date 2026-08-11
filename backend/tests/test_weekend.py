@@ -72,6 +72,33 @@ class TestWeekendMetaAndDateDerivation:
         assert weekend_service.resolve_party_date(party) == "2025-08-09"
 
 
+class TestCreatableWeekends:
+    """Create-party weekends never include a fully past weekend."""
+
+    def test_monday_starts_at_upcoming_friday(self):
+        # Mon Aug 11, 2025 → first creatable Friday is Aug 15 (not past Aug 8)
+        monday = date(2025, 8, 11)
+        assert weekend_service.first_creatable_friday(monday) == date(2025, 8, 15)
+        weekends = weekend_service.creatable_weekends(3, monday)
+        assert [w.weekend_of for w in weekends] == [
+            date(2025, 8, 15),
+            date(2025, 8, 22),
+            date(2025, 8, 29),
+        ]
+
+    def test_saturday_keeps_in_progress_weekend(self):
+        saturday = date(2025, 8, 9)
+        assert weekend_service.first_creatable_friday(saturday) == date(2025, 8, 8)
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 9), saturday) is True
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 8), saturday) is False
+
+    def test_rejects_past_and_non_weekend(self):
+        today = date(2025, 8, 12)  # Tuesday
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 8), today) is False
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 13), today) is False  # Wed
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 15), today) is True
+
+
 class TestParseWeekendOf:
     def test_valid_friday(self):
         assert weekend_service.parse_weekend_of("2025-08-08") == date(2025, 8, 8)

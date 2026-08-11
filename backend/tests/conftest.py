@@ -20,6 +20,7 @@ def mock_supabase():
     mock_db = MagicMock()
     mock_db.table = MagicMock()
     mock_db.auth = MagicMock()
+    mock_db.storage = MagicMock()
 
     with patch('app.database.supabase', mock_db), \
          patch('app.routers.auth.supabase', mock_db), \
@@ -28,8 +29,7 @@ def mock_supabase():
          patch('app.routers.admin.supabase', mock_db), \
          patch('app.routers.ratings.supabase', mock_db), \
          patch('app.services.admin_check.supabase', mock_db), \
-         patch('app.routers.parties.geocode_address', return_value=(39.981, -75.155)), \
-         patch('app.routers.parties.generate_fallback_coordinates', return_value=(39.981, -75.155)):
+         patch('app.routers.parties.geocode_address', return_value=(39.981, -75.155)):
         yield mock_db
 
 

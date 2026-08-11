@@ -218,6 +218,10 @@ export const partiesApi = {
     address: string;
     latitude?: number;
     longitude?: number;
+    description?: string;
+    ticket_price?: string;
+    /** Storage path from uploadPoster — not an arbitrary URL. */
+    poster_image?: string;
   }): Promise<Party> {
     const response = await fetchWithAuth(`${API_URL}/parties`, {
       method: 'POST',
@@ -225,8 +229,72 @@ export const partiesApi = {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to create party');
+      throw await buildApiError(response, 'Failed to create party');
+    }
+
+    return response.json();
+  },
+
+  /** Mediated poster upload — returns storage path only (Epic 8.1). */
+  async uploadPoster(blob: Blob, filename = 'poster.jpg'): Promise<{ path: string }> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Not signed in');
+    }
+
+    const form = new FormData();
+    form.append('file', blob, filename);
+
+    const response = await fetch(`${API_URL}/parties/poster`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: form,
+    });
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to upload poster');
+    }
+
+    return response.json();
+  },
+
+  async getMyParties(): Promise<Party[]> {
+    const response = await fetchWithAuth(`${API_URL}/parties/mine`);
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to fetch your parties');
+    }
+
+    return response.json();
+  },
+
+  /** Future weekends for create-party (never the past browse weekend). */
+  async getCreateOptions(): Promise<{
+    today: string;
+    weekends: Array<{ weekendOf: string; fridayDate: string; saturdayDate: string }>;
+  }> {
+    const response = await fetchWithAuth(`${API_URL}/parties/create-options`);
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to load weekend options');
+    }
+
+    return response.json();
+  },
+
+  /** Server-proxied Nominatim autocomplete (browser → OSM is 403). */
+  async suggestAddresses(
+    query: string
+  ): Promise<Array<{ display_name: string; lat: number; lon: number }>> {
+    const params = new URLSearchParams({ q: query });
+    const response = await fetchWithAuth(
+      `${API_URL}/parties/address-suggest?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to look up address');
     }
 
     return response.json();

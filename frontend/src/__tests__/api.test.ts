@@ -281,8 +281,9 @@ describe('API Service', () => {
       const validPartyData = {
         title: 'Test Party',
         host: 'Test Host',
+        pin_label: 'TP',
         category: 'House Party',
-        day: 'friday' as const,
+        date: '2025-08-08',
         doors_open: '10 PM',
         address: '123 Test St',
       };
@@ -355,6 +356,61 @@ describe('API Service', () => {
           expect.objectContaining({
             body: expect.stringContaining('"latitude":39.981'),
           })
+        );
+      });
+
+      it('should send description, ticket_price, and poster path', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: '123', status: 'pending', goingCount: 0 }),
+        });
+
+        await partiesApi.createParty({
+          ...validPartyData,
+          description: 'BYOB',
+          ticket_price: '$5',
+          poster_image: 'user-id/abc.jpg',
+        });
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            body: expect.stringContaining('"poster_image":"user-id/abc.jpg"'),
+          })
+        );
+      });
+    });
+
+    describe('uploadPoster', () => {
+      it('should POST FormData to /parties/poster', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ path: 'uid/abc.jpg' }),
+        });
+
+        const blob = new Blob(['img'], { type: 'image/jpeg' });
+        const result = await partiesApi.uploadPoster(blob);
+
+        expect(result.path).toBe('uid/abc.jpg');
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/poster'),
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    });
+
+    describe('getMyParties', () => {
+      it('should fetch owner listings', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve([{ id: '1', title: 'Mine', status: 'pending' }]),
+        });
+
+        const result = await partiesApi.getMyParties();
+        expect(result).toHaveLength(1);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/mine'),
+          expect.any(Object)
         );
       });
     });

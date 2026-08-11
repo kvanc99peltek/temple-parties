@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { partiesApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PartyCounts {
   [partyId: string]: number;
@@ -12,53 +13,52 @@ interface UseGoingStatusReturn {
   goingParties: string[];
   partyCounts: PartyCounts;
   isGoing: (partyId: string) => boolean;
-  getCount: (partyId: string, fallbackCount: number) => number;
+  getCount: (partyId: string, fallbackCount: number | null) => number;
   toggleGoing: (partyId: string) => Promise<void>;
   ensureGoing: (partyId: string) => Promise<void>;
   hasAnyGoingParties: boolean;
   isLoading: boolean;
 }
 
-// LocalStorage key for anonymous going parties
-const STORAGE_KEY = 'temple_parties_going';
-
-// Helper functions for localStorage
-const getLocalGoingParties = (): string[] => {
-  if (typeof window === 'undefined') return [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-};
-
-const setLocalGoingParties = (parties: string[]) => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(parties));
-};
-
 /**
- * Custom hook to manage user's going status and party counts
- * Uses API for persistence and Supabase realtime for live updates
- * Supports anonymous users via localStorage
+ * Account-keyed RSVP state (Epic 7).
  *
- * readOnly: when true, toggleGoing flips local/localStorage state for UI feedback
- * but skips the network POST. Used by /demo to avoid mutating historical going_count.
+ * Authed: load GET /parties/user/going; POST/DELETE to toggle; realtime counts.
+ * Logged out: in-memory UI only — no anon API writes, no localStorage seed.
+ * Demo readOnly: local UI flip without network.
  */
 export function useGoingStatus(options?: { readOnly?: boolean }): UseGoingStatusReturn {
   const readOnly = options?.readOnly ?? false;
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [goingParties, setGoingParties] = useState<string[]>([]);
   const [partyCounts, setPartyCounts] = useState<PartyCounts>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load going parties from localStorage on mount
+  // Load account RSVPs when session is ready (not for demo/readOnly).
   useEffect(() => {
-    setGoingParties(getLocalGoingParties());
-  }, []);
+    if (readOnly || authLoading) return;
 
-  // Subscribe to realtime updates for party going counts.
-  // Skip in read-only mode: the demo snapshot must not pick up live counts.
+    if (!isAuthenticated) {
+      setGoingParties([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const ids = await partiesApi.getUserGoingParties();
+        if (!cancelled) setGoingParties(ids);
+      } catch (error) {
+        console.error('Failed to load going parties:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, authLoading, readOnly]);
+
+  // Realtime going_count updates (skip demo).
   useEffect(() => {
     if (readOnly) return;
 
@@ -73,7 +73,7 @@ export function useGoingStatus(options?: { readOnly?: boolean }): UseGoingStatus
         },
         (payload) => {
           const { id, going_count } = payload.new as { id: string; going_count: number };
-          setPartyCounts(prev => ({
+          setPartyCounts((prev) => ({
             ...prev,
             [id]: going_count,
           }));
@@ -86,57 +86,66 @@ export function useGoingStatus(options?: { readOnly?: boolean }): UseGoingStatus
     };
   }, [readOnly]);
 
-  // Check if user is going to a specific party
-  const isGoing = useCallback((partyId: string): boolean => {
-    return goingParties.includes(partyId);
-  }, [goingParties]);
+  const isGoing = useCallback(
+    (partyId: string): boolean => goingParties.includes(partyId),
+    [goingParties]
+  );
 
-  // Get count for a party (from realtime state or fallback)
-  const getCount = useCallback((partyId: string, fallbackCount: number): number => {
-    return partyCounts[partyId] ?? fallbackCount;
-  }, [partyCounts]);
+  const getCount = useCallback(
+    (partyId: string, fallbackCount: number | null): number => {
+      if (partyCounts[partyId] !== undefined) return partyCounts[partyId];
+      return fallbackCount ?? 0;
+    },
+    [partyCounts]
+  );
 
-  // Toggle going status for a party
-  const toggleGoing = useCallback(async (partyId: string): Promise<void> => {
-    const currentGoing = getLocalGoingParties();
-    const isCurrentlyGoing = currentGoing.includes(partyId);
+  const toggleGoing = useCallback(
+    async (partyId: string): Promise<void> => {
+      const wasGoing = goingParties.includes(partyId);
+      const prevGoing = goingParties;
 
-    setIsLoading(true);
-    try {
-      // Optimistically update local state first.
-      const newGoing = isCurrentlyGoing
-        ? currentGoing.filter(id => id !== partyId)
-        : [...currentGoing, partyId];
-      setLocalGoingParties(newGoing);
-      setGoingParties(newGoing);
+      // Optimistic UI
+      const nextGoing = wasGoing
+        ? goingParties.filter((id) => id !== partyId)
+        : [...goingParties, partyId];
+      setGoingParties(nextGoing);
 
       if (readOnly) return;
 
-      const result = isCurrentlyGoing
-        ? await partiesApi.decrementGoingAnonymous(partyId)
-        : await partiesApi.incrementGoingAnonymous(partyId);
+      // Soft-gate should redirect first; if still logged out, keep client-only.
+      if (!isAuthenticated) return;
 
-      // Update count from response
-      setPartyCounts(prev => ({
-        ...prev,
-        [partyId]: result.goingCount,
-      }));
-    } catch (error) {
-      console.error('Failed to toggle going status:', error);
-      // Revert local state on error
-      setLocalGoingParties(currentGoing);
-      setGoingParties(currentGoing);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [readOnly]);
+      setIsLoading(true);
+      try {
+        const result = await partiesApi.toggleGoing(partyId, wasGoing);
+        setPartyCounts((prev) => ({
+          ...prev,
+          [partyId]: result.goingCount,
+        }));
+        // Align with server (idempotent response)
+        setGoingParties((prev) => {
+          const has = prev.includes(partyId);
+          if (result.going && !has) return [...prev, partyId];
+          if (!result.going && has) return prev.filter((id) => id !== partyId);
+          return prev;
+        });
+      } catch (error) {
+        console.error('Failed to toggle going status:', error);
+        setGoingParties(prevGoing);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [goingParties, readOnly, isAuthenticated]
+  );
 
-  // Mark going if not already going (used for silent actions like Navigate)
-  const ensureGoing = useCallback(async (partyId: string): Promise<void> => {
-    const currentGoing = getLocalGoingParties();
-    if (currentGoing.includes(partyId)) return;
-    await toggleGoing(partyId);
-  }, [toggleGoing]);
+  const ensureGoing = useCallback(
+    async (partyId: string): Promise<void> => {
+      if (goingParties.includes(partyId)) return;
+      await toggleGoing(partyId);
+    },
+    [goingParties, toggleGoing]
+  );
 
   return {
     goingParties,

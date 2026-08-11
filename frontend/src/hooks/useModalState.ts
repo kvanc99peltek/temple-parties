@@ -7,11 +7,8 @@ import {
   type PendingAuthAction,
 } from '@/lib/pendingAuthAction';
 
-/**
- * TEMP — flip to `true` once Supabase free-tier email quota resets and OTP can be tested.
- * When false: Going / Navigate / Add Party work without login (launch-mode soft-gate off).
- */
-export const AUTH_GATE_ENABLED = false;
+/** Soft-gate: Going / Navigate / Add Party / Rate require login. */
+export const AUTH_GATE_ENABLED = true;
 
 /**
  * Soft-gate + post-auth action replay (Epic 6.7).
@@ -39,7 +36,6 @@ export default function useModalState(
   );
 
   const handleAddPartyClick = useCallback(() => {
-    // TEMP: AUTH_GATE_ENABLED — restore login requirement for add-party
     if (AUTH_GATE_ENABLED && !isAuthenticated) {
       openLogin({ type: 'addParty' });
       return;
@@ -58,10 +54,20 @@ export default function useModalState(
   /** Returns true if the caller should abort (redirected to login). */
   const requireAuthForGoing = useCallback(
     (partyId: string, next = '/'): boolean => {
-      // TEMP: AUTH_GATE_ENABLED — restore RSVP soft-gate
       if (!AUTH_GATE_ENABLED) return false;
       if (isAuthenticated) return false;
       openLogin({ type: 'going', partyId }, next);
+      return true;
+    },
+    [isAuthenticated, openLogin]
+  );
+
+  /** Soft-gate for rating entry. */
+  const requireAuthForRating = useCallback(
+    (next = '/'): boolean => {
+      if (!AUTH_GATE_ENABLED) return false;
+      if (isAuthenticated) return false;
+      openLogin(undefined, next);
       return true;
     },
     [isAuthenticated, openLogin]
@@ -95,6 +101,7 @@ export default function useModalState(
     handleAddPartyClick,
     handleAccountClick,
     requireAuthForGoing,
+    requireAuthForRating,
     replayPendingAuthAction,
     cancelPendingAuthAction,
   };

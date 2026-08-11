@@ -41,13 +41,14 @@ class PartyResponse(BaseModel):
     day: Literal["friday", "saturday"]
     date: str  # ISO format date string
     doorsOpen: str  # camelCase for frontend compatibility
-    address: str
+    # Soft-gate (Epic 7.3): anon callers get null address + engagement counts
+    address: Optional[str] = None
     latitude: float
     longitude: float
-    goingCount: int  # camelCase for frontend compatibility
+    goingCount: Optional[int] = None
     status: Optional[str] = None
-    likePercentage: float = 0
-    ratingCount: int = 0
+    likePercentage: Optional[float] = None
+    ratingCount: Optional[int] = None
     isVerified: bool = False
     posterImage: Optional[str] = None
     description: Optional[str] = None

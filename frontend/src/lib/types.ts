@@ -7,13 +7,15 @@ export interface Party {
   day: 'friday' | 'saturday';
   date: string;
   doorsOpen: string;
-  address: string;
+  /** Soft-gate: null for anonymous callers */
+  address: string | null;
   latitude: number;
   longitude: number;
-  goingCount: number;
+  /** Soft-gate: null for anonymous callers */
+  goingCount: number | null;
   status?: string;
-  likePercentage: number;
-  ratingCount: number;
+  likePercentage: number | null;
+  ratingCount: number | null;
   isVerified: boolean;
   posterImage?: string;
   description?: string | null;

@@ -2,30 +2,12 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { getDefaultDay, parseDoorsOpen, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
+import { getDefaultDay, parseDoorsOpen } from '@/utils/dateHelpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
-// import { PRIMARY_SPONSOR } from '@/lib/sponsors';
 import { trackEvent } from '@/utils/analytics';
-
-interface Party {
-  id: string;
-  title: string;
-  host: string;
-  pinLabel: string;
-  category: string;
-  day: 'friday' | 'saturday';
-  date: string;
-  doorsOpen: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  goingCount: number;
-  isVerified: boolean;
-  likePercentage: number;
-  ratingCount: number;
-}
+import type { Party } from '@/lib/types';
 
 interface MapContentProps {
   parties: Party[];
@@ -104,7 +86,8 @@ function createAvatarIcon(
 }
 
 // Get short address (before comma)
-function getShortAddress(address: string): string {
+function getShortAddress(address: string | null): string {
+  if (!address) return 'Sign in for address';
   return address.split(',')[0];
 }
 
@@ -213,19 +196,22 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         />
         <TempleLabel />
         {(() => {
-          const maxGoingCount = Math.max(...filteredParties.map(p => p.goingCount), 1);
+          const maxGoingCount = Math.max(...filteredParties.map(p => p.goingCount ?? 0), 1);
           const now = new Date();
           const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
           const iconCache = iconCacheRef.current;
           return filteredParties.map(party => {
+            const goingCount = party.goingCount ?? 0;
+            const likePercentage = party.likePercentage ?? 0;
+            const ratingCount = party.ratingCount ?? 0;
             const isHyped = party.id === topPartyIds[party.day];
             const userIsGoing = userGoingParties.includes(party.id);
             const doorsOpenTime = parseDoorsOpen(party.doorsOpen, party.date);
             const isDimmed = now.getTime() - doorsOpenTime.getTime() >= FOUR_HOURS_MS;
-            const iconKey = `${party.id}|${party.goingCount}|${maxGoingCount}|${isHyped ? 1 : 0}|${userIsGoing ? 1 : 0}|${isDimmed ? 1 : 0}`;
+            const iconKey = `${party.id}|${goingCount}|${maxGoingCount}|${isHyped ? 1 : 0}|${userIsGoing ? 1 : 0}|${isDimmed ? 1 : 0}`;
             let icon = iconCache.get(iconKey);
             if (!icon) {
-              icon = createAvatarIcon(party.pinLabel, party.host, party.goingCount, maxGoingCount, isHyped, userIsGoing, isDimmed);
+              icon = createAvatarIcon(party.pinLabel, party.host, goingCount, maxGoingCount, isHyped, userIsGoing, isDimmed);
               iconCache.set(iconKey, icon);
             }
 
@@ -242,7 +228,6 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               >
                 <Popup className="party-popup-dark" closeButton={false}>
                   <div className="popup-content">
-                    {/* Pills */}
                     <div className="popup-badges">
                       <span className="popup-category-badge">{party.category}</span>
                       {isHyped && (
@@ -250,10 +235,8 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       )}
                     </div>
 
-                    {/* Title */}
                     <h3 className="popup-title">{party.title}</h3>
 
-                    {/* Host + Verified */}
                     <p className="popup-host">
                       <span className="popup-host-by">by&nbsp;</span>
                       <span className="popup-host-name">{party.host}</span>
@@ -265,7 +248,6 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       )}
                     </p>
 
-                    {/* Time + Address */}
                     <div className="popup-details-row">
                       <div className="popup-time">
                         <img src="/icons/clock.svg" alt="" className="popup-time-icon" />
@@ -279,26 +261,32 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       </div>
                     </div>
 
-                    {/* Ratings */}
                     <button
+                      type="button"
                       className="popup-ratings"
-                      onClick={() => onRateClick(party.id, party.title, party.host, isRatingActive(party.doorsOpen, party.date), isRatingLocked(party.date))}
+                      onClick={() => onRateClick(
+                        party.id,
+                        party.title,
+                        party.host,
+                        party.ratingOpen ?? false,
+                        party.ratingLocked ?? false,
+                      )}
                     >
                       <div className="popup-rating-group">
                         <img src="/icons/thumbs-up.svg" alt="" className="popup-rating-icon" />
-                        <span>{party.ratingCount > 0 ? Math.round((party.likePercentage / 100) * party.ratingCount) : 0}</span>
+                        <span>{ratingCount > 0 ? Math.round((likePercentage / 100) * ratingCount) : 0}</span>
                       </div>
                       <span className="popup-rating-divider">|</span>
                       <div className="popup-rating-group">
                         <img src="/icons/thumbs-up.svg" alt="" className="popup-rating-icon popup-rating-flip" />
-                        <span>{party.ratingCount > 0 ? party.ratingCount - Math.round((party.likePercentage / 100) * party.ratingCount) : 0}</span>
+                        <span>{ratingCount > 0 ? ratingCount - Math.round((likePercentage / 100) * ratingCount) : 0}</span>
                       </div>
                     </button>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="popup-buttons">
                     <button
+                      type="button"
                       onClick={() => onGoingClick(party.id)}
                       className={`popup-going-btn ${userIsGoing ? 'going' : ''}`}
                     >
@@ -307,15 +295,17 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
-                      GOING ({party.goingCount})
+                      GOING ({goingCount})
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => {
                         onNavigateClick(party.id);
-                        openMapsDirections(party.address);
+                        if (party.address) openMapsDirections(party.address);
                       }}
                       className="popup-navigate-btn"
+                      disabled={!party.address}
                     >
                       <img src="/icons/navigate.svg" alt="Navigate" style={{ width: '20px', height: '20px' }} />
                     </button>

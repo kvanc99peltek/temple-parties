@@ -30,7 +30,7 @@ export default function MapPage() {
   const { allParties, topPartyIds, fridayDate, saturdayDate, isLoadingParties } = useParties(selectedDay, getCount);
   const toast = useToast();
   const showToast = toast.show;
-  const { requireAuthForGoing, replayPendingAuthAction } = useModalState(isAuthenticated, toggleGoing);
+  const { requireAuthForGoing, requireAuthForRating, replayPendingAuthAction } = useModalState(isAuthenticated, toggleGoing);
 
   const replayedRef = useRef(false);
   useEffect(() => {
@@ -59,6 +59,7 @@ export default function MapPage() {
   }, [ensureGoing, revealAddress, requireAuthForGoing]);
 
   const handleStarClick = useCallback((partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => {
+    if (requireAuthForRating('/map')) return;
     if (!ratingActive) {
       showToast('Ratings unlock when doors open');
       return;
@@ -68,7 +69,7 @@ export default function MapPage() {
       return;
     }
     setRatingModalParty({ id: partyId, title, host });
-  }, [showToast]);
+  }, [showToast, requireAuthForRating]);
 
   const handleModalRate = useCallback(async (rating: number) => {
     if (!ratingModalParty) return;

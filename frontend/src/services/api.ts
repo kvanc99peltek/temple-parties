@@ -243,17 +243,40 @@ export const partiesApi = {
     }
   },
 
-  async toggleGoing(partyId: string): Promise<{ going: boolean; goingCount: number }> {
+  async markGoing(partyId: string): Promise<{ going: boolean; goingCount: number }> {
     const response = await fetchWithAuth(`${API_URL}/parties/${partyId}/going`, {
       method: 'POST',
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.detail || 'Failed to toggle going status');
+      throw new Error(error.detail || 'Failed to mark going');
     }
 
     return response.json();
+  },
+
+  async unmarkGoing(partyId: string): Promise<{ going: boolean; goingCount: number }> {
+    const response = await fetchWithAuth(`${API_URL}/parties/${partyId}/going`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to unmark going');
+    }
+
+    return response.json();
+  },
+
+  /** Client-side toggle: POST to mark, DELETE to unmark. */
+  async toggleGoing(
+    partyId: string,
+    currentlyGoing: boolean
+  ): Promise<{ going: boolean; goingCount: number }> {
+    return currentlyGoing
+      ? this.unmarkGoing(partyId)
+      : this.markGoing(partyId);
   },
 
   async getUserGoingParties(): Promise<string[]> {
@@ -263,32 +286,6 @@ export const partiesApi = {
       if (response.status === 401) return [];
       const error = await response.json();
       throw new Error(error.detail || 'Failed to fetch going parties');
-    }
-
-    return response.json();
-  },
-
-  async incrementGoingAnonymous(partyId: string): Promise<{ going: boolean; goingCount: number }> {
-    const response = await fetch(`${API_URL}/parties/${partyId}/going/anonymous`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to increment going count');
-    }
-
-    return response.json();
-  },
-
-  async decrementGoingAnonymous(partyId: string): Promise<{ going: boolean; goingCount: number }> {
-    const response = await fetch(`${API_URL}/parties/${partyId}/going/anonymous/decrement`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to decrement going count');
     }
 
     return response.json();
@@ -309,9 +306,8 @@ export const partiesApi = {
 // Ratings API
 export const ratingsApi = {
   async submitRating(partyId: string, rating: number): Promise<RatingResponse> {
-    const response = await fetch(`${API_URL}/ratings/${partyId}`, {
+    const response = await fetchWithAuth(`${API_URL}/ratings/${partyId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rating }),
     });
 
@@ -329,7 +325,7 @@ export const ratingsApi = {
     ratingCount: number;
     userRating: number | null;
   }> {
-    const response = await fetch(`${API_URL}/ratings/${partyId}`);
+    const response = await fetchWithAuth(`${API_URL}/ratings/${partyId}`);
 
     if (!response.ok) {
       const error = await response.json();
@@ -350,7 +346,7 @@ export const ratingsApi = {
     if (params?.weekendTo) searchParams.set('weekend_to', params.weekendTo);
     const qs = searchParams.toString();
     const url = qs ? `${API_URL}/ratings?${qs}` : `${API_URL}/ratings`;
-    const response = await fetch(url);
+    const response = await fetchWithAuth(url);
 
     if (!response.ok) {
       const error = await response.json();

@@ -15,7 +15,6 @@ export default function RequireOnboarding({ children }: { children: React.ReactN
   const pathname = usePathname();
 
   useEffect(() => {
-    // TEMP: AUTH_GATE_ENABLED — restore onboarding redirect when OTP testing resumes
     if (!AUTH_GATE_ENABLED) return;
     if (isLoading) return;
     if (isAuthenticated && needsOnboarding) {

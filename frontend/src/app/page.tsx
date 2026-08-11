@@ -13,7 +13,7 @@ import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
 import RequireOnboarding from '@/components/RequireOnboarding';
-import { getDefaultDay, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
+import { getDefaultDay } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
@@ -58,7 +58,9 @@ export default function HomePage() {
     closeInviteModal,
     showAddPartyModal,
     closeAddPartyModal,
+    openLogin,
     requireAuthForGoing,
+    requireAuthForRating,
     replayPendingAuthAction,
   } = modals;
 
@@ -91,11 +93,16 @@ export default function HomePage() {
     }
   }, [isLoadingParties, fridayCount, saturdayCount, selectedDay]);
 
+  const handleDayChange = useCallback((day: 'friday' | 'saturday') => {
+    setSelectedDay(day);
+    trackEvent('day_tab_switched', { day });
+  }, []);
+
   const topGoingParty = (() => {
     if (goingParties.length === 0) return null;
     const goingPartiesSorted = allParties
       .filter(party => goingParties.includes(party.id))
-      .sort((a, b) => b.goingCount - a.goingCount);
+      .sort((a, b) => (b.goingCount ?? 0) - (a.goingCount ?? 0));
     return goingPartiesSorted.length > 0 ? goingPartiesSorted[0] : null;
   })();
 
@@ -118,6 +125,15 @@ export default function HomePage() {
     trackEvent('navigate_clicked', { partyId });
   }, [ensureGoing, revealAddress, requireAuthForGoing]);
 
+  const handleViewAddress = useCallback((partyId: string) => {
+    const party = allParties.find((p) => p.id === partyId);
+    if (party?.address == null && !isAuthenticated) {
+      openLogin(undefined, '/');
+      return;
+    }
+    revealAddress(partyId);
+  }, [allParties, isAuthenticated, openLogin, revealAddress]);
+
   const handleShare = useCallback(async () => {
     const partyToShare = lastGoingPartyId
       ? allParties.find(p => p.id === lastGoingPartyId) ?? topGoingParty
@@ -130,6 +146,7 @@ export default function HomePage() {
   }, [lastGoingPartyId, allParties, topGoingParty, showToast]);
 
   const handleStarClick = useCallback((partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => {
+    if (requireAuthForRating()) return;
     if (!ratingActive) {
       showToast('Ratings unlock when doors open');
       return;
@@ -139,7 +156,7 @@ export default function HomePage() {
       return;
     }
     setRatingModalParty({ id: partyId, title, host });
-  }, [showToast]);
+  }, [showToast, requireAuthForRating]);
 
   const handleModalRate = useCallback(async (rating: number) => {
     if (!ratingModalParty) return;
@@ -195,7 +212,7 @@ export default function HomePage() {
 
         <DayTabs
           selectedDay={selectedDay}
-          onDayChange={setSelectedDay}
+          onDayChange={handleDayChange}
           fridayDate={fridayDate}
           saturdayDate={saturdayDate}
         />
@@ -208,32 +225,36 @@ export default function HomePage() {
           ) : filteredParties.length === 0 ? (
             <EmptyState selectedDay={selectedDay} />
           ) : (
-            filteredParties.map(party => (
-              <PartyCard
+            filteredParties.map((party, index) => (
+              <div
                 key={party.id}
-                id={party.id}
-                title={party.title}
-                host={party.host}
-                category={party.category}
-                doorsOpen={party.doorsOpen}
-                address={party.address}
-                goingCount={party.goingCount}
-                isHyped={party.id === topPartyId}
-                userIsGoing={isGoing(party.id)}
-                onGoingClick={handleGoingClick}
-                onNavigateClick={handleNavigateClick}
-                isAddressVisible={isAddressVisible(party.id)}
-                onViewAddressClick={revealAddress}
-                likePercentage={getLikePercentage(party.id, party.likePercentage)}
-                ratingCount={getRatingCount(party.id, party.ratingCount)}
-                userRating={getUserRating(party.id)}
-                onRateClick={handleStarClick}
-                isRatingActive={party.ratingOpen ?? isRatingActive(party.doorsOpen, party.date)}
-                isRatingLocked={party.ratingLocked ?? isRatingLocked(party.date)}
-                isVerified={party.isVerified}
-                posterImage={party.posterImage}
-                onShowToast={showToast}
-              />
+                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+              >
+                <PartyCard
+                  id={party.id}
+                  title={party.title}
+                  host={party.host}
+                  category={party.category}
+                  doorsOpen={party.doorsOpen}
+                  address={party.address}
+                  goingCount={party.goingCount}
+                  isHyped={party.id === topPartyId}
+                  userIsGoing={isGoing(party.id)}
+                  onGoingClick={handleGoingClick}
+                  onNavigateClick={handleNavigateClick}
+                  isAddressVisible={isAddressVisible(party.id)}
+                  onViewAddressClick={handleViewAddress}
+                  likePercentage={getLikePercentage(party.id, party.likePercentage)}
+                  ratingCount={getRatingCount(party.id, party.ratingCount)}
+                  userRating={getUserRating(party.id)}
+                  onRateClick={handleStarClick}
+                  isRatingActive={party.ratingOpen ?? false}
+                  isRatingLocked={party.ratingLocked ?? false}
+                  isVerified={party.isVerified}
+                  posterImage={party.posterImage}
+                  onShowToast={showToast}
+                />
+              </div>
             ))
           )}
         </div>

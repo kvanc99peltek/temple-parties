@@ -7,12 +7,19 @@ import HostRankingRow from './HostRankingRow';
 import HostRankingInfoModal from './HostRankingInfoModal';
 import EmptyState from './EmptyState';
 import { PartyRanking, HostRanking } from '@/lib/types';
-import { ratingsApi } from '@/services/api';
-import { getLastWeekendFridayISO, getMonthRange, getSemesterRange } from '@/utils/dateHelpers';
+import { getMonthRange, getSemesterRange, toISODate } from '@/utils/dateHelpers';
+import { partiesApi, ratingsApi } from '@/services/api';
 
 type PartyMode = { mode: 'parties'; params: { weekendOf?: string; weekendFrom?: string; weekendTo?: string } };
 type HostsMode = { mode: 'hosts' };
 type FetchSpec = PartyMode | HostsMode;
+
+/** Previous Friday relative to a Friday ISO date (server weekend key − 7 days). */
+function previousFridayISO(fridayISO: string): string {
+  const d = new Date(`${fridayISO}T12:00:00`);
+  d.setDate(d.getDate() - 7);
+  return toISODate(d);
+}
 
 interface RankingsViewProps {
   // When set, RankingsView ignores its own filter state and pins the parties
@@ -29,11 +36,26 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
   const [isLoading, setIsLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  // Authoritative current weekend from GET /parties (fixes §8.11 mislabel).
+  const [currentWeekendOf, setCurrentWeekendOf] = useState<string | null>(null);
 
-  const fetchSpec: FetchSpec = useMemo(() => {
+  useEffect(() => {
+    if (weekendOverride) return;
+    let cancelled = false;
+    partiesApi.getParties().then((data) => {
+      if (!cancelled) setCurrentWeekendOf(data.weekendOf);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [weekendOverride]);
+
+  const lastWeekendOf = weekendOverride
+    ?? (currentWeekendOf ? previousFridayISO(currentWeekendOf) : null);
+
+  const fetchSpec: FetchSpec | null = useMemo(() => {
     switch (selectedFilter) {
       case 'last-week':
-        return { mode: 'parties', params: { weekendOf: weekendOverride ?? getLastWeekendFridayISO() } };
+        if (!lastWeekendOf) return null;
+        return { mode: 'parties', params: { weekendOf: lastWeekendOf } };
       case 'this-month': {
         const { from, to } = getMonthRange();
         return { mode: 'parties', params: { weekendFrom: from, weekendTo: to } };
@@ -45,9 +67,10 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
       case 'by-hosts':
         return { mode: 'hosts' };
     }
-  }, [selectedFilter, weekendOverride]);
+  }, [selectedFilter, lastWeekendOf]);
 
   useEffect(() => {
+    if (!fetchSpec) return;
     let cancelled = false;
 
     const fetchRankings = async () => {
@@ -85,7 +108,7 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
     return [...eligible, ...ineligible];
   }, [hostRankings]);
 
-  const showHosts = fetchSpec.mode === 'hosts';
+  const showHosts = fetchSpec?.mode === 'hosts';
   const hasRows = showHosts ? sortedHostRankings.length > 0 : sortedPartyRankings.length > 0;
 
   return (

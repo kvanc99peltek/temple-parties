@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Party } from '@/lib/types';
 import { RATING_PROMPTS_STORAGE_KEY } from '@/lib/constants';
-import { parseDoorsOpen, isRatingLocked } from '@/utils/dateHelpers';
+import { parseDoorsOpen } from '@/utils/dateHelpers';
 
 interface RatingReminderParty {
   id: string;
@@ -60,7 +60,7 @@ export default function useRatingReminder(
       const party = allParties.find(p => p.id === partyId);
       if (!party) continue;
 
-      if (isRatingLocked(party.date)) continue;
+      if (party.ratingLocked) continue;
       if (getUserRating(partyId) !== null) continue;
 
       const doorsOpenDate = parseDoorsOpen(party.doorsOpen, party.date);

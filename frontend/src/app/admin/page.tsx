@@ -178,7 +178,7 @@ export default function AdminPage() {
 
                   {/* Details */}
                   <div className="flex items-center gap-4 text-white/50 text-sm font-helvetica">
-                    <span>{party.address.split(',')[0]}</span>
+                    <span>{party.address?.split(',')[0] ?? '—'}</span>
                     <div className="flex items-center gap-1.5">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

@@ -380,20 +380,38 @@ describe('API Service', () => {
     });
 
     describe('toggleGoing', () => {
-      it('should toggle going status', async () => {
+      it('should mark going via POST when not currently going', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ going: true, goingCount: 11 }),
         });
 
-        const result = await partiesApi.toggleGoing('123');
+        const result = await partiesApi.toggleGoing('123', false);
 
         expect(result.going).toBe(true);
         expect(result.goingCount).toBe(11);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/123/going'),
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+
+      it('should unmark going via DELETE when currently going', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ going: false, goingCount: 10 }),
+        });
+
+        const result = await partiesApi.toggleGoing('123', true);
+
+        expect(result.going).toBe(false);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/123/going'),
+          expect.objectContaining({ method: 'DELETE' })
+        );
       });
 
       it('should handle rapid toggles', async () => {
-        // Multiple rapid calls should all succeed
         for (let i = 0; i < 5; i++) {
           mockFetch.mockResolvedValueOnce({
             ok: true,
@@ -401,7 +419,9 @@ describe('API Service', () => {
           });
         }
 
-        const promises = Array(5).fill(null).map(() => partiesApi.toggleGoing('123'));
+        const promises = Array(5)
+          .fill(null)
+          .map((_, i) => partiesApi.toggleGoing('123', i % 2 === 1));
         const results = await Promise.all(promises);
 
         expect(results).toHaveLength(5);

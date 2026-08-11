@@ -8,11 +8,13 @@ import { APP_URL } from '@/lib/constants';
  */
 function formatPartyShareText(party: Party): string {
   const dayName = getDayName(party.day);
-  return `pulling up to ${party.title}! 🔥 by ${party.host}
+  const partyUrl = `${APP_URL}/party/${party.id}`;
+  const goingLine =
+    party.goingCount != null ? `${party.goingCount}+ going\n` : '';
+  return `pulling up to ${party.title}! by ${party.host}
 ${dayName} @ ${party.doorsOpen}
-${party.goingCount}+ going
-
-tuparties.com`;
+${goingLine}
+${partyUrl}`;
 }
 
 /**
@@ -28,27 +30,25 @@ function formatDefaultShareText(): string {
 export async function shareContent(party?: Party): Promise<{ success: boolean; method: 'share' | 'clipboard' }> {
   const text = party ? formatPartyShareText(party) : formatDefaultShareText();
   const title = 'Temple Parties';
+  const partyUrl = party ? `${APP_URL}/party/${party.id}` : APP_URL;
 
-  // Try native share first
   if (navigator.share) {
     try {
       await navigator.share({
         title,
         text,
-        url: party ? undefined : APP_URL
+        url: partyUrl,
       });
       return { success: true, method: 'share' };
     } catch (error) {
-      // User cancelled or error - fall through to clipboard
       if ((error as Error).name === 'AbortError') {
         return { success: false, method: 'share' };
       }
     }
   }
 
-  // Fallback to clipboard
   try {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(party ? formatPartyShareText(party) : text);
     return { success: true, method: 'clipboard' };
   } catch (error) {
     console.error('Failed to copy to clipboard:', error);
@@ -57,8 +57,8 @@ export async function shareContent(party?: Party): Promise<{ success: boolean; m
 }
 
 /**
- * Open address in maps for directions
- * Uses Apple Maps on iPhone, Google Maps otherwise
+ * Open address in maps for walking directions.
+ * Apple Maps on iPhone; Google Maps walking Directions API elsewhere (§8.6).
  */
 export function openMapsDirections(address: string): void {
   const encodedAddress = encodeURIComponent(address);
@@ -66,7 +66,7 @@ export function openMapsDirections(address: string): void {
 
   const mapsUrl = isIPhone
     ? `https://maps.apple.com/?daddr=${encodedAddress}&dirflg=w`
-    : `https://maps.google.com/maps?daddr=${encodedAddress}&dirflg=w`;
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=walking`;
 
   window.open(mapsUrl, '_blank');
 }

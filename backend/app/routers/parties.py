@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import List, Optional
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
@@ -8,6 +8,7 @@ from app.models.party import PartyCreate, PartyResponse, PartiesListResponse
 from app.routers.auth import get_current_user, require_auth
 from app.services.geocoding import geocode_address, generate_fallback_coordinates
 from app.services import weekend as weekend_service
+from app.services.admin_check import user_is_admin
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/parties", tags=["parties"])
@@ -19,10 +20,19 @@ today_eastern = weekend_service.today_eastern
 get_current_weekend = weekend_service.get_current_weekend
 
 
-def db_to_response(party: dict) -> PartyResponse:
-    """Convert database party to API response format."""
+def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
+    """Convert database party to API response format.
+
+    Soft-gate (Epic 7.3): when reveal is False (anonymous caller), street
+    address and engagement counts are null. Lat/lng stay so the map works.
+    """
     party_date = weekend_service.resolve_party_date(party)
     rating_open, rating_locked = weekend_service.rating_window(party)
+
+    address = party["address"] if reveal else None
+    going_count = party["going_count"] if reveal else None
+    like_pct = float(party.get("like_percentage") or 0) if reveal else None
+    rating_count = (party.get("rating_count") or 0) if reveal else None
 
     return PartyResponse(
         id=party["id"],
@@ -33,13 +43,13 @@ def db_to_response(party: dict) -> PartyResponse:
         day=party["day"],
         date=party_date,
         doorsOpen=party["doors_open"],
-        address=party["address"],
+        address=address,
         latitude=float(party["latitude"]),
         longitude=float(party["longitude"]),
-        goingCount=party["going_count"],
+        goingCount=going_count,
         status=party.get("status"),
-        likePercentage=float(party.get("like_percentage") or 0),
-        ratingCount=party.get("rating_count") or 0,
+        likePercentage=like_pct,
+        ratingCount=rating_count,
         isVerified=party.get("is_verified", False),
         posterImage=party.get("poster_image"),
         description=party.get("description"),
@@ -47,6 +57,31 @@ def db_to_response(party: dict) -> PartyResponse:
         ratingOpen=rating_open,
         ratingLocked=rating_locked,
     )
+
+
+def _read_going_count(party_id: str) -> int:
+    """Read trigger-maintained going_count from parties (do not write it)."""
+    result = (
+        supabase.table("parties")
+        .select("going_count")
+        .eq("id", party_id)
+        .execute()
+    )
+    if not result.data:
+        return 0
+    return int(result.data[0].get("going_count") or 0)
+
+
+def _can_view_party(party: dict, user: Optional[dict]) -> bool:
+    """Approved is public; pending/rejected only for owner or admin."""
+    status = party.get("status") or "approved"
+    if status == "approved":
+        return True
+    if not user:
+        return False
+    if party.get("created_by") == user["id"]:
+        return True
+    return user_is_admin(user["id"])
 
 
 @router.get("", response_model=PartiesListResponse)
@@ -58,6 +93,7 @@ async def get_parties(
     """
     Get all approved parties for the requested (or current) weekend,
     plus authoritative weekend metadata for the frontend.
+    Anonymous callers get soft-gated fields (no address / counts).
     """
     if weekend_of:
         try:
@@ -71,6 +107,7 @@ async def get_parties(
         weekend = weekend_service.get_current_weekend()
 
     meta = weekend_service.weekend_meta(weekend)
+    reveal = user is not None
 
     query = supabase.table("parties").select("*").eq("status", "approved").eq("weekend_of", weekend.isoformat())
 
@@ -83,7 +120,7 @@ async def get_parties(
         weekendOf=meta.weekend_of.isoformat(),
         fridayDate=meta.friday_date.isoformat(),
         saturdayDate=meta.saturday_date.isoformat(),
-        parties=[db_to_response(party) for party in result.data],
+        parties=[db_to_response(party, reveal=reveal) for party in result.data],
     )
 
 
@@ -164,16 +201,25 @@ async def get_demo_weekend():
 
 
 @router.get("/{party_id}", response_model=PartyResponse)
-async def get_party(party_id: str):
+async def get_party(
+    party_id: str,
+    user: Optional[dict] = Depends(get_current_user),
+):
     """
     Get a single party by ID.
+    Public: approved only. Owner + admin may see pending/rejected.
+    Soft-gate strips address/counts for anonymous callers.
     """
     result = supabase.table("parties").select("*").eq("id", party_id).execute()
 
     if not result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
-    return db_to_response(result.data[0])
+    party = result.data[0]
+    if not _can_view_party(party, user):
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    return db_to_response(party, reveal=user is not None)
 
 
 @router.post("", response_model=PartyResponse)
@@ -223,7 +269,7 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
 
         result = supabase.table("parties").insert(party_data).execute()
 
-        return db_to_response(result.data[0])
+        return db_to_response(result.data[0], reveal=True)
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -252,48 +298,66 @@ async def delete_party(party_id: str, user: dict = Depends(require_auth)):
 
 @router.post("/{party_id}/going")
 @limiter.limit(RATE_LIMITS["toggle_going_auth"])
-async def toggle_going(request: Request, party_id: str, user: dict = Depends(require_auth)):
+async def mark_going(request: Request, party_id: str, user: dict = Depends(require_auth)):
     """
-    Toggle going status for a party.
-    If user is going, removes them and decrements count.
-    If user is not going, adds them and increments count.
-    Rate limited to 30 requests per minute per IP.
-    Uses count from party_going table to avoid race conditions.
+    Mark the current user as going to a party (idempotent).
+    going_count is maintained by the DB trigger from party_going rows.
     """
-    # Check if party exists
-    party_result = supabase.table("parties").select("id").eq("id", party_id).execute()
+    party_result = (
+        supabase.table("parties")
+        .select("id, status, going_count")
+        .eq("id", party_id)
+        .execute()
+    )
 
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
-    # Check if user is already going
-    going_result = supabase.table("party_going").select("*").eq("party_id", party_id).eq("user_id", user["id"]).execute()
+    party = party_result.data[0]
+    if party.get("status") != "approved":
+        raise HTTPException(status_code=404, detail="Party not found")
 
-    is_currently_going = len(going_result.data) > 0
+    existing = (
+        supabase.table("party_going")
+        .select("party_id")
+        .eq("party_id", party_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
 
-    if is_currently_going:
-        # Remove from going
-        supabase.table("party_going").delete().eq("party_id", party_id).eq("user_id", user["id"]).execute()
-    else:
-        # Add to going
+    if not existing.data:
         try:
             supabase.table("party_going").insert({
                 "party_id": party_id,
-                "user_id": user["id"]
+                "user_id": user["id"],
             }).execute()
         except Exception:
-            # Record may already exist due to race condition, ignore
+            # Race: another request inserted first — treat as already going
             pass
 
-    # Compute going count from the actual party_going table (source of truth)
-    # This avoids race conditions by counting actual records instead of incrementing
-    count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
-    new_count = count_result.count if count_result.count is not None else 0
+    return {"going": True, "goingCount": _read_going_count(party_id)}
 
-    # Update the denormalized count for display/sorting purposes
-    supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
 
-    return {"going": not is_currently_going, "goingCount": new_count}
+@router.delete("/{party_id}/going")
+@limiter.limit(RATE_LIMITS["toggle_going_auth"])
+async def unmark_going(request: Request, party_id: str, user: dict = Depends(require_auth)):
+    """
+    Remove the current user from a party's going list (idempotent).
+    going_count is maintained by the DB trigger from party_going rows.
+    """
+    party_result = (
+        supabase.table("parties")
+        .select("id")
+        .eq("id", party_id)
+        .execute()
+    )
+
+    if not party_result.data:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    supabase.table("party_going").delete().eq("party_id", party_id).eq("user_id", user["id"]).execute()
+
+    return {"going": False, "goingCount": _read_going_count(party_id)}
 
 
 @router.post("/{party_id}/going/anonymous")
@@ -301,20 +365,16 @@ async def toggle_going(request: Request, party_id: str, user: dict = Depends(req
 async def increment_going_anonymous(request: Request, party_id: str):
     """
     Increment going count for anonymous users.
-    No user tracking - just increments the count.
-    Rate limited to 3 requests per minute per IP to prevent abuse.
+    Kept until Epic 10.2 cutover — conflicts with the going_count trigger on dev.
     """
-    # Check if party exists
     party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()
 
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
-    # Get current count from party_going table and add 1 for this anonymous increment
     count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
     tracked_count = count_result.count if count_result.count is not None else 0
 
-    # Anonymous increments are stored in going_count beyond the tracked count
     current_total = party_result.data[0]["going_count"]
     anonymous_count = max(0, current_total - tracked_count)
     new_count = tracked_count + anonymous_count + 1
@@ -329,16 +389,13 @@ async def increment_going_anonymous(request: Request, party_id: str):
 async def decrement_going_anonymous(request: Request, party_id: str):
     """
     Decrement going count for anonymous users.
-    No user tracking - decrements only the anonymous portion of going_count.
-    Rate limited to 3 requests per minute per IP to prevent abuse.
+    Kept until Epic 10.2 cutover — conflicts with the going_count trigger on dev.
     """
-    # Check if party exists
     party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()
 
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
-    # tracked_count is source of truth for authenticated going
     count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
     tracked_count = count_result.count if count_result.count is not None else 0
 

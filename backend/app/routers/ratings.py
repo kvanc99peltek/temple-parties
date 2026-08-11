@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from typing import List, Optional
 from datetime import date
-import hashlib
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse, HostRankingResponse
+from app.routers.auth import get_current_user, require_auth
 from app.services import weekend as weekend_service
 from app.constants import RATE_LIMITS
 
@@ -22,60 +22,58 @@ parse_doors_open = weekend_service.parse_doors_open
 get_monday_cutoff = weekend_service.get_monday_cutoff
 
 
-def hash_ip(ip: str) -> str:
-    """Hash IP address for privacy-safe storage."""
-    return hashlib.sha256(ip.encode()).hexdigest()
-
-
 @router.post("/{party_id}", response_model=RatingResponse)
 @limiter.limit(RATE_LIMITS["submit_rating"])
-async def submit_rating(request: Request, party_id: str, data: RatingCreate):
+async def submit_rating(
+    request: Request,
+    party_id: str,
+    data: RatingCreate,
+    user: dict = Depends(require_auth),
+):
     """
-    Submit or update a rating for a party.
-    Anonymous - uses IP hash for one-per-user tracking.
-    Only allowed after doors_open and before Monday cutoff.
+    Submit or update a rating for an approved party (auth required).
+    Keyed to user_id; re-rating within the window updates in place.
     """
-    # Check if party exists
     party_result = supabase.table("parties").select("*").eq("id", party_id).execute()
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
     party = party_result.data[0]
 
-    # Check if rating is active (after doors_open)
+    if party.get("status") != "approved":
+        raise HTTPException(status_code=403, detail="Only approved parties can be rated")
+
     if not is_rating_active(party):
         raise HTTPException(status_code=403, detail="Rating not yet active. Opens at doors open time.")
 
-    # Check if rating is locked (after Monday)
     if is_rating_locked(party):
         raise HTTPException(status_code=403, detail="Rating period has ended.")
 
-    # Get IP hash
-    client_ip = get_remote_address(request)
-    ip = hash_ip(client_ip)
-
-    # Upsert rating (insert or update if exists)
-    existing = supabase.table("party_ratings").select("id").eq("party_id", party_id).eq("ip_hash", ip).execute()
+    existing = (
+        supabase.table("party_ratings")
+        .select("id")
+        .eq("party_id", party_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
 
     if existing.data:
         supabase.table("party_ratings").update({
             "rating": data.rating,
-            "updated_at": weekend_service.now_eastern().isoformat()
-        }).eq("party_id", party_id).eq("ip_hash", ip).execute()
+            "updated_at": weekend_service.now_eastern().isoformat(),
+        }).eq("party_id", party_id).eq("user_id", user["id"]).execute()
     else:
         supabase.table("party_ratings").insert({
             "party_id": party_id,
-            "ip_hash": ip,
+            "user_id": user["id"],
             "rating": data.rating,
         }).execute()
 
-    # Recompute like percentage and count from source of truth
     all_ratings = supabase.table("party_ratings").select("rating").eq("party_id", party_id).execute()
     ratings = [r["rating"] for r in all_ratings.data]
     count = len(ratings)
     like_pct = round((sum(ratings) / count) * 100, 2) if count else 0
 
-    # Update denormalized columns on parties table
     supabase.table("parties").update({
         "like_percentage": like_pct,
         "rating_count": count,
@@ -116,20 +114,35 @@ async def get_host_rankings(request: Request):
 
 
 @router.get("/{party_id}")
-async def get_party_rating(request: Request, party_id: str):
+async def get_party_rating(
+    request: Request,
+    party_id: str,
+    user: Optional[dict] = Depends(get_current_user),
+):
     """
-    Get rating info for a single party, including the current user's rating.
+    Get rating info for a single party, including the current user's rating when authed.
     """
-    party_result = supabase.table("parties").select("like_percentage, rating_count").eq("id", party_id).execute()
+    party_result = (
+        supabase.table("parties")
+        .select("like_percentage, rating_count")
+        .eq("id", party_id)
+        .execute()
+    )
     if not party_result.data:
         raise HTTPException(status_code=404, detail="Party not found")
 
     party = party_result.data[0]
-    client_ip = get_remote_address(request)
-    ip = hash_ip(client_ip)
-
-    user_rating_result = supabase.table("party_ratings").select("rating").eq("party_id", party_id).eq("ip_hash", ip).execute()
-    user_rating = user_rating_result.data[0]["rating"] if user_rating_result.data else None
+    user_rating = None
+    if user:
+        user_rating_result = (
+            supabase.table("party_ratings")
+            .select("rating")
+            .eq("party_id", party_id)
+            .eq("user_id", user["id"])
+            .execute()
+        )
+        if user_rating_result.data:
+            user_rating = user_rating_result.data[0]["rating"]
 
     return {
         "partyId": party_id,
@@ -144,12 +157,13 @@ async def get_rankings(
     request: Request,
     weekend_of: Optional[str] = Query(None, description="Single Friday date (YYYY-MM-DD)"),
     weekend_from: Optional[str] = Query(None, description="Range start Friday date (YYYY-MM-DD)"),
-    weekend_to: Optional[str] = Query(None, description="Range end Friday date (YYYY-MM-DD)")
+    weekend_to: Optional[str] = Query(None, description="Range end Friday date (YYYY-MM-DD)"),
+    user: Optional[dict] = Depends(get_current_user),
 ):
     """
     Get all parties ranked by like percentage.
     Supports single weekend (weekend_of) or date range (weekend_from + weekend_to).
-    Includes the requesting user's rating per party (by IP).
+    Includes the requesting user's rating per party when authenticated.
     """
     query = supabase.table("parties").select("*").eq("status", "approved")
 
@@ -182,11 +196,15 @@ async def get_rankings(
 
     result = query.order("like_percentage", desc=True).order("rating_count", desc=True).execute()
 
-    # Get user's ratings
-    client_ip = get_remote_address(request)
-    ip = hash_ip(client_ip)
-    user_ratings_result = supabase.table("party_ratings").select("party_id, rating").eq("ip_hash", ip).execute()
-    user_ratings_map = {r["party_id"]: r["rating"] for r in user_ratings_result.data}
+    user_ratings_map: dict = {}
+    if user:
+        user_ratings_result = (
+            supabase.table("party_ratings")
+            .select("party_id, rating")
+            .eq("user_id", user["id"])
+            .execute()
+        )
+        user_ratings_map = {r["party_id"]: r["rating"] for r in user_ratings_result.data}
 
     rankings = []
     for party in result.data:

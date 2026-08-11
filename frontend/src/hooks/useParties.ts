@@ -16,7 +16,7 @@ function dayOfMonth(iso: string): string {
  */
 export default function useParties(
   selectedDay: 'friday' | 'saturday',
-  getCount: (partyId: string, baseCount: number) => number,
+  getCount: (partyId: string, baseCount: number | null) => number,
   weekendOf?: string,
 ) {
   const [parties, setParties] = useState<Party[]>([]);
@@ -61,7 +61,7 @@ export default function useParties(
         ...party,
         goingCount: getCount(party.id, party.goingCount),
       }))
-      .sort((a, b) => b.goingCount - a.goingCount);
+      .sort((a, b) => (b.goingCount ?? 0) - (a.goingCount ?? 0));
   }, [selectedDay, getCount, parties]);
 
   const allParties = useMemo(() => {
@@ -74,8 +74,8 @@ export default function useParties(
   const topPartyId = filteredParties.length > 0 ? filteredParties[0].id : null;
 
   const topPartyIds = useMemo(() => {
-    const fridayParties = allParties.filter(p => p.day === 'friday').sort((a, b) => b.goingCount - a.goingCount);
-    const saturdayParties = allParties.filter(p => p.day === 'saturday').sort((a, b) => b.goingCount - a.goingCount);
+    const fridayParties = allParties.filter(p => p.day === 'friday').sort((a, b) => (b.goingCount ?? 0) - (a.goingCount ?? 0));
+    const saturdayParties = allParties.filter(p => p.day === 'saturday').sort((a, b) => (b.goingCount ?? 0) - (a.goingCount ?? 0));
     return {
       friday: fridayParties.length > 0 ? fridayParties[0].id : null,
       saturday: saturdayParties.length > 0 ? saturdayParties[0].id : null,

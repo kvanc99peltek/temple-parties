@@ -97,6 +97,18 @@ export default function BottomNav() {
               </Link>
             );
           })}
+          {!demo && (
+            <Link
+              href="/profile"
+              className={`text-[15px] font-montserrat font-semibold transition-colors duration-200 ${
+                pathname === '/profile' || pathname.startsWith('/profile/')
+                  ? 'text-[#b24bf3]'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Profile
+            </Link>
+          )}
         </div>
       </nav>
 

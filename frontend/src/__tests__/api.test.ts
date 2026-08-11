@@ -27,14 +27,14 @@ describe('API Service', () => {
   });
 
   describe('authApi', () => {
-    describe('signup', () => {
-      it('should send signup request with email', async () => {
+    describe('requestOtp', () => {
+      it('should send OTP request with email', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ message: 'Verification code sent to your email' }),
         });
 
-        const result = await authApi.signup('user@temple.edu');
+        const result = await authApi.requestOtp('user@temple.edu');
 
         expect(mockFetch).toHaveBeenCalledWith(
           expect.stringContaining('/auth/otp/request'),
@@ -52,13 +52,13 @@ describe('API Service', () => {
           json: () => Promise.resolve({ detail: 'Only @temple.edu email addresses are allowed' }),
         });
 
-        await expect(authApi.signup('user@gmail.com')).rejects.toThrow('temple.edu');
+        await expect(authApi.requestOtp('user@gmail.com')).rejects.toThrow('temple.edu');
       });
 
       it('should handle network errors', async () => {
         mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-        await expect(authApi.signup('user@temple.edu')).rejects.toThrow();
+        await expect(authApi.requestOtp('user@temple.edu')).rejects.toThrow();
       });
 
       it('should handle server errors gracefully', async () => {
@@ -67,7 +67,7 @@ describe('API Service', () => {
           json: () => Promise.resolve({ detail: 'Internal server error' }),
         });
 
-        await expect(authApi.signup('user@temple.edu')).rejects.toThrow();
+        await expect(authApi.requestOtp('user@temple.edu')).rejects.toThrow();
       });
 
       it('should sanitize email with special characters', async () => {
@@ -78,7 +78,7 @@ describe('API Service', () => {
 
         // XSS attempt in email
         await expect(
-          authApi.signup('<script>alert(1)</script>@temple.edu')
+          authApi.requestOtp('<script>alert(1)</script>@temple.edu')
         ).rejects.toThrow();
       });
     });
@@ -380,20 +380,38 @@ describe('API Service', () => {
     });
 
     describe('toggleGoing', () => {
-      it('should toggle going status', async () => {
+      it('should mark going via POST when not currently going', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ going: true, goingCount: 11 }),
         });
 
-        const result = await partiesApi.toggleGoing('123');
+        const result = await partiesApi.toggleGoing('123', false);
 
         expect(result.going).toBe(true);
         expect(result.goingCount).toBe(11);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/123/going'),
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+
+      it('should unmark going via DELETE when currently going', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ going: false, goingCount: 10 }),
+        });
+
+        const result = await partiesApi.toggleGoing('123', true);
+
+        expect(result.going).toBe(false);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/123/going'),
+          expect.objectContaining({ method: 'DELETE' })
+        );
       });
 
       it('should handle rapid toggles', async () => {
-        // Multiple rapid calls should all succeed
         for (let i = 0; i < 5; i++) {
           mockFetch.mockResolvedValueOnce({
             ok: true,
@@ -401,7 +419,9 @@ describe('API Service', () => {
           });
         }
 
-        const promises = Array(5).fill(null).map(() => partiesApi.toggleGoing('123'));
+        const promises = Array(5)
+          .fill(null)
+          .map((_, i) => partiesApi.toggleGoing('123', i % 2 === 1));
         const results = await Promise.all(promises);
 
         expect(results).toHaveLength(5);

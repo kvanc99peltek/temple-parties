@@ -4,17 +4,15 @@ from app.database import supabase
 from app.models.party import AdminPartyResponse
 from app.routers.auth import require_auth
 from app.routers.parties import db_to_response
+from app.services.admin_check import user_is_admin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 async def require_admin(user: dict = Depends(require_auth)) -> dict:
     """Require user to be an admin."""
-    result = supabase.table("user_profiles").select("is_admin").eq("id", user["id"]).execute()
-
-    if not result.data or not result.data[0].get("is_admin", False):
+    if not user_is_admin(user["id"]):
         raise HTTPException(status_code=403, detail="Admin access required")
-
     return user
 
 

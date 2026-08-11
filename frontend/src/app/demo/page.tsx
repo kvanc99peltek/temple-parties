@@ -63,7 +63,7 @@ export default function DemoHomePage() {
     if (goingParties.length === 0) return null;
     const sorted = allParties
       .filter(p => goingParties.includes(p.id))
-      .sort((a, b) => b.goingCount - a.goingCount);
+      .sort((a, b) => (b.goingCount ?? 0) - (a.goingCount ?? 0));
     return sorted.length > 0 ? sorted[0] : null;
   }, [goingParties, allParties]);
 
@@ -157,8 +157,8 @@ export default function DemoHomePage() {
                 ratingCount={getRatingCount(party.id, party.ratingCount)}
                 userRating={getUserRating(party.id)}
                 onRateClick={handleStarClick}
-                isRatingActive={isRatingActive(party.doorsOpen, party.date)}
-                isRatingLocked={isRatingLocked(party.date)}
+                isRatingActive={party.ratingOpen ?? isRatingActive(party.doorsOpen, party.date)}
+                isRatingLocked={party.ratingLocked ?? isRatingLocked(party.date)}
                 isVerified={party.isVerified}
                 posterImage={party.posterImage}
                 onShowToast={showToast}

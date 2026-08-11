@@ -1,15 +1,24 @@
 import logging
 import re
+import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.constants import RATE_LIMITS
+from app.config import get_settings
 from app.database import supabase
 from app.models.user import ALLOWED_SCHOOL_YEARS, ProfileUpdate, User
 from app.routers.auth import require_auth
+
+_AVATAR_MAX_BYTES = 512_000  # matches avatars bucket limit
+_AVATAR_MIME_TO_EXT = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+}
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 limiter = Limiter(key_func=get_remote_address)
@@ -118,6 +127,44 @@ async def get_my_profile(user: dict = Depends(require_auth)):
         raise HTTPException(status_code=400, detail="Failed to load profile") from e
 
 
+@router.get("/username-available")
+@limiter.limit(RATE_LIMITS["username_check"])
+async def username_available(
+    request: Request,
+    username: str,
+    user: dict = Depends(require_auth),
+):
+    """
+    Live username availability for onboarding (6.3).
+    Charset/length validated the same way as PATCH; taken names return available=false.
+    """
+    cleaned = username.strip()
+    if not _USERNAME_RE.match(cleaned):
+        return {
+            "username": cleaned,
+            "available": False,
+            "reason": "invalid",
+        }
+
+    try:
+        clash = (
+            supabase.table("user_profiles")
+            .select("id")
+            .eq("username", cleaned)
+            .neq("id", user["id"])
+            .execute()
+        )
+        taken = bool(clash.data)
+        return {
+            "username": cleaned,
+            "available": not taken,
+            "reason": "taken" if taken else None,
+        }
+    except Exception as e:
+        logger.exception("GET /profiles/username-available failed")
+        raise HTTPException(status_code=400, detail="Failed to check username") from e
+
+
 @router.patch("/me", response_model=User)
 @limiter.limit(RATE_LIMITS["profile_update"])
 async def update_my_profile(
@@ -180,3 +227,64 @@ async def update_my_profile(
         if "unique" in msg or "duplicate" in msg:
             raise HTTPException(status_code=409, detail="Username already taken") from e
         raise HTTPException(status_code=400, detail="Failed to update profile") from e
+
+
+@router.post("/me/avatar", response_model=User)
+@limiter.limit(RATE_LIMITS["avatar_upload"])
+async def upload_my_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_auth),
+):
+    """
+    Mediated avatar upload (6.4): client sends a resized image; backend writes to
+    the avatars bucket with a randomized key and stores the public URL on the profile.
+    """
+    content_type = (file.content_type or "").lower().strip()
+    ext = _AVATAR_MIME_TO_EXT.get(content_type)
+    if not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="Avatar must be JPEG, PNG, or WebP",
+        )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(raw) > _AVATAR_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Avatar must be 512KB or smaller",
+        )
+
+    object_path = f"{user['id']}/{uuid.uuid4().hex}.{ext}"
+
+    try:
+        ensure_profile(user)
+        # Service-role upload bypasses Storage RLS; path is still namespaced by user id.
+        supabase.storage.from_("avatars").upload(
+            object_path,
+            raw,
+            {"content-type": content_type, "upsert": "false"},
+        )
+
+        settings = get_settings()
+        public_url = (
+            f"{settings.supabase_url.rstrip('/')}/storage/v1/object/public/avatars/{object_path}"
+        )
+
+        result = (
+            supabase.table("user_profiles")
+            .update({"avatar_url": public_url})
+            .eq("id", user["id"])
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Failed to save avatar")
+
+        return _profile_to_user(result.data[0], user.get("email"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("POST /profiles/me/avatar failed")
+        raise HTTPException(status_code=400, detail="Failed to upload avatar") from e

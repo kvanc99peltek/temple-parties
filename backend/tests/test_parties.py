@@ -110,6 +110,38 @@ class TestGetParties:
         assert response.status_code == 200
         assert "parties" in response.json()
 
+    def test_get_parties_soft_gate_strips_anon(self, client, mock_supabase, mock_party):
+        """Anonymous callers get null address and counts (Epic 7.3)."""
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get("/parties")
+        assert response.status_code == 200
+        party = response.json()["parties"][0]
+        assert party["address"] is None
+        assert party["goingCount"] is None
+        assert party["ratingCount"] is None
+        assert party["likePercentage"] is None
+        assert party["latitude"] is not None
+        assert party["longitude"] is not None
+
+    def test_get_parties_authed_reveals_fields(self, client, mock_supabase, mock_user, mock_party):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get(
+            "/parties",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+        assert response.status_code == 200
+        party = response.json()["parties"][0]
+        assert party["address"] == mock_party["address"]
+        assert party["goingCount"] == mock_party["going_count"]
+        assert party["ratingCount"] == mock_party["rating_count"]
+
 
 class TestGetParty:
     """Tests for GET /parties/{party_id} endpoint."""
@@ -123,6 +155,82 @@ class TestGetParty:
 
         assert response.status_code == 200
         assert response.json()["id"] == mock_party["id"]
+        # Soft-gate: anon still gets the party but stripped fields
+        assert response.json()["address"] is None
+
+    def test_get_party_pending_hidden_from_public(self, client, mock_supabase, mock_party):
+        mock_party["status"] = "pending"
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 404
+
+    def test_get_party_pending_visible_to_owner(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["status"] = "pending"
+        mock_party["created_by"] = mock_user["id"]
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get(
+            f"/parties/{mock_party['id']}",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+        assert response.status_code == 200
+        assert response.json()["address"] == mock_party["address"]
+
+    def test_get_party_pending_visible_to_admin(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["status"] = "pending"
+        mock_party["created_by"] = str(uuid.uuid4())
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+            elif table_name == "user_profiles":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"is_admin": True}])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
+
+        response = client.get(
+            f"/parties/{mock_party['id']}",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+        assert response.status_code == 200
+
+    def test_get_party_pending_hidden_from_stranger(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["status"] = "rejected"
+        mock_party["created_by"] = str(uuid.uuid4())
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+            elif table_name == "user_profiles":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"is_admin": False}])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
+
+        response = client.get(
+            f"/parties/{mock_party['id']}",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+        assert response.status_code == 404
 
     def test_get_party_not_found(self, client, mock_supabase):
         """Should return 404 for non-existent party."""
@@ -150,6 +258,8 @@ class TestGetParty:
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([])
 
+        response = client.get("/parties/'; DROP TABLE parties;--")
+        assert response.status_code in [404, 422]
         malicious_ids = [
             "'; DROP TABLE parties;--",
             "1 OR 1=1",

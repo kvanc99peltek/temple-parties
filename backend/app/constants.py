@@ -25,7 +25,6 @@ RATE_LIMITS = {
     "admin_read": "60/minute",
     "admin_write": "30/minute",
     "toggle_going_auth": "30/minute",
-    "toggle_going_anon": "10/minute",
     "submit_rating": "10/minute",
 }
 

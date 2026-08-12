@@ -45,8 +45,9 @@ Env files: `frontend/.env.local` and `backend/.env` (both have `.env.example` te
 - `/demo` — read-only snapshot of a past weekend; uses `useGoingStatus({ readOnly: true })` so demo interactions never mutate real counts or subscribe to realtime.
 - `/admin` — party approval UI. Admin is enforced in application code only (`require_admin` in `routers/admin.py` reads `user_profiles.is_admin`); there is no RLS/policy/DB constraint backing it, and the backend uses the service-role key (bypasses RLS). `is_admin` is granted by hand in the Supabase dashboard — `set-username` hardcodes it to `false`.
 - `/auth/callback` — magic link landing.
+- `/login`, `/onboarding`, `/create`, `/profile`, `/party/[id]` — routed pages (Epic 5+).
 
-**Launch mode:** auth UI is currently hidden — `isAuthenticated` is hardcoded `false` in `page.tsx`. Going/rating actions work anonymously via localStorage (`temple_parties_going`, `temple_parties_ratings`), with counts persisted through the API and kept live via a Supabase realtime `postgres_changes` subscription in `useGoingStatus`.
+**Auth + soft-gate:** Auth UI is live. Logged-out users can browse; going/rating/navigate/address reveal soft-gate to `/login` (`AUTH_GATE_ENABLED` in `useModalState`). RSVP and ratings are account-keyed via FastAPI (`POST/DELETE /parties/{id}/going`, `POST /ratings/{id}`) — anonymous write endpoints were removed in Epic 10.2. Live going counts use a Supabase realtime `postgres_changes` subscription in `useGoingStatus` (requires `parties` on the realtime publication — see Epic 10.4 runbook).
 
 ### All backend calls go through one service layer
 
@@ -54,7 +55,7 @@ Env files: `frontend/.env.local` and `backend/.env` (both have `.env.example` te
 
 ### Two Supabase clients with different keys
 
-- Frontend (`frontend/src/lib/supabase.ts`, anon key): sends magic links, holds the session, realtime subscriptions. Auth goes frontend → Supabase directly; the backend's `/auth/signup` endpoint is unused in the current flow.
+- Frontend (`frontend/src/lib/supabase.ts`, anon key): sends OTP / holds the session, realtime subscriptions. Auth goes frontend → Supabase directly for OTP; backend verifies JWTs on protected routes.
 - Backend (`backend/app/database.py`, service key): verifies JWTs (`get_current_user` / `require_auth` in `routers/auth.py`) and does all DB reads/writes.
 
 `AUTH file explained.md` at the repo root documents the full auth flow step by step.
@@ -71,7 +72,7 @@ The backend is US/Eastern while the frontend is browser-local, so the two can di
 
 ### Backend structure
 
-FastAPI app in `backend/app/`: routers (`auth`, `parties`, `admin`, `ratings`), Pydantic models in `models/`, `services/geocoding.py` (Nominatim, with fallback coordinates inside `TEMPLE_BOUNDS`). Rate limiting via slowapi covers the write endpoints (see `constants.py` `RATE_LIMITS`) but **not** all endpoints — reads, admin routes, and `DELETE /parties/{id}` are unthrottled. Limits are in-memory/per-process. CORS origins are configured in `app/config.py`.
+FastAPI app in `backend/app/`: routers (`auth`, `parties`, `admin`, `ratings`), Pydantic models in `models/`, `services/geocoding.py` (Nominatim, with fallback coordinates inside `TEMPLE_BOUNDS`). Rate limiting via slowapi covers **all write endpoints** (see `constants.py` `RATE_LIMITS`), including admin approve/reject and `DELETE /parties/{id}`. Limits are in-memory/per-process. CORS defaults to production domains only (`app/config.py`); local/dev must set `CORS_ORIGINS` (see `backend/.env.example`). Owner cutover/RLS/CORS steps: `specs/version2/epic-10-cutover.md`.
 
 ### Database schema is documentation, not migrations
 

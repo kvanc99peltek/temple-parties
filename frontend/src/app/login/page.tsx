@@ -1,68 +1,59 @@
 'use client';
 
-import { FormEvent, Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { loginErrorFromQuery, sanitizeNextPath } from '@/lib/authHelpers';
 
-type Step = 'email' | 'code';
-
-const RESEND_COOLDOWN_SEC = 30;
-
+/**
+ * Login screen — Microsoft (Azure) is the only live sign-in path.
+ *
+ * The email-OTP flow still exists end to end (`requestOtp` / `verifyOtp` in
+ * AuthContext, `/auth/otp/*` in the backend) but is deliberately not rendered
+ * here. It is the break-glass fallback: if Temple IT ever blocks user consent
+ * for third-party apps, students hit AADSTS65001 and Microsoft stops working
+ * for everyone. Restoring the code form is a one-file change to this page.
+ */
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get('next') || '/';
-  const { isAuthenticated, isLoading, needsOnboarding, requestOtp, verifyOtp } = useAuth();
 
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
+  // Where to land after login. Sanitized so `?next=https://evil.com` can't
+  // turn our own login page into an open redirect.
+  const nextPath = sanitizeNextPath(searchParams.get('next'));
+
+  const { isAuthenticated, isLoading, needsOnboarding, signInWithMicrosoft } = useAuth();
+
+  // Errors arrive two ways: bounced back in the URL by /auth/callback (or by
+  // Microsoft itself), or thrown locally when we fail to even start the
+  // redirect. Seed from the URL so a bounced student sees why.
+  const [error, setError] = useState(() => loginErrorFromQuery(searchParams));
   const [submitting, setSubmitting] = useState(false);
-  const [resendIn, setResendIn] = useState(0);
 
+  // Already signed in (e.g. hit /login with a live session) — get out of the
+  // way. Unfinished onboarding takes priority over the requested destination.
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) return;
     router.replace(needsOnboarding ? `/onboarding?next=${encodeURIComponent(nextPath)}` : nextPath);
   }, [isAuthenticated, isLoading, needsOnboarding, nextPath, router]);
 
-  useEffect(() => {
-    if (resendIn <= 0) return;
-    const id = window.setTimeout(() => setResendIn((s) => s - 1), 1000);
-    return () => window.clearTimeout(id);
-  }, [resendIn]);
-
-  const sendCode = async (e?: FormEvent) => {
-    e?.preventDefault();
+  // `selectAccount` is for shared computers: it makes Microsoft show its
+  // account picker instead of silently reusing whoever is already signed in.
+  const startMicrosoft = async (selectAccount = false) => {
     setError('');
-    setInfo('');
     setSubmitting(true);
-    const result = await requestOtp(email);
-    setSubmitting(false);
-    if (!result.success) {
-      setError(result.error || 'Failed to send code');
-      return;
-    }
-    setInfo('Code sent — check your inbox');
-    setStep('code');
-    setResendIn(RESEND_COOLDOWN_SEC);
-  };
 
-  const confirmCode = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setInfo('');
-    setSubmitting(true);
-    const result = await verifyOtp(email, code);
-    setSubmitting(false);
+    const result = await signInWithMicrosoft(nextPath, { selectAccount });
+
+    // On success the browser is already navigating to Microsoft, so we leave
+    // `submitting` true — re-enabling the button would just invite a second
+    // click during the redirect. Only a failure returns us to an idle screen.
     if (!result.success) {
-      setError(result.error || 'Invalid or expired code');
-      return;
+      setSubmitting(false);
+      setError(result.error || 'Microsoft sign-in failed. Try again.');
     }
-    // Redirect handled by the auth effect once profile syncs.
   };
 
   if (isLoading || isAuthenticated) {
@@ -76,104 +67,69 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <Link href="/" className="inline-block text-[32px] leading-[24px] font-bitcount text-white mb-6">
+        <Link
+          href="/"
+          className="inline-block text-[32px] leading-[24px] font-bitcount text-white mb-6"
+        >
           Temple
           <br />
           Parties
         </Link>
-        <h1 className="text-white text-2xl font-montserrat font-semibold">
-          {step === 'email' ? 'Sign in' : 'Enter your code'}
-        </h1>
+        <h1 className="text-white text-2xl font-semibold font-montserrat">Sign in</h1>
         <p className="text-white/60 font-montserrat text-sm mt-2">
-          {step === 'email'
-            ? 'Use your @temple.edu email. We will email you a 6-digit code.'
-            : `We sent a 6-digit code to ${email}`}
+          Use your Temple account. Students only.
         </p>
       </div>
 
-      {step === 'email' && (
-        <form onSubmit={sendCode} className="space-y-4">
-          <label className="block">
-            <span className="sr-only">Temple email</span>
-            <input
-              type="email"
-              required
-              autoFocus
-              autoComplete="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError('');
-              }}
-              placeholder="you@temple.edu"
-              className="w-full px-4 py-3.5 bg-zinc-900 border border-zinc-700 rounded-xl text-white placeholder-white/40 font-montserrat focus:border-[#b24bf3] focus:ring-1 focus:ring-[#b24bf3] outline-none"
-            />
-          </label>
-          {error && <p className="text-red-400 text-sm font-montserrat">{error}</p>}
-          <button
-            type="submit"
-            disabled={submitting || !email.trim()}
-            className="w-full py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-          >
-            {submitting ? 'Sending…' : 'Send code'}
-          </button>
-        </form>
+      {error && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-300 text-sm font-montserrat"
+        >
+          {error}
+        </div>
       )}
 
-      {step === 'code' && (
-        <form onSubmit={confirmCode} className="space-y-4">
-          <label className="block">
-            <span className="sr-only">6-digit code</span>
-            <input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              required
-              autoFocus
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
-                setError('');
-              }}
-              placeholder="123456"
-              className="w-full px-4 py-3.5 bg-zinc-900 border border-zinc-700 rounded-xl text-white text-center text-2xl tracking-[0.4em] font-montserrat focus:border-[#b24bf3] focus:ring-1 focus:ring-[#b24bf3] outline-none"
-            />
-          </label>
-          {error && <p className="text-red-400 text-sm font-montserrat">{error}</p>}
-          {info && !error && <p className="text-emerald-400 text-sm font-montserrat">{info}</p>}
-          <button
-            type="submit"
-            disabled={submitting || code.length !== 6}
-            className="w-full py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-          >
-            {submitting ? 'Verifying…' : 'Verify'}
-          </button>
-          <div className="flex flex-col gap-2 items-center pt-1">
-            <button
-              type="button"
-              disabled={submitting || resendIn > 0}
-              onClick={() => void sendCode()}
-              className="text-sm font-montserrat text-white/60 hover:text-white disabled:opacity-40 underline"
-            >
-              {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStep('email');
-                setCode('');
-                setError('');
-                setInfo('');
-              }}
-              className="text-sm font-montserrat text-white/40 hover:text-white/70"
-            >
-              Use a different email
-            </button>
-          </div>
-        </form>
-      )}
+      <button
+        type="button"
+        onClick={() => void startMicrosoft()}
+        disabled={submitting}
+        className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+      >
+        <MicrosoftLogo />
+        {submitting ? 'Redirecting…' : 'Continue with Microsoft'}
+      </button>
+
+      {/* Escape hatch for a friend's computer: forces the Microsoft account
+          picker so you can sign in as yourself instead of whoever this
+          browser is already logged in as. */}
+      <button
+        type="button"
+        onClick={() => void startMicrosoft(true)}
+        disabled={submitting}
+        className="mt-4 w-full text-center text-sm font-montserrat text-white/60 hover:text-white underline disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Use a different account
+      </button>
+
+      <p className="mt-6 text-center text-white/40 font-montserrat text-xs leading-relaxed">
+        You sign in on Microsoft&apos;s page — we never see your password.
+        <br />
+        First time? Microsoft will ask you to allow access.
+      </p>
     </div>
+  );
+}
+
+/** Microsoft's four-square mark. Inline so the button never waits on an asset. */
+function MicrosoftLogo() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+      <rect x="0" y="0" width="8" height="8" fill="#f25022" />
+      <rect x="10" y="0" width="8" height="8" fill="#7fba00" />
+      <rect x="0" y="10" width="8" height="8" fill="#00a4ef" />
+      <rect x="10" y="10" width="8" height="8" fill="#ffb900" />
+    </svg>
   );
 }
 
@@ -182,9 +138,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-black flex items-center justify-center px-6 py-12">
       <Suspense
-        fallback={
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#b24bf3]" />
-        }
+        fallback={<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#b24bf3]" />}
       >
         <LoginForm />
       </Suspense>

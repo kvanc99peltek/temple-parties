@@ -15,6 +15,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { User as ProfileUser } from '@/lib/types';
 import { needsOnboarding } from '@/lib/onboarding';
 import { trackEvent } from '@/utils/analytics';
+import { isTempleEmail, microsoftCallbackUrl, sanitizeNextPath } from '@/lib/authHelpers';
 
 export type AuthUser = {
   id: string;
@@ -37,6 +38,10 @@ interface AuthContextType {
   needsUsername: boolean;
   requestOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithMicrosoft: (
+    nextPath?: string,
+    options?: { selectAccount?: boolean }
+  ) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (
     fields: Parameters<typeof authApi.updateProfile>[0]
   ) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
@@ -239,9 +244,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncAuthState]);
 
+  const signInWithMicrosoft = useCallback(
+    async (
+      nextPath?: string,
+      options?: { selectAccount?: boolean }
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        trackEvent('signup_started', { method: 'azure' });
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'azure',
+          options: {
+            scopes: 'email',
+            redirectTo: microsoftCallbackUrl(window.location.origin, sanitizeNextPath(nextPath)),
+            queryParams: {
+              domain_hint: 'temple.edu',
+              // By default Microsoft silently reuses whoever is already signed
+              // in on this browser — great on your own phone, wrong on a
+              // friend's computer. `prompt: 'select_account'` forces the
+              // account picker (one-tap tiles + "Use another account"), so the
+              // "Use a different account" link can rescue shared-computer
+              // logins without adding friction to the normal path.
+              ...(options?.selectAccount ? { prompt: 'select_account' } : {}),
+            },
+          },
+        });
+        if (error) throw error;
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Microsoft sign-in failed';
+        return { success: false, error: message };
+      }
+    },
+    []
+  );
+
   const requestOtp = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
     const normalized = email.trim().toLowerCase();
-    if (!normalized.endsWith('@temple.edu')) {
+    if (!isTempleEmail(normalized)) {
       return { success: false, error: 'Please use your Temple.edu email' };
     }
 
@@ -354,6 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         needsUsername: onboardingIncomplete,
         requestOtp,
         verifyOtp,
+        signInWithMicrosoft,
         updateProfile,
         uploadAvatar,
         logout,

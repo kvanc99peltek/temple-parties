@@ -636,6 +636,274 @@ class TestCreateParty:
         assert data["goingCount"] == 0
         assert data["status"] == "pending"
 
+    def test_create_party_geocode_failure_surfaces(self, client, mock_supabase, mock_user, valid_party_data):
+        """Geocode miss must 422 — never silent random pins (Epic 8.2 / §8.14)."""
+        from unittest.mock import patch
+
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+
+        with patch("app.routers.parties.geocode_address", return_value=None):
+            response = client.post(
+                "/parties",
+                json=valid_party_data,
+                headers={"Authorization": "Bearer valid_token"},
+            )
+
+        assert response.status_code == 422
+        assert "address" in response.json()["detail"].lower()
+
+    def test_create_party_rejects_past_weekend_date(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+        valid_party_data["date"] = "2020-01-03"  # Friday in the past
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+        assert "future" in response.json()["detail"].lower() or "today" in response.json()["detail"].lower()
+
+    def test_create_party_with_description_and_ticket_price(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+
+        valid_party_data["description"] = "BYOB, rooftop vibes"
+        valid_party_data["ticket_price"] = "$10 at door"
+        created_party = {
+            **valid_party_data,
+            "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
+            "latitude": 39.981,
+            "longitude": -75.155,
+            "going_count": 0,
+            "status": "pending",
+            "like_percentage": 0,
+            "rating_count": 0,
+            "ticket_price": valid_party_data["ticket_price"],
+        }
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
+            create_mock_db_response([created_party])
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["description"] == "BYOB, rooftop vibes"
+        assert data["ticketPrice"] == "$10 at door"
+
+    def test_create_party_rejects_external_poster_url(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["poster_image"] = "https://evil.example/pwn.jpg"
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+
+    def test_create_party_rejects_other_users_poster_path(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+        valid_party_data["poster_image"] = f"{uuid.uuid4()}/abc123.jpg"
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+        assert "poster" in response.json()["detail"].lower()
+
+    def test_create_party_accepts_own_poster_path(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+
+        path = f"{mock_user['id']}/abcdef0123456789.jpg"
+        valid_party_data["poster_image"] = path
+        created_party = {
+            **valid_party_data,
+            "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
+            "latitude": 39.981,
+            "longitude": -75.155,
+            "going_count": 0,
+            "status": "pending",
+            "like_percentage": 0,
+            "rating_count": 0,
+            "poster_image": path,
+        }
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
+            create_mock_db_response([created_party])
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        # Response resolves storage path to a public URL
+        assert "/storage/v1/object/public/posters/" in response.json()["posterImage"]
+        assert path in response.json()["posterImage"]
+
+
+class TestUploadPoster:
+    """Tests for POST /parties/poster (Epic 8.1)."""
+
+    def test_upload_poster_success(self, client, mock_supabase, mock_user):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+        mock_supabase.storage.from_.return_value.upload.return_value = None
+
+        response = client.post(
+            "/parties/poster",
+            files={"file": ("poster.jpg", b"fake-jpeg-bytes", "image/jpeg")},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        path = response.json()["path"]
+        assert path.startswith(f"{mock_user['id']}/")
+        assert path.endswith(".jpg")
+        mock_supabase.storage.from_.assert_called_with("posters")
+
+    def test_upload_poster_rejects_bad_mime(self, client, mock_supabase, mock_user):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+
+        response = client.post(
+            "/parties/poster",
+            files={"file": ("x.gif", b"not-really", "application/pdf")},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 400
+
+    def test_upload_poster_unauthenticated(self, client, mock_supabase):
+        response = client.post(
+            "/parties/poster",
+            files={"file": ("poster.jpg", b"bytes", "image/jpeg")},
+        )
+        assert response.status_code == 401
+
+
+class TestGetMyParties:
+    """Tests for GET /parties/mine (Epic 8.5)."""
+
+    def test_get_my_parties_returns_all_statuses(
+        self, client, mock_supabase, mock_user, mock_party
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        pending = {**mock_party, "id": str(uuid.uuid4()), "status": "pending", "created_by": mock_user["id"]}
+        approved = {**mock_party, "id": str(uuid.uuid4()), "status": "approved", "created_by": mock_user["id"]}
+        rejected = {**mock_party, "id": str(uuid.uuid4()), "status": "rejected", "created_by": mock_user["id"]}
+        mock_supabase.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = \
+            create_mock_db_response([pending, approved, rejected])
+
+        response = client.get(
+            "/parties/mine",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        statuses = {p["status"] for p in response.json()}
+        assert statuses == {"pending", "approved", "rejected"}
+
+    def test_get_my_parties_unauthenticated(self, client, mock_supabase):
+        response = client.get("/parties/mine")
+        assert response.status_code == 401
+
+
+class TestAddressSuggest:
+    """Tests for GET /parties/address-suggest (Nominatim proxy)."""
+
+    def test_address_suggest_success(self, client, mock_supabase, mock_user):
+        from unittest.mock import patch
+
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        with patch(
+            "app.routers.parties.suggest_addresses",
+            return_value=[
+                {
+                    "display_name": "1234 N Broad St, Philadelphia, PA",
+                    "lat": 39.981,
+                    "lon": -75.155,
+                }
+            ],
+        ):
+            response = client.get(
+                "/parties/address-suggest?q=1234%20N%20Broad",
+                headers={"Authorization": "Bearer valid_token"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["lat"] == 39.981
+        assert "Broad" in data[0]["display_name"]
+
+    def test_address_suggest_unauthenticated(self, client, mock_supabase):
+        response = client.get("/parties/address-suggest?q=broad")
+        assert response.status_code == 401
+
+    def test_address_suggest_query_too_short(self, client, mock_supabase, mock_user):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        response = client.get(
+            "/parties/address-suggest?q=ab",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+        assert response.status_code == 422
+
 
 class TestDeleteParty:
     """Tests for DELETE /parties/{party_id} endpoint."""

@@ -66,6 +66,46 @@ def weekend_meta(weekend_of: date | None = None) -> WeekendMeta:
     )
 
 
+def first_creatable_friday(today: date | None = None) -> date:
+    """Friday of the earliest weekend hosts may still schedule for.
+
+    - Friday → that Friday
+    - Saturday → this weekend's Friday (Saturday night still creatable)
+    - Sun–Thu → upcoming Friday (never a past weekend — Mon no longer offers last Fri)
+    """
+    today = today or today_eastern()
+    weekday = today.weekday()  # Mon=0 … Sun=6
+    if weekday == 4:  # Friday
+        return today
+    if weekday == 5:  # Saturday — weekend still in progress
+        return today - timedelta(days=1)
+    # Sun–Thu → next Friday
+    days_until = (4 - weekday) % 7
+    if days_until == 0:
+        days_until = 7
+    return today + timedelta(days=days_until)
+
+
+def creatable_weekends(count: int = 12, today: date | None = None) -> list[WeekendMeta]:
+    """Next `count` weekends hosts can schedule parties onto (today onward)."""
+    today = today or today_eastern()
+    count = max(1, min(count, 26))
+    friday = first_creatable_friday(today)
+    return [weekend_meta(friday + timedelta(weeks=i)) for i in range(count)]
+
+
+def is_creatable_party_date(party_date: date, today: date | None = None) -> bool:
+    """Fri/Sat on or after today (Eastern), within ~1 year."""
+    today = today or today_eastern()
+    if party_date.weekday() not in (4, 5):
+        return False
+    if party_date < today:
+        return False
+    if party_date > today + timedelta(days=366):
+        return False
+    return True
+
+
 def parse_weekend_of(value: str) -> date:
     """Parse YYYY-MM-DD weekend_of; raises ValueError on garbage."""
     parsed = date.fromisoformat(value)

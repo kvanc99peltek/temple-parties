@@ -281,8 +281,9 @@ describe('API Service', () => {
       const validPartyData = {
         title: 'Test Party',
         host: 'Test Host',
+        pin_label: 'TP',
         category: 'House Party',
-        day: 'friday' as const,
+        date: '2025-08-08',
         doors_open: '10 PM',
         address: '123 Test St',
       };
@@ -355,6 +356,61 @@ describe('API Service', () => {
           expect.objectContaining({
             body: expect.stringContaining('"latitude":39.981'),
           })
+        );
+      });
+
+      it('should send description, ticket_price, and poster path', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: '123', status: 'pending', goingCount: 0 }),
+        });
+
+        await partiesApi.createParty({
+          ...validPartyData,
+          description: 'BYOB',
+          ticket_price: '$5',
+          poster_image: 'user-id/abc.jpg',
+        });
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            body: expect.stringContaining('"poster_image":"user-id/abc.jpg"'),
+          })
+        );
+      });
+    });
+
+    describe('uploadPoster', () => {
+      it('should POST FormData to /parties/poster', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ path: 'uid/abc.jpg' }),
+        });
+
+        const blob = new Blob(['img'], { type: 'image/jpeg' });
+        const result = await partiesApi.uploadPoster(blob);
+
+        expect(result.path).toBe('uid/abc.jpg');
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/poster'),
+          expect.objectContaining({ method: 'POST' })
+        );
+      });
+    });
+
+    describe('getMyParties', () => {
+      it('should fetch owner listings', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve([{ id: '1', title: 'Mine', status: 'pending' }]),
+        });
+
+        const result = await partiesApi.getMyParties();
+        expect(result).toHaveLength(1);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/mine'),
+          expect.any(Object)
         );
       });
     });
@@ -456,19 +512,52 @@ describe('API Service', () => {
 
   describe('adminApi', () => {
     describe('getParties', () => {
-      it('should fetch pending parties', async () => {
+      it('should fetch pending parties from paginated envelope', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve([{ id: '1', status: 'pending' }]),
+          json: () =>
+            Promise.resolve({
+              parties: [{ id: '1', status: 'pending' }],
+              total: 1,
+              limit: 20,
+              offset: 0,
+            }),
         });
 
         const result = await adminApi.getParties('pending');
 
         expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('/admin/parties?status=pending'),
+          expect.stringMatching(/\/admin\/parties\?.*status=pending/),
           expect.any(Object)
         );
-        expect(result[0].status).toBe('pending');
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringMatching(/limit=20/),
+          expect.any(Object)
+        );
+        expect(result.parties[0].status).toBe('pending');
+        expect(result.total).toBe(1);
+      });
+
+      it('should pass custom pagination params', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              parties: [],
+              total: 40,
+              limit: 10,
+              offset: 20,
+            }),
+        });
+
+        const result = await adminApi.getParties(undefined, { limit: 10, offset: 20 });
+
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/admin/parties?limit=10&offset=20'),
+          expect.any(Object)
+        );
+        expect(result.offset).toBe(20);
+        expect(result.limit).toBe(10);
       });
 
       it('should throw for non-admin user', async () => {

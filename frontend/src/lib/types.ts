@@ -38,6 +38,13 @@ export interface AdminParty extends Party {
   createdAt: string | null;
 }
 
+export interface AdminPartiesListResponse {
+  parties: AdminParty[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface PartyRanking {
   id: string;
   title: string;

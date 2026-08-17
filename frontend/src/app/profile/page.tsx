@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { useAuth } from '@/contexts/AuthContext';
 import { SCHOOL_YEARS } from '@/lib/onboarding';
+import { partiesApi } from '@/services/api';
 import { resizeAvatarFile } from '@/utils/avatarImage';
+import type { Party } from '@/lib/types';
 
-/** Profile — view, complete skipped fields, log out (Epic 6.6 / FLOW 14 lite). */
+/** Profile — view, complete skipped fields, my listings, log out (Epic 6.6 / 8.5). */
 export default function ProfilePage() {
   const router = useRouter();
   const {
@@ -28,6 +30,8 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [myParties, setMyParties] = useState<Party[]>([]);
+  const [partiesLoading, setPartiesLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,6 +51,25 @@ export default function ProfilePage() {
     setGreekLife(user.greekLife || '');
     setInstagram(user.instagram || '');
   }, [user]);
+
+  useEffect(() => {
+    if (!isAuthenticated || needsOnboarding) return;
+    let cancelled = false;
+    void (async () => {
+      setPartiesLoading(true);
+      try {
+        const list = await partiesApi.getMyParties();
+        if (!cancelled) setMyParties(list);
+      } catch {
+        if (!cancelled) setMyParties([]);
+      } finally {
+        if (!cancelled) setPartiesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, needsOnboarding]);
 
   const saveField = async (fields: Parameters<typeof updateProfile>[0]) => {
     setSubmitting(true);
@@ -142,6 +165,13 @@ export default function ProfilePage() {
           )}
         </div>
 
+        <Link
+          href="/create"
+          className="mb-8 flex w-full items-center justify-center py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3]"
+        >
+          Create a party
+        </Link>
+
         <div className="space-y-3 mb-8">
           <ProfileRow
             label="School year"
@@ -232,6 +262,28 @@ export default function ProfilePage() {
           </EditCard>
         )}
 
+        <section className="mb-8">
+          <h3 className="text-white font-montserrat font-semibold mb-3">My parties</h3>
+          {partiesLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#b24bf3]" />
+            </div>
+          ) : myParties.length === 0 ? (
+            <div className="px-4 py-6 rounded-xl bg-zinc-900/80 border border-zinc-800 text-center">
+              <p className="text-white/50 text-sm font-montserrat mb-3">No listings yet</p>
+              <Link href="/create" className="text-[#b24bf3] text-sm font-montserrat font-semibold underline">
+                Create your first party
+              </Link>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {myParties.map((party) => (
+                <MyPartyRow key={party.id} party={party} />
+              ))}
+            </ul>
+          )}
+        </section>
+
         {error && <p className="text-red-400 text-sm font-montserrat mb-3">{error}</p>}
         {info && <p className="text-emerald-400 text-sm font-montserrat mb-3">{info}</p>}
 
@@ -244,6 +296,52 @@ export default function ProfilePage() {
         </button>
       </div>
     </AppShell>
+  );
+}
+
+function statusStyles(status: string | undefined): { label: string; className: string } {
+  switch (status) {
+    case 'approved':
+      return { label: 'Approved', className: 'bg-emerald-500/20 text-emerald-300' };
+    case 'rejected':
+      return { label: 'Rejected', className: 'bg-red-500/20 text-red-300' };
+    case 'pending':
+    default:
+      return { label: 'Awaiting approval', className: 'bg-amber-500/20 text-amber-200' };
+  }
+}
+
+function MyPartyRow({ party }: { party: Party }) {
+  const badge = statusStyles(party.status);
+  const inner = (
+    <>
+      <div className="min-w-0">
+        <p className="text-white font-montserrat font-medium truncate">{party.title}</p>
+        <p className="text-white/40 text-xs font-montserrat mt-0.5">
+          {party.day === 'saturday' ? 'Sat' : 'Fri'} · {party.doorsOpen}
+        </p>
+      </div>
+      <span className={`shrink-0 text-xs font-montserrat px-2 py-1 rounded-full ${badge.className}`}>
+        {badge.label}
+      </span>
+    </>
+  );
+
+  if (party.status === 'approved') {
+    return (
+      <Link
+        href={`/party/${party.id}`}
+        className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-zinc-900/80 border border-zinc-800 hover:border-zinc-600"
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-zinc-900/80 border border-zinc-800">
+      {inner}
+    </div>
   );
 }
 

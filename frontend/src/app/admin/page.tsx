@@ -5,22 +5,32 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/api';
 import { AdminParty } from '@/lib/types';
+import { trackEvent } from '@/utils/analytics';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
+
+const PAGE_SIZE = 20;
 
 export default function AdminPage() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [parties, setParties] = useState<AdminParty[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [filter, setFilter] = useState<StatusFilter>('pending');
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
-  const fetchParties = useCallback(async () => {
+  const fetchParties = useCallback(async (pageOffset: number) => {
     try {
       setLoading(true);
-      const data = await adminApi.getParties(filter === 'all' ? undefined : filter);
-      setParties(data);
+      const data = await adminApi.getParties(
+        filter === 'all' ? undefined : filter,
+        { limit: PAGE_SIZE, offset: pageOffset }
+      );
+      setParties(data.parties);
+      setTotal(data.total);
+      setOffset(data.offset);
     } catch {
       setToast('Failed to load parties');
     } finally {
@@ -34,7 +44,8 @@ export default function AdminPage() {
       return;
     }
     if (user?.isAdmin) {
-      fetchParties();
+      setOffset(0);
+      fetchParties(0);
     }
   }, [user, isLoading, router, fetchParties]);
 
@@ -48,8 +59,9 @@ export default function AdminPage() {
   const handleApprove = async (partyId: string) => {
     try {
       await adminApi.approveParty(partyId);
+      trackEvent('party_approved', { partyId });
       setToast('Party approved');
-      fetchParties();
+      fetchParties(offset);
     } catch {
       setToast('Failed to approve party');
     }
@@ -58,8 +70,9 @@ export default function AdminPage() {
   const handleReject = async (partyId: string) => {
     try {
       await adminApi.rejectParty(partyId);
+      trackEvent('party_rejected', { partyId });
       setToast('Party rejected');
-      fetchParties();
+      fetchParties(offset);
     } catch {
       setToast('Failed to reject party');
     }
@@ -80,6 +93,11 @@ export default function AdminPage() {
     { key: 'rejected', label: 'Rejected' },
   ];
 
+  const canPrev = offset > 0;
+  const canNext = offset + PAGE_SIZE < total;
+  const pageStart = total === 0 ? 0 : offset + 1;
+  const pageEnd = Math.min(offset + PAGE_SIZE, total);
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
@@ -87,7 +105,7 @@ export default function AdminPage() {
         <div className="max-w-xl mx-auto px-4 sm:px-6 flex items-center gap-3">
           <button
             onClick={() => router.push('/')}
-            className="text-white hover:text-[#08CA66] transition-colors p-1"
+            className="text-white hover:text-[#b24bf3] transition-colors p-1"
             aria-label="Back to home"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -109,7 +127,7 @@ export default function AdminPage() {
               onClick={() => setFilter(key)}
               className={`px-4 py-2 rounded-xl text-sm font-bold font-montserrat transition-all duration-200 ${
                 filter === key
-                  ? 'bg-[#08CA66] text-white shadow-lg shadow-[#08CA66]/25'
+                  ? 'bg-[#b24bf3] text-white shadow-lg shadow-[#b24bf3]/25'
                   : 'bg-zinc-800 text-gray-400 hover:text-white hover:bg-zinc-700'
               }`}
             >
@@ -130,85 +148,134 @@ export default function AdminPage() {
             <h2 className="text-xl font-semibold text-gray-400 mb-2 text-center font-montserrat">
               No {filter === 'all' ? '' : filter} parties
             </h2>
-            <p className="text-[#08CA66] text-center font-montserrat text-sm">
+            <p className="text-[#b24bf3] text-center font-montserrat text-sm">
               {filter === 'pending' ? 'Nothing to review right now' : 'Try a different filter'}
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {parties.map((party) => (
-              <div
-                key={party.id}
-                className="bg-[#202023] rounded-2xl overflow-hidden"
-              >
-                <div className="p-5">
-                  {/* Submitter Info */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-gray-400">
-                        {(party.createdByUsername || '?').charAt(0).toUpperCase()}
+          <>
+            <div className="space-y-3">
+              {parties.map((party) => (
+                <div
+                  key={party.id}
+                  className="bg-[#202023] rounded-2xl overflow-hidden"
+                >
+                  {party.posterImage && (
+                    <div className="relative w-full aspect-[16/9] bg-zinc-900">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={party.posterImage}
+                        alt={`${party.title} poster`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="p-5">
+                    {/* Submitter Info */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center">
+                        <span className="text-[10px] font-bold text-gray-400">
+                          {(party.createdByUsername || '?').charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400 font-helvetica">
+                        <span className="font-medium text-gray-300">{party.createdByUsername || 'Unknown'}</span>
+                        {party.createdByEmail && (
+                          <span className="ml-1.5 text-gray-500">{party.createdByEmail}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Category + Status */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="inline-block px-3 py-1 text-[10px] font-bold uppercase bg-[#b24bf3] text-white rounded-full font-montserrat">
+                        {party.category}
                       </span>
+                      <StatusBadge status={party.status || 'pending'} />
                     </div>
-                    <div className="text-xs text-gray-400 font-helvetica">
-                      <span className="font-medium text-gray-300">{party.createdByUsername || 'Unknown'}</span>
-                      {party.createdByEmail && (
-                        <span className="ml-1.5 text-gray-500">{party.createdByEmail}</span>
-                      )}
+
+                    {/* Title */}
+                    <h3 className="text-lg font-black text-white font-montserrat tracking-tight leading-tight mb-1">
+                      {party.title}
+                    </h3>
+
+                    {/* Host */}
+                    <p className="text-white/50 text-sm font-helvetica mb-1">
+                      <span className="font-normal">by </span>
+                      <span className="font-medium">{party.host}</span>
+                    </p>
+
+                    {/* Details */}
+                    <div className="flex items-center gap-4 text-white/50 text-sm font-helvetica mb-2">
+                      <span>{party.address?.split(',')[0] ?? '—'}</span>
+                      <div className="flex items-center gap-1.5">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{party.doorsOpen}</span>
+                      </div>
+                      <span>{party.date}</span>
                     </div>
+
+                    {party.ticketPrice && (
+                      <p className="text-sm text-white/70 font-helvetica mb-2">
+                        Ticket: <span className="text-white font-medium">{party.ticketPrice}</span>
+                      </p>
+                    )}
+
+                    {party.description && (
+                      <p className="text-sm text-white/60 font-helvetica leading-relaxed whitespace-pre-wrap">
+                        {party.description}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Category + Status */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="inline-block px-3 py-1 text-[10px] font-bold uppercase bg-[#08CA66] text-white rounded-full font-montserrat">
-                      {party.category}
-                    </span>
-                    <StatusBadge status={party.status || 'pending'} />
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-lg font-black text-white font-montserrat tracking-tight leading-tight mb-1">
-                    {party.title}
-                  </h3>
-
-                  {/* Host */}
-                  <p className="text-white/50 text-sm font-helvetica mb-1">
-                    <span className="font-normal">by </span>
-                    <span className="font-medium">{party.host}</span>
-                  </p>
-
-                  {/* Details */}
-                  <div className="flex items-center gap-4 text-white/50 text-sm font-helvetica">
-                    <span>{party.address?.split(',')[0] ?? '—'}</span>
-                    <div className="flex items-center gap-1.5">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{party.doorsOpen}</span>
+                  {/* Action Buttons (pending only) */}
+                  {party.status === 'pending' && (
+                    <div className="flex">
+                      <button
+                        onClick={() => handleApprove(party.id)}
+                        className="flex-1 h-[49px] font-bold text-base uppercase bg-[#10B981] text-white hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleReject(party.id)}
+                        className="flex-1 h-[49px] font-bold text-base uppercase bg-red-500 text-white hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
+                      >
+                        Reject
+                      </button>
                     </div>
-                    <span>{party.date}</span>
-                  </div>
+                  )}
                 </div>
+              ))}
+            </div>
 
-                {/* Action Buttons (pending only) */}
-                {party.status === 'pending' && (
-                  <div className="flex">
-                    <button
-                      onClick={() => handleApprove(party.id)}
-                      className="flex-1 h-[49px] font-bold text-base uppercase bg-[#10B981] text-white hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleReject(party.id)}
-                      className="flex-1 h-[49px] font-bold text-base uppercase bg-red-500 text-white hover:opacity-90 active:scale-[0.98] transition-all duration-150 font-montserrat"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                )}
+            {/* Pager */}
+            {total > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-6 gap-3">
+                <button
+                  type="button"
+                  disabled={!canPrev}
+                  onClick={() => fetchParties(Math.max(0, offset - PAGE_SIZE))}
+                  className="px-4 py-2 rounded-xl text-sm font-bold font-montserrat bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-700 transition-colors"
+                >
+                  Prev
+                </button>
+                <span className="text-sm text-gray-400 font-montserrat">
+                  {pageStart}–{pageEnd} of {total}
+                </span>
+                <button
+                  type="button"
+                  disabled={!canNext}
+                  onClick={() => fetchParties(offset + PAGE_SIZE)}
+                  className="px-4 py-2 rounded-xl text-sm font-bold font-montserrat bg-zinc-800 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-700 transition-colors"
+                >
+                  Next
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 

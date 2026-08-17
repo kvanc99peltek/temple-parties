@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # Optional so existing local/Railway .env files that still set it don't fail.
     supabase_anon_key: str | None = None
 
-    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,https://templeparties.com,https://temple-parties.vercel.app,https://tuparties.com,https://www.tuparties.com"
+    cors_origins: str = "https://tuparties.com,https://www.tuparties.com,https://templeparties.com,https://temple-parties.vercel.app"
 
     class Config:
         env_file = ".env"

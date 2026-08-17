@@ -1,23 +1,57 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
+import asyncio
+import logging
+import uuid
+from fastapi import APIRouter, File, HTTPException, Depends, Query, Request, UploadFile
 from typing import List, Optional
 from datetime import date, timedelta
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from app.config import get_settings
 from app.database import supabase
-from app.models.party import PartyCreate, PartyResponse, PartiesListResponse
+from app.models.party import (
+    PartyCreate,
+    PartyResponse,
+    PartiesListResponse,
+    PosterUploadResponse,
+    AddressSuggestion,
+    CreateWeekendOptionsResponse,
+    WeekendOption,
+)
 from app.routers.auth import get_current_user, require_auth
-from app.services.geocoding import geocode_address, generate_fallback_coordinates
+from app.routers.profiles import ensure_profile
+from app.services.geocoding import geocode_address, suggest_addresses
 from app.services import weekend as weekend_service
 from app.services.admin_check import user_is_admin
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/parties", tags=["parties"])
 limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger(__name__)
+
+_POSTER_MAX_BYTES = 1_048_576  # matches posters bucket limit (1MB)
+_POSTER_MIME_TO_EXT = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
 
 # Re-export for callers that still import from this module (admin, ratings).
 EASTERN = weekend_service.EASTERN
 today_eastern = weekend_service.today_eastern
 get_current_weekend = weekend_service.get_current_weekend
+
+
+def _resolve_poster_image(stored: Optional[str]) -> Optional[str]:
+    """Turn a storage path into a public URL; leave legacy absolute URLs as-is."""
+    if not stored:
+        return None
+    if stored.startswith("http://") or stored.startswith("https://"):
+        return stored
+    settings = get_settings()
+    return (
+        f"{settings.supabase_url.rstrip('/')}/storage/v1/object/public/posters/{stored}"
+    )
 
 
 def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
@@ -51,7 +85,7 @@ def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
         likePercentage=like_pct,
         ratingCount=rating_count,
         isVerified=party.get("is_verified", False),
-        posterImage=party.get("poster_image"),
+        posterImage=_resolve_poster_image(party.get("poster_image")),
         description=party.get("description"),
         ticketPrice=party.get("ticket_price"),
         ratingOpen=rating_open,
@@ -200,6 +234,105 @@ async def get_demo_weekend():
     return {"weekendOf": chosen}
 
 
+@router.get("/create-options", response_model=CreateWeekendOptionsResponse)
+async def get_create_options(user: dict = Depends(require_auth)):
+    """
+    Future (and in-progress Saturday) weekends for the create-party picker.
+    Browse `GET /parties` weekend meta can be a *past* Friday on Mon — never use that for create.
+    """
+    del user
+    today = weekend_service.today_eastern()
+    weekends = weekend_service.creatable_weekends(12, today)
+    return CreateWeekendOptionsResponse(
+        today=today.isoformat(),
+        weekends=[
+            WeekendOption(
+                weekendOf=w.weekend_of.isoformat(),
+                fridayDate=w.friday_date.isoformat(),
+                saturdayDate=w.saturday_date.isoformat(),
+            )
+            for w in weekends
+        ],
+    )
+
+
+@router.get("/address-suggest", response_model=list[AddressSuggestion])
+@limiter.limit(RATE_LIMITS["address_suggest"])
+async def address_suggest(
+    request: Request,
+    q: str = Query(..., min_length=3, max_length=200),
+    user: dict = Depends(require_auth),
+):
+    """
+    Autocomplete addresses near Temple via server-side Nominatim.
+    Browsers cannot call Nominatim directly (403) — use this proxy.
+    """
+    del user  # auth required; unused beyond that
+    results = await asyncio.to_thread(suggest_addresses, q)
+    return [AddressSuggestion(**row) for row in results]
+
+
+@router.get("/mine", response_model=List[PartyResponse])
+async def get_my_parties(user: dict = Depends(require_auth)):
+    """
+    Listings created by the current user (pending / approved / rejected).
+    Must be registered before GET /{party_id} so "mine" is not captured as an id.
+    """
+    result = (
+        supabase.table("parties")
+        .select("*")
+        .eq("created_by", user["id"])
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return [db_to_response(party, reveal=True) for party in (result.data or [])]
+
+
+@router.post("/poster", response_model=PosterUploadResponse)
+@limiter.limit(RATE_LIMITS["poster_upload"])
+async def upload_poster(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_auth),
+):
+    """
+    Mediated poster upload (Epic 8.1): client sends an image; backend writes to
+    the posters bucket with a randomized key and returns the storage path only.
+    """
+    content_type = (file.content_type or "").lower().strip()
+    ext = _POSTER_MIME_TO_EXT.get(content_type)
+    if not ext:
+        raise HTTPException(
+            status_code=400,
+            detail="Poster must be JPEG, PNG, WebP, or GIF",
+        )
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if len(raw) > _POSTER_MAX_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Poster must be 1MB or smaller",
+        )
+
+    object_path = f"{user['id']}/{uuid.uuid4().hex}.{ext}"
+
+    try:
+        ensure_profile(user)
+        supabase.storage.from_("posters").upload(
+            object_path,
+            raw,
+            {"content-type": content_type, "upsert": "false"},
+        )
+        return PosterUploadResponse(path=object_path)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("POST /parties/poster failed")
+        raise HTTPException(status_code=400, detail="Failed to upload poster")
+
+
 @router.get("/{party_id}", response_model=PartyResponse)
 async def get_party(
     party_id: str,
@@ -228,19 +361,36 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     """
     Create a new party. Status will be 'pending' until admin approves.
     Rate limited to 10 requests per minute per IP.
-    Field validation (length limits, coordinate ranges) handled by Pydantic model.
+    Geocode failures surface as 422 (no silent fake pins — Epic 8.2 / §8.14).
     """
-    # Determine coordinates: use provided, geocode from address, or fallback to random
+    ensure_profile(user)
+
+    if data.poster_image is not None:
+        prefix = f"{user['id']}/"
+        if not data.poster_image.startswith(prefix):
+            raise HTTPException(
+                status_code=422,
+                detail="poster_image must be a path uploaded by this account",
+            )
+
     lat, lng = data.latitude, data.longitude
     if lat is None or lng is None:
-        geocoded = geocode_address(data.address)
-        if geocoded is not None:
-            lat, lng = geocoded
-        else:
-            lat, lng = generate_fallback_coordinates()
+        # Off the event loop — Nominatim is sync HTTP (§8.13).
+        geocoded = await asyncio.to_thread(geocode_address, data.address)
+        if geocoded is None:
+            raise HTTPException(
+                status_code=422,
+                detail="We couldn't find that address. Check the street and try again.",
+            )
+        lat, lng = geocoded
 
     # Derive day and weekend_of from the submitted date
     party_date = date.fromisoformat(data.date)
+    if not weekend_service.is_creatable_party_date(party_date):
+        raise HTTPException(
+            status_code=422,
+            detail="Party date must be a Friday or Saturday today or in the future",
+        )
     day = "friday" if party_date.weekday() == 4 else "saturday"
     # weekend_of is always the Friday of that weekend
     if party_date.weekday() == 5:  # Saturday
@@ -265,18 +415,24 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
             "status": "pending",
             "weekend_of": weekend.isoformat(),
             "poster_image": data.poster_image,
+            "description": data.description,
+            "ticket_price": data.ticket_price,
         }
 
         result = supabase.table("parties").insert(party_data).execute()
 
         return db_to_response(result.data[0], reveal=True)
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("POST /parties failed")
+        raise HTTPException(status_code=400, detail="Failed to create party")
 
 
 @router.delete("/{party_id}")
-async def delete_party(party_id: str, user: dict = Depends(require_auth)):
+@limiter.limit(RATE_LIMITS["delete_party"])
+async def delete_party(request: Request, party_id: str, user: dict = Depends(require_auth)):
     """
     Delete a party. Only the creator can delete their party.
     """
@@ -358,54 +514,3 @@ async def unmark_going(request: Request, party_id: str, user: dict = Depends(req
     supabase.table("party_going").delete().eq("party_id", party_id).eq("user_id", user["id"]).execute()
 
     return {"going": False, "goingCount": _read_going_count(party_id)}
-
-
-@router.post("/{party_id}/going/anonymous")
-@limiter.limit(RATE_LIMITS["toggle_going_anon"])
-async def increment_going_anonymous(request: Request, party_id: str):
-    """
-    Increment going count for anonymous users.
-    Kept until Epic 10.2 cutover — conflicts with the going_count trigger on dev.
-    """
-    party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()
-
-    if not party_result.data:
-        raise HTTPException(status_code=404, detail="Party not found")
-
-    count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
-    tracked_count = count_result.count if count_result.count is not None else 0
-
-    current_total = party_result.data[0]["going_count"]
-    anonymous_count = max(0, current_total - tracked_count)
-    new_count = tracked_count + anonymous_count + 1
-
-    supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
-
-    return {"going": True, "goingCount": new_count}
-
-
-@router.post("/{party_id}/going/anonymous/decrement")
-@limiter.limit(RATE_LIMITS["toggle_going_anon"])
-async def decrement_going_anonymous(request: Request, party_id: str):
-    """
-    Decrement going count for anonymous users.
-    Kept until Epic 10.2 cutover — conflicts with the going_count trigger on dev.
-    """
-    party_result = supabase.table("parties").select("going_count").eq("id", party_id).execute()
-
-    if not party_result.data:
-        raise HTTPException(status_code=404, detail="Party not found")
-
-    count_result = supabase.table("party_going").select("*", count="exact").eq("party_id", party_id).execute()
-    tracked_count = count_result.count if count_result.count is not None else 0
-
-    current_total = party_result.data[0]["going_count"] or 0
-    anonymous_count = max(0, current_total - tracked_count)
-    if anonymous_count == 0:
-        new_count = tracked_count
-    else:
-        new_count = tracked_count + anonymous_count - 1
-
-    supabase.table("parties").update({"going_count": new_count}).eq("id", party_id).execute()
-
-    return {"going": False, "goingCount": new_count}

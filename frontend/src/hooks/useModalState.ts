@@ -11,8 +11,8 @@ import {
 export const AUTH_GATE_ENABLED = true;
 
 /**
- * Soft-gate + post-auth action replay (Epic 6.7).
- * Login/profile are routes; invite + add-party stay modals until Epic 8.
+ * Soft-gate + post-auth action replay (Epic 6.7 / 8.3).
+ * Login/profile/create are routes; invite stays a modal.
  */
 export default function useModalState(
   isAuthenticated: boolean,
@@ -20,11 +20,9 @@ export default function useModalState(
 ) {
   const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showAddPartyModal, setShowAddPartyModal] = useState(false);
 
   const openInviteModal = useCallback(() => setShowInviteModal(true), []);
   const closeInviteModal = useCallback(() => setShowInviteModal(false), []);
-  const closeAddPartyModal = useCallback(() => setShowAddPartyModal(false), []);
 
   const openLogin = useCallback(
     (action?: PendingAuthAction, next = '/') => {
@@ -37,11 +35,11 @@ export default function useModalState(
 
   const handleAddPartyClick = useCallback(() => {
     if (AUTH_GATE_ENABLED && !isAuthenticated) {
-      openLogin({ type: 'addParty' });
+      openLogin({ type: 'addParty' }, '/create');
       return;
     }
-    setShowAddPartyModal(true);
-  }, [isAuthenticated, openLogin]);
+    router.push('/create');
+  }, [isAuthenticated, openLogin, router]);
 
   const handleAccountClick = useCallback(() => {
     if (isAuthenticated) {
@@ -82,10 +80,10 @@ export default function useModalState(
       await toggleGoing(action.partyId);
       setShowInviteModal(true);
     } else if (action.type === 'addParty') {
-      setShowAddPartyModal(true);
+      router.push('/create');
     }
     return action;
-  }, [isAuthenticated, toggleGoing]);
+  }, [isAuthenticated, router, toggleGoing]);
 
   const cancelPendingAuthAction = useCallback(() => {
     clearPendingAuthAction();
@@ -93,10 +91,8 @@ export default function useModalState(
 
   return {
     showInviteModal,
-    showAddPartyModal,
     openInviteModal,
     closeInviteModal,
-    closeAddPartyModal,
     openLogin,
     handleAddPartyClick,
     handleAccountClick,

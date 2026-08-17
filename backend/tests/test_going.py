@@ -208,3 +208,15 @@ class TestGetUserGoingParties:
     def test_get_user_going_parties_unauthenticated(self, client, mock_supabase):
         response = client.get("/parties/user/going")
         assert response.status_code == 401
+
+
+class TestAnonGoingEndpointsRemoved:
+    """Epic 10.2 — anonymous forgeable write surface must stay gone."""
+
+    def test_anonymous_increment_gone(self, client, mock_supabase, mock_party):
+        response = client.post(f"/parties/{mock_party['id']}/going/anonymous")
+        assert response.status_code == 404
+
+    def test_anonymous_decrement_gone(self, client, mock_supabase, mock_party):
+        response = client.post(f"/parties/{mock_party['id']}/going/anonymous/decrement")
+        assert response.status_code == 404

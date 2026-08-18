@@ -268,8 +268,11 @@ export default function PartyPage() {
             />
 
             <div className="flex gap-2.5">
+              {/* No price text: a ticketed party says ONLINE (the link knows
+                  the price), a plain one says FREE. "FREE / TICKETS" next to
+                  a BUY TICKETS bar would be a lie. */}
               <StatTile
-                value={party.ticketPrice ?? 'FREE'}
+                value={party.ticketPrice || (ticketed ? 'ONLINE' : 'FREE')}
                 label={ticketed ? 'TICKETS' : 'COVER'}
               />
               <StatTile value={goingCount === null ? '—' : String(goingCount)} label="GOING" />

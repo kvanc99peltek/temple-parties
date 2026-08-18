@@ -20,8 +20,10 @@ logged-out address gate, inline rating panel, sticky action bar + WF-D2 BUY TICK
 New reusable kit in `frontend/src/components/ui/` + `components/party/`; design decisions
 recorded in root `DESIGN.md`. Backend gained `doors_close` / `external_ticket_url` / promo
 fields (schema 020, applied to DEV), `hostStats` + `isHeadliner` on GET /parties/{id}, the
-going-only rating gate, and PATCH /parties/{id} with approved→pending re-review.
-Backend 216 / frontend 85 green; `npm run build` clean.
+going-only rating gate, and PATCH /parties/{id} with approved→pending re-review. The create
+form's final step now collects the ticket link (WF-D2 trigger) and a promo code — hosts can
+self-serve both; the schema-020 fields are reachable end to end.
+Backend 221 / frontend 96 green; `npm run build` clean.
 **Owner still needs:** everything in Blocked below (unchanged), plus schema 020 on prod at cutover.
 
 ---
@@ -85,6 +87,7 @@ Backend 216 / frontend 85 green; `npm run build` clean.
 
 | Date | What Was Done |
 |------|---------------|
+| 2026-08-17 (late) | Hosts can self-serve ticket links + promo codes in the create form (schema-020 fields finally reachable): "Tickets" step = link + price text + promo disclosure. New `utils/ticketUrl.ts` (client mirror of the server's https-only rule, 11 tests); promo code+deal pairing checked in-form, code uppercased as typed, DashedCard disclosure clears on close; party page tile shows `ONLINE / TICKETS` when link-without-price. `party_created` gains `has_ticket_url` / `has_promo`. 96 frontend green, build clean. Known gap: no edit UI yet — links can't be added to already-submitted parties |
 | 2026-08-17 (night) | Full-surface repaint + host funnel on `epic-8`: Rankings (dropdown kept, champion stage hero, medal cards, `posterImage` on rankings API), Profile (identity card, role-aware CTA stack, status chips), map popups + day tabs to system, sponsor system revived (config-driven), Become-a-host WF-BH 3-step flow, host org identity (locked host name + Frat gate, server-enforced, `/host` read-only page), grad-year field, shared AddressAutocomplete, 4:5 poster preview. Strict build caught 3 dev-hidden errors (fixed). 221 backend / 85 frontend green, build clean |
 | 2026-08-17 (pm) | Owner design iteration on `epic-8`: compact card back to classic 42%-poster layout (new skin, whole-card tap target, no address), reddit-style VoteArrow (fills secondary when cast), HEADLINER badge copy + category chips on hero/detail, server `isHeadliner`, WhenWhereCard (date/time/address + `/map?party=<id>` deep-link w/ PartyFocusHandler), sticky bar 70/30, rating copy softened, server-seeded own-vote on detail. Created root `DESIGN.md` (4.1). 216 backend / 85 frontend green, build clean |
 | 2026-08-17 | WF-B2/WF-D redesign on `epic-8`: ui kit (`components/ui/` + `components/party/`), HeadlinerCard + compact PartyCard, party page rebuild (sticky bar, promo, gate, rating panel), hostStats endpoint, going-only gate, PATCH re-review, schema 020 fields kept from prior session; 214 backend / 85 frontend green |

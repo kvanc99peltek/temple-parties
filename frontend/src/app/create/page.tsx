@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
+import DashedCard from '@/components/ui/DashedCard';
 import WeekendCalendarPicker, {
   formatWeekendRange,
   type WeekendOption,
@@ -18,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { partiesApi, hostsApi } from '@/services/api';
 import type { HostApplication } from '@/lib/types';
 import { resizePosterFile } from '@/utils/posterImage';
+import { normalizeTicketUrl } from '@/utils/ticketUrl';
 import { trackEvent } from '@/utils/analytics';
 
 const DOOR_TIMES = ['9 PM', '10 PM', '11 PM', '12 AM'];
@@ -47,6 +49,16 @@ export default function CreatePartyPage() {
   const [selectedWeekendOf, setSelectedWeekendOf] = useState('');
   const [description, setDescription] = useState('');
   const [ticketPrice, setTicketPrice] = useState('');
+  // Raw ticket-link text as typed; cleaned by normalizeTicketUrl on submit.
+  // When it survives, the party page grows a BUY TICKETS bar (WF-D2).
+  const [ticketLink, setTicketLink] = useState('');
+  // Promo lives behind a disclosure so the Tickets step doesn't open as five
+  // bare inputs. Code + label travel together (the party page's coupon only
+  // renders when BOTH exist — the server enforces the same pairing).
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoLabel, setPromoLabel] = useState('');
+  const [promoHint, setPromoHint] = useState('');
   const [posterPath, setPosterPath] = useState<string | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [pendingPosterBlob, setPendingPosterBlob] = useState<Blob | null>(null);
@@ -195,7 +207,13 @@ export default function CreatePartyPage() {
     setPosterPath(null);
   };
 
-  const submitParty = async () => {
+  // `ticketUrl` and `promo` arrive already cleaned/validated by
+  // handleTicketSubmit — this function never sees raw input, so the payload
+  // can trust them as-is.
+  const submitParty = async (
+    ticketUrl?: string,
+    promo?: { code: string; label: string; hint?: string }
+  ) => {
     setSubmitting(true);
     setError('');
     try {
@@ -218,6 +236,10 @@ export default function CreatePartyPage() {
         longitude: coords?.lng,
         description: description.trim() || undefined,
         ticket_price: ticketPrice.trim() || undefined,
+        external_ticket_url: ticketUrl,
+        promo_code: promo?.code,
+        promo_label: promo?.label,
+        promo_hint: promo?.hint,
         poster_image: path || undefined,
       });
 
@@ -226,6 +248,8 @@ export default function CreatePartyPage() {
         has_poster: !!path,
         has_description: !!description.trim(),
         has_ticket_price: !!ticketPrice.trim(),
+        has_ticket_url: !!ticketUrl,
+        has_promo: !!promo,
         day: date === selectedWeekend?.saturdayDate ? 'saturday' : 'friday',
         weekend_of: selectedWeekend?.weekendOf,
       });
@@ -241,6 +265,37 @@ export default function CreatePartyPage() {
     e.preventDefault();
     if (!validateBasics()) return;
     goNext();
+  };
+
+  // Final step's submit: clean the ticket link and check the promo pairing
+  // (or stop with field errors), then hand send-ready values to submitParty.
+  const handleTicketSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const nextErrors: Record<string, string> = {};
+
+    const { url, error: linkError } = normalizeTicketUrl(ticketLink);
+    if (linkError) nextErrors.ticketLink = linkError;
+
+    // Promo rule (same as the server's): the code and its label travel
+    // together — a code nobody can read or a label with nothing to copy
+    // would render no coupon at all. Hint alone counts as "started a promo".
+    const code = promoCode.trim();
+    const label = promoLabel.trim();
+    const hint = promoHint.trim();
+    if (code || label || hint) {
+      if (!code) nextErrors.promoCode = 'Add the code itself — that’s what people copy.';
+      else if (code.length < 2) nextErrors.promoCode = 'Codes are 2–24 letters and numbers.';
+      if (!label) nextErrors.promoLabel = 'Add the deal line — what the code gets them.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors((p) => ({ ...p, ...nextErrors }));
+      return;
+    }
+
+    const promo =
+      code && label ? { code, label, hint: hint || undefined } : undefined;
+    void submitParty(url, promo);
   };
 
   const stepIndex = STEPS.indexOf(step);
@@ -506,26 +561,122 @@ export default function CreatePartyPage() {
         )}
 
         {step === 'ticket' && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submitParty();
-            }}
-            className="space-y-5"
-          >
+          <form onSubmit={handleTicketSubmit} className="space-y-5">
             <div>
-              <h1 className="text-white text-2xl font-montserrat font-semibold">Ticket price</h1>
+              <h1 className="text-white text-2xl font-montserrat font-semibold">Tickets</h1>
               <p className="text-white/60 text-sm font-montserrat mt-1">
-                Optional display text — not a payment link.
+                All optional — skip if the door handles it.
               </p>
             </div>
-            <input
-              value={ticketPrice}
-              onChange={(e) => setTicketPrice(e.target.value.slice(0, 50))}
-              placeholder="e.g., Free · $10 at door"
-              className={inputClass}
-              maxLength={50}
-            />
+
+            <Field
+              label="Ticket link"
+              error={errors.ticketLink}
+              hint="Selling online? Paste the page — your listing gets a BUY TICKETS button."
+            >
+              <input
+                value={ticketLink}
+                onChange={(e) => {
+                  setTicketLink(e.target.value.slice(0, 500));
+                  if (errors.ticketLink) setErrors((p) => ({ ...p, ticketLink: '' }));
+                }}
+                // url inputMode + no autocap/autocorrect: phone keyboards love
+                // to "fix" URLs into sentences.
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={500}
+                placeholder="posh.vip/e/your-party"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Price text" hint="Shows on your listing as-is — it's a label, not a checkout.">
+              <input
+                value={ticketPrice}
+                onChange={(e) => setTicketPrice(e.target.value.slice(0, 50))}
+                placeholder="e.g., Free · $10 at door"
+                className={inputClass}
+                maxLength={50}
+              />
+            </Field>
+
+            {/* Promo code — collapsed until wanted. The dashed border is the
+                app's coupon cue, so the disclosure previews exactly what
+                partygoers will see on the party page. */}
+            {!promoOpen ? (
+              <DashedCard onClick={() => setPromoOpen(true)} className="px-4 py-3.5">
+                <p className="text-white font-montserrat font-semibold text-sm">
+                  ＋ Add a promo code
+                </p>
+                <p className="text-white/50 text-xs font-montserrat mt-0.5">
+                  A code people copy from your listing — $5 off, free cover, your call.
+                </p>
+              </DashedCard>
+            ) : (
+              <DashedCard className="px-4 py-4 space-y-4">
+                <Field label="Code" error={errors.promoCode} hint="2–24 letters and numbers — saved in ALL CAPS.">
+                  <input
+                    value={promoCode}
+                    onChange={(e) => {
+                      // Uppercase as they type — this is exactly the string
+                      // partygoers will copy (the server uppercases too).
+                      setPromoCode(
+                        e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 24)
+                      );
+                      if (errors.promoCode) setErrors((p) => ({ ...p, promoCode: '' }));
+                    }}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={24}
+                    placeholder="e.g., MONTY10"
+                    className={`${inputClass} font-bold tracking-[2px]`}
+                  />
+                </Field>
+
+                <Field label="Deal" error={errors.promoLabel}>
+                  <input
+                    value={promoLabel}
+                    onChange={(e) => {
+                      setPromoLabel(e.target.value.slice(0, 40));
+                      if (errors.promoLabel) setErrors((p) => ({ ...p, promoLabel: '' }));
+                    }}
+                    maxLength={40}
+                    placeholder="e.g., $5 off before 11"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label="Fine print" hint="Optional — how to actually use it.">
+                  <input
+                    value={promoHint}
+                    onChange={(e) => setPromoHint(e.target.value.slice(0, 200))}
+                    maxLength={200}
+                    placeholder="e.g., Show the code at the door"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Clearing on close means a half-typed promo can't
+                    // resurface in the payload later.
+                    setPromoOpen(false);
+                    setPromoCode('');
+                    setPromoLabel('');
+                    setPromoHint('');
+                    setErrors((p) => ({ ...p, promoCode: '', promoLabel: '' }));
+                  }}
+                  className="text-sm font-montserrat text-white/50 underline"
+                >
+                  Remove promo code
+                </button>
+              </DashedCard>
+            )}
+
             {error && <p className="text-red-400 text-sm font-montserrat">{error}</p>}
             <div className="flex gap-3">
               <SecondaryButton onClick={goBack} disabled={submitting}>

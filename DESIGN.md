@@ -96,6 +96,12 @@ server-side, surfaced as toast, never preached in copy) → INVITE → sticky ba
    reserved for the compact GOING pill and avatars.
 5. **Map popups mirror cards.** Their CSS in `globals.css` consumes the same
    `--temple-*` vars; change colors once.
+6. **Forms mirror server validation, in friendlier words.** The server 422 is
+   the backstop, never the UX: rules a host can hit get checked client-side
+   with a human sentence under the field (ticket link https rule in
+   `utils/ticketUrl.ts`, promo code+label pairing, grad-year list). Helpful
+   fixes are applied for them (bare domain → https:// prepended); explicit
+   mistakes are explained, never silently rewritten (http:// stays an error).
 
 ## Decision log
 
@@ -119,3 +125,6 @@ server-side, surfaced as toast, never preached in copy) → INVITE → sticky ba
 | 2026-08-17 | Host org identity: approved application locks the posting host name and gates the Frat Party category (server-enforced); read-only `/host` page is the future paid-tier seam |
 | 2026-08-17 | AddressAutocomplete extracted to the kit — create-party + become-host share it |
 | 2026-08-17 | Poster upload preview = 4:5 vertical, same ratio the app renders flyers |
+| 2026-08-17 | Create form's last step = "Tickets": ticket link + price text + promo, all optional. Link validated client-side (`utils/ticketUrl.ts` mirrors the server's https-only rule; bare `posh.vip/…` gets https:// glued on; explicit http:// errors instead of rewriting) — a saved link is what flips the party page to WF-D2 BUY TICKETS |
+| 2026-08-17 | Promo entry hides behind a DashedCard disclosure — the dashed coupon cue previews the party-page PromoCard. Code uppercases as typed (it IS the string people copy); code+deal are required together (server pairing rule, checked in the form first); closing the disclosure clears all three fields |
+| 2026-08-17 | Ticketed party with no price text reads `ONLINE / TICKETS` on the stat tile — `FREE / TICKETS` next to a BUY TICKETS bar would lie |

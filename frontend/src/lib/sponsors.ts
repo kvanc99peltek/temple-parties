@@ -24,21 +24,23 @@ export interface SponsorConfig {
   orderUrl?: string;
 }
 
+// No active sponsor right now — array is empty so nothing renders anywhere.
+// To bring a sponsor back, uncomment the entry below (or add a new one).
 export const SPONSORS: SponsorConfig[] = [
-  {
-    id: 'hangry-joes',
-    name: "Hangry Joe's",
-    bannerText: "Hungry? Check out Hangry Joe's",
-    address: '1422 Cecil B. Moore Ave, Philadelphia, PA 19121',
-    latitude: 39.97866057729966,
-    longitude: -75.15908057988015,
-    pinLabel: 'HJ',
-    popupDescription: 'Halal Hot Chicken',
-    tagline: 'Beer Available (ID required)',
-    tagline2: 'Everyone In The Group Must Be 21+',
-    hoursInfo: 'Open till 2 am',
-    orderUrl: 'https://order.incentivio.com/c/hangryjoes/locations/philadelphiacecilbmooreave',
-  },
+  // {
+  //   id: 'hangry-joes',
+  //   name: "Hangry Joe's",
+  //   bannerText: "Hungry? Check out Hangry Joe's",
+  //   address: '1422 Cecil B. Moore Ave, Philadelphia, PA 19121',
+  //   latitude: 39.97866057729966,
+  //   longitude: -75.15908057988015,
+  //   pinLabel: 'HJ',
+  //   popupDescription: 'Halal Hot Chicken',
+  //   tagline: 'Beer Available (ID required)',
+  //   tagline2: 'Everyone In The Group Must Be 21+',
+  //   hoursInfo: 'Open till 2 am',
+  //   orderUrl: 'https://order.incentivio.com/c/hangryjoes/locations/philadelphiacecilbmooreave',
+  // },
 ];
 
 /** The one sponsor surfaces render today; undefined when SPONSORS is empty. */

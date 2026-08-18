@@ -99,7 +99,15 @@ export default function CreatePartyPage() {
           router.replace('/become-host');
           return;
         }
-        if (me.application?.status === 'approved') setHostOrg(me.application);
+        if (me.application?.status === 'approved') {
+          setHostOrg(me.application);
+        } else if (!user?.isAdmin) {
+          // Parties render under the host account's org name, so a legacy
+          // is_host flag with no approved application isn't enough to post —
+          // there'd be no name to post under. Apply first (admins excepted).
+          router.replace('/become-host');
+          return;
+        }
         setHostChecking(false);
       } catch {
         if (!cancelled) router.replace('/become-host');
@@ -108,7 +116,7 @@ export default function CreatePartyPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, needsOnboarding, isLoading, router]);
+  }, [isAuthenticated, needsOnboarding, isLoading, router, user]);
 
   useEffect(() => {
     if (hostPrefillRef.current) return;

@@ -238,7 +238,7 @@ export default function ProfilePage() {
                   Host application · {hostApplication.orgName}
                 </p>
                 <p className="text-temple-muted text-[12px] font-montserrat mt-0.5">
-                  DM CLAIM to @tuparties if you haven&apos;t yet
+                  DM &quot;claim&quot; to @rafiatamir_ if you haven&apos;t yet
                 </p>
               </div>
               <span className="shrink-0 font-montserrat font-bold text-[10px] tracking-[0.8px] uppercase px-2.5 py-1.5 rounded bg-amber-500/20 text-amber-200">

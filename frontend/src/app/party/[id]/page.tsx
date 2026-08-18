@@ -9,8 +9,9 @@
  * host credibility row → date/time → cover & going stat tiles → promo code
  * (the attribution coupon) → address + navigate (or the sign-in gate) →
  * host's description → the "WAS IT GOOD?" rating module → invite → sticky
- * actions. Ticketed parties (WF-D2) swap the sticky bar to BUY TICKETS
- * primary with GOING as a quiet outline.
+ * actions. The sticky bar is always primary-action + navigate: ticketed
+ * parties (WF-D2) put BUY TICKETS in the primary slot (GOING lives on the
+ * feed card for those), everyone else gets GOING there.
  *
  * Soft gate: logged-out visitors see everything EXCEPT the address (the
  * server nulls it, plus the counts) — the address module becomes the
@@ -134,6 +135,17 @@ export default function PartyPage() {
     openMapsDirections(party.address);
     trackEvent('navigate_clicked', { partyId: party.id, source: 'party_page' });
   }, [party, partyId, isAuthenticated, openLogin, requireAuthForGoing, ensureGoing]);
+
+  // Buying a ticket implies attending — the same silent auto-RSVP rule as
+  // navigate, so the GOING count reflects buyers without an extra tap (no
+  // toast, no invite modal). Logged-out visitors pass straight through to
+  // the ticket page: hijacking a purchase with a login redirect would cost
+  // the host a sale. The <a> itself still opens the ticket URL.
+  const handleBuyTickets = useCallback(() => {
+    if (!party) return;
+    trackEvent('buy_tickets_clicked', { partyId: party.id });
+    if (isAuthenticated) void ensureGoing(party.id);
+  }, [party, isAuthenticated, ensureGoing]);
 
   // Inline thumbs submit directly — the party page IS the context, no modal.
   const handleRate = useCallback(async (rating: 1 | 0) => {
@@ -316,52 +328,43 @@ export default function PartyPage() {
           </div>
         </div>
 
-        {/* Sticky actions. Ticketed parties (WF-D2): BUY TICKETS deep-links
-            out (the backend already appended ref=tuparty so redemptions
-            prove we drove the sale); GOING survives as the in-app signal. */}
+        {/* Sticky actions — one anatomy for every party: a 70/30 split where
+            both actions fill the bar's full height. The primary (purple) slot
+            is the party's ONE main action: BUY TICKETS when the party sells
+            tickets (it deep-links out; the backend already appended
+            ref=tuparty so redemptions prove we drove the sale), GOING
+            otherwise. Navigate always keeps its light-purple seat on the
+            right. Ticketed parties still take GOING taps from the feed card. */}
         <StickyActionBar>
-          {ticketed ? (
-            <>
+          <div className="flex-[7] min-w-0 flex">
+            {ticketed ? (
+              <a
+                href={party.ticketUrl!}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleBuyTickets}
+                className="flex-1 min-w-0 py-3 rounded-[10px] bg-temple-purple text-white font-montserrat font-bold text-[14px] uppercase text-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+              >
+                BUY TICKETS ↗
+              </a>
+            ) : (
               <GoingButton
                 currentCount={goingCount}
                 userIsGoing={userIsGoing}
                 onGoingClick={handleGoing}
                 variant="bar"
-                tone="secondary"
               />
-              <a
-                href={party.ticketUrl!}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackEvent('buy_tickets_clicked', { partyId: party.id })}
-                className="flex-1 min-w-0 py-3 rounded-[10px] bg-temple-purple text-white font-montserrat font-bold text-[14px] uppercase text-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
-              >
-                BUY TICKETS ↗
-              </a>
-            </>
-          ) : (
-            <>
-              {/* 70/30 split — both actions fill the bar's full height, no
-                  little square button floating in it. */}
-              <div className="flex-[7] min-w-0 flex">
-                <GoingButton
-                  currentCount={goingCount}
-                  userIsGoing={userIsGoing}
-                  onGoingClick={handleGoing}
-                  variant="bar"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleNavigate}
-                aria-label="Navigate"
-                title="Opens walking directions"
-                className="flex-[3] py-3 rounded-[10px] bg-temple-purple-light text-temple-purple flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
-              >
-                <NavigateIcon className="w-[18px] h-[18px]" />
-              </button>
-            </>
-          )}
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleNavigate}
+            aria-label="Navigate"
+            title="Opens walking directions"
+            className="flex-[3] py-3 rounded-[10px] bg-temple-purple-light text-temple-purple flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+          >
+            <NavigateIcon className="w-[18px] h-[18px]" />
+          </button>
         </StickyActionBar>
 
         <InviteModal isOpen={showInviteModal} onClose={closeInviteModal} onShare={handleShare} />

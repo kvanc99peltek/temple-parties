@@ -46,13 +46,13 @@ describe('API Service', () => {
         expect(result.message).toMatch(/code|sent/i);
       });
 
-      it('should throw error for non-temple email', async () => {
+      it('should throw error for non-college email', async () => {
         mockFetch.mockResolvedValueOnce({
           ok: false,
-          json: () => Promise.resolve({ detail: 'Only @temple.edu email addresses are allowed' }),
+          json: () => Promise.resolve({ detail: 'Only college (.edu) email addresses are allowed' }),
         });
 
-        await expect(authApi.requestOtp('user@gmail.com')).rejects.toThrow('temple.edu');
+        await expect(authApi.requestOtp('user@gmail.com')).rejects.toThrow('.edu');
       });
 
       it('should handle network errors', async () => {

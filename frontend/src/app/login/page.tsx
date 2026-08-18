@@ -11,12 +11,14 @@ type LoginStep = 'why' | 'sign-in';
 /**
  * Login screen — Microsoft (Azure) is the only live sign-in path.
  *
- * Two in-page steps: a campus-only explainer, then the SSO button. The
+ * Two in-page steps: a students-only explainer, then the SSO button. The
  * email-OTP flow still exists end to end (`requestOtp` / `verifyOtp` in
  * AuthContext, `/auth/otp/*` in the backend) but is deliberately not rendered
- * here. It is the break-glass fallback: if Temple IT ever blocks user consent
- * for third-party apps, students hit AADSTS65001 and Microsoft stops working
- * for everyone. Restoring the code form is a one-file change to this page.
+ * here. It is the break-glass fallback: any school's IT can block user
+ * consent for third-party apps, and with sign-in open to every college
+ * (Scope A) each campus is its own gatekeeper — students at a blocked school
+ * hit AADSTS65001 and Microsoft stops working for them. Restoring the code
+ * form is a one-file change to this page.
  */
 function LoginForm() {
   const router = useRouter();
@@ -84,18 +86,19 @@ function LoginForm() {
         {step === 'why' ? (
           <>
             <h1 className="text-white text-2xl font-semibold font-montserrat">
-              Temple students only
+              College students only
             </h1>
             <p className="text-white/60 font-montserrat text-sm mt-2 leading-relaxed">
-              We require a Temple email so this stays campus — real students, not
-              random people off the internet. That keeps parties safer.
+              We require a college (.edu) email so this stays student — real
+              students, not random people off the internet. That keeps parties
+              safer.
             </p>
           </>
         ) : (
           <>
             <h1 className="text-white text-2xl font-semibold font-montserrat">Create an account</h1>
             <p className="text-white/60 font-montserrat text-sm mt-2">
-              Sign in with Temple Microsoft SSO. Students only.
+              Sign in with your school&apos;s Microsoft account. Students only.
             </p>
           </>
         )}

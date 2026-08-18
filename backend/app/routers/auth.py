@@ -8,7 +8,7 @@ from app.rate_limit import client_ip_key
 from supabase_auth.errors import AuthApiError
 from app.database import supabase
 from app.models.user import UserCreate, OtpVerify
-from app.constants import ALLOWED_EMAIL_DOMAIN, RATE_LIMITS
+from app.constants import ALLOWED_EMAIL_TLD, RATE_LIMITS
 from app.services.email_rate_limit import EmailRateLimiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -22,12 +22,26 @@ _otp_verify_by_email = EmailRateLimiter(max_calls=10, window_seconds=60)
 _OTP_CODE_RE = re.compile(r"^\d{6}$")
 
 
-def _normalize_temple_email(email: str) -> str:
+# The domain part of an allowed email: letters/digits/dots/dashes ending in
+# .edu — e.g. "temple.edu", "sas.upenn.edu". Anchored so "temple.edu.evil.com"
+# (extra labels AFTER .edu) can't pass.
+_EDU_DOMAIN_RE = re.compile(r"^[a-z0-9.-]+\.edu$")
+
+
+def _normalize_edu_email(email: str) -> str:
+    """Lowercase the email and require a college (.edu) domain — any school.
+
+    We validate the domain part (everything after the last '@') rather than
+    just the string's ending, so only the actual mail domain is judged.
+    Pydantic's EmailStr already rejected malformed addresses before the
+    router runs; this is purely the "students only" gate.
+    """
     normalized = email.strip().lower()
-    if not normalized.endswith(ALLOWED_EMAIL_DOMAIN):
+    local_part, at, domain = normalized.rpartition("@")
+    if not at or not local_part or not _EDU_DOMAIN_RE.fullmatch(domain):
         raise HTTPException(
             status_code=400,
-            detail="Only @temple.edu email addresses are allowed",
+            detail=f"Only college ({ALLOWED_EMAIL_TLD}) email addresses are allowed",
         )
     return normalized
 
@@ -139,10 +153,10 @@ async def _request_otp(email: str) -> dict:
 @limiter.limit(RATE_LIMITS["otp_request"])
 async def request_otp(request: Request, data: UserCreate):
     """
-    Request a 6-digit email OTP for @temple.edu signup/login.
+    Request a 6-digit email OTP for college (.edu) signup/login.
     Rate limited per IP (slowapi) and per email (in-process).
     """
-    email = _normalize_temple_email(data.email)
+    email = _normalize_edu_email(data.email)
     return await _request_otp(email)
 
 
@@ -153,7 +167,7 @@ async def verify_otp(request: Request, data: OtpVerify):
     Verify a 6-digit email OTP and return a Supabase session JWT.
     Profile row is created by the auth.users INSERT trigger (Epic 3.4).
     """
-    email = _normalize_temple_email(data.email)
+    email = _normalize_edu_email(data.email)
     code = data.code.strip()
 
     if not _OTP_CODE_RE.match(code):
@@ -202,5 +216,5 @@ async def signup(request: Request, data: UserCreate):
     Backward-compatible alias for POST /auth/otp/request.
     Prefer /auth/otp/request — this path remains for older clients/tests.
     """
-    email = _normalize_temple_email(data.email)
+    email = _normalize_edu_email(data.email)
     return await _request_otp(email)

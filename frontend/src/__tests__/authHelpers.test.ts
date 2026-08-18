@@ -1,20 +1,30 @@
 import {
-  isTempleEmail,
+  isEduEmail,
   loginErrorFromQuery,
   microsoftCallbackUrl,
   sanitizeNextPath,
 } from '@/lib/authHelpers';
 
-describe('isTempleEmail', () => {
-  it('accepts temple.edu ignoring case and space', () => {
-    expect(isTempleEmail('a@temple.edu')).toBe(true);
-    expect(isTempleEmail('  B@Temple.EDU ')).toBe(true);
+describe('isEduEmail', () => {
+  it('accepts any college .edu ignoring case and space', () => {
+    expect(isEduEmail('a@temple.edu')).toBe(true);
+    expect(isEduEmail('  B@Temple.EDU ')).toBe(true);
+    expect(isEduEmail('a@drexel.edu')).toBe(true);
+    // Subdomained school addresses are still that school.
+    expect(isEduEmail('a@sas.upenn.edu')).toBe(true);
   });
 
-  it('rejects other domains', () => {
-    expect(isTempleEmail('a@gmail.com')).toBe(false);
-    expect(isTempleEmail('a@temple.edu.fake.com')).toBe(false);
-    expect(isTempleEmail(null)).toBe(false);
+  it('rejects non-college domains', () => {
+    expect(isEduEmail('a@gmail.com')).toBe(false);
+    // ".edu" buried mid-domain must not count — only the real TLD.
+    expect(isEduEmail('a@temple.edu.fake.com')).toBe(false);
+    expect(isEduEmail(null)).toBe(false);
+  });
+
+  it('rejects strings that are not addressed emails at all', () => {
+    // A bare domain typed into the email box has no local part.
+    expect(isEduEmail('temple.edu')).toBe(false);
+    expect(isEduEmail('@temple.edu')).toBe(false);
   });
 });
 
@@ -44,8 +54,10 @@ describe('microsoftCallbackUrl', () => {
 });
 
 describe('loginErrorFromQuery', () => {
-  it('explains temple-only and admin-consent failures', () => {
-    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).toMatch(/Temple Microsoft/);
+  it('explains students-only and admin-consent failures', () => {
+    expect(loginErrorFromQuery(new URLSearchParams('error=edu'))).toMatch(/\.edu/);
+    // Pre-Scope-A bounces still in flight during a deploy carry error=temple.
+    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).toMatch(/\.edu/);
     expect(
       loginErrorFromQuery(new URLSearchParams('error_description=AADSTS65001+admin+consent'))
     ).toMatch(/approve this app/);
@@ -67,8 +79,8 @@ describe('loginErrorFromQuery', () => {
   // /auth/callback preserves `next` alongside `error`; the presence of a
   // destination must not change which message we show.
   it('ignores next when deciding the message', () => {
-    expect(loginErrorFromQuery(new URLSearchParams('error=temple&next=%2Fparty%2Fabc'))).toMatch(
-      /Temple Microsoft/
+    expect(loginErrorFromQuery(new URLSearchParams('error=edu&next=%2Fparty%2Fabc'))).toMatch(
+      /\.edu/
     );
   });
 });

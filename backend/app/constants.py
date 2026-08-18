@@ -1,5 +1,7 @@
-# Allowed email domain for signup
-ALLOWED_EMAIL_DOMAIN = "@temple.edu"
+# Allowed email TLD for signup. Registering a .edu domain requires being an
+# accredited US college, so "has a .edu address" is our "real student" check.
+# Any school qualifies — parties themselves are still Temple-only (Scope A).
+ALLOWED_EMAIL_TLD = ".edu"
 
 # Temple University area bounds for random coordinate generation
 TEMPLE_BOUNDS = {

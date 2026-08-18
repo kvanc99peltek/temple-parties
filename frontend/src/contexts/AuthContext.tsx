@@ -15,7 +15,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { User as ProfileUser } from '@/lib/types';
 import { isOnboardingRequired, writeOnboardingComplete } from '@/lib/onboarding';
 import { trackEvent } from '@/utils/analytics';
-import { isTempleEmail, microsoftCallbackUrl, sanitizeNextPath } from '@/lib/authHelpers';
+import { isEduEmail, microsoftCallbackUrl, sanitizeNextPath } from '@/lib/authHelpers';
 
 export type AuthUser = {
   id: string;
@@ -342,8 +342,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: {
             scopes: 'email',
             redirectTo: microsoftCallbackUrl(window.location.origin, sanitizeNextPath(nextPath)),
+            // No domain_hint here: it used to steer Microsoft's picker toward
+            // temple.edu, but sign-in is now open to any college, so students
+            // pick their own school account. /auth/callback still enforces
+            // that whatever account comes back has a .edu email.
             queryParams: {
-              domain_hint: 'temple.edu',
               // By default Microsoft silently reuses whoever is already signed
               // in on this browser — great on your own phone, wrong on a
               // friend's computer. `prompt: 'select_account'` forces the
@@ -366,8 +369,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestOtp = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
     const normalized = email.trim().toLowerCase();
-    if (!isTempleEmail(normalized)) {
-      return { success: false, error: 'Please use your Temple.edu email' };
+    if (!isEduEmail(normalized)) {
+      return { success: false, error: 'Please use your college .edu email' };
     }
 
     try {

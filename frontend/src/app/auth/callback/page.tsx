@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { isTempleEmail, sanitizeNextPath } from '@/lib/authHelpers';
+import { isEduEmail, sanitizeNextPath } from '@/lib/authHelpers';
 
 function AuthCallback() {
   const router = useRouter();
@@ -49,9 +49,9 @@ function AuthCallback() {
         return;
       }
 
-      if (!isTempleEmail(session.user.email)) {
+      if (!isEduEmail(session.user.email)) {
         await supabase.auth.signOut();
-        fail('temple');
+        fail('edu');
         return;
       }
 

@@ -37,22 +37,35 @@ class TestOtpRequest:
         call_args = mock_supabase.auth.sign_in_with_otp.call_args[0][0]
         assert call_args["email"] == "student@temple.edu"
 
-    def test_otp_request_non_temple_email_rejected(self, client, mock_supabase):
+    def test_otp_request_any_college_edu_accepted(self, client, mock_supabase):
+        # Scope A: sign-up is open to every college, not just Temple. Parties
+        # themselves are still Temple-only — this only widens accounts.
+        mock_supabase.auth.sign_in_with_otp = MagicMock(return_value=Mock())
+
+        for email in [
+            "student@drexel.edu",
+            "student@upenn.edu",
+            "student@sas.upenn.edu",  # schools often mail from subdomains
+            "STUDENT@LASALLE.EDU",
+        ]:
+            response = client.post("/auth/otp/request", json={"email": email})
+            assert response.status_code == 200, f"Email {email} should be accepted"
+
+    def test_otp_request_non_edu_email_rejected(self, client, mock_supabase):
         response = client.post("/auth/otp/request", json={"email": "user@gmail.com"})
 
         assert response.status_code == 400
-        assert "temple.edu" in response.json()["detail"].lower()
+        assert ".edu" in response.json()["detail"].lower()
         mock_supabase.auth.sign_in_with_otp.assert_not_called()
 
-    def test_otp_request_similar_domain_rejected(self, client, mock_supabase):
+    def test_otp_request_edu_lookalike_domain_rejected(self, client, mock_supabase):
+        # ".edu" must be the actual TLD — not buried mid-domain, not a longer
+        # TLD that merely starts with it.
         test_emails = [
             "user@temple.edu.fake.com",
-            "user@fake-temple.edu",
             "user@templedu.com",
             "user@temple-edu.com",
             "user@temple.education",
-            "user@templ.edu",
-            "user@t3mple.edu",
         ]
 
         for email in test_emails:
@@ -135,7 +148,7 @@ class TestOtpVerify:
         assert data["refresh_token"] == "refresh_xyz"
         assert data["user"]["email"] == "user@temple.edu"
 
-    def test_otp_verify_rejects_non_temple(self, client, mock_supabase):
+    def test_otp_verify_rejects_non_edu(self, client, mock_supabase):
         response = client.post(
             "/auth/otp/verify",
             json={"email": "user@gmail.com", "code": "123456"},

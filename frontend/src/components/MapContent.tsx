@@ -18,6 +18,8 @@ interface MapContentProps {
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   fridayDate: string;
   saturdayDate: string;
+  /** Deep-link target (/map?party=<id>): pan to this party and open its popup. */
+  focusPartyId?: string | null;
 }
 
 // Temple University campus center
@@ -128,10 +130,54 @@ function getShortAddress(address: string | null): string {
 //   return null;
 // }
 
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate }: MapContentProps) {
+/**
+ * Pans the map to one party and pops its popup open — used when the party
+ * page's "open on map" button deep-links here (/map?party=<id>).
+ * One-shot: onConsumed fires after the popup opens so day switches and
+ * pans afterwards behave normally. (Same pattern as the retired
+ * SponsorFocusHandler above.)
+ */
+function PartyFocusHandler({
+  focus,
+  markerRefs,
+  onConsumed,
+}: {
+  focus: { id: string; lat: number; lng: number } | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker | null>>;
+  onConsumed: () => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!focus) return;
+    map.setView([focus.lat, focus.lng], 17, { animate: true });
+    // Give the markers a beat to mount before opening the popup.
+    const timer = setTimeout(() => {
+      markerRefs.current[focus.id]?.openPopup();
+      onConsumed();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [focus, map, markerRefs, onConsumed]);
+
+  return null;
+}
+
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate, focusPartyId }: MapContentProps) {
   // const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
   const iconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
+  const markerRefs = useRef<Record<string, L.Marker | null>>({});
+  const [focusConsumed, setFocusConsumed] = useState(false);
+
+  // Deep-link focus (/map?party=<id>): make sure the focused party's DAY tab
+  // is the active one, or its marker wouldn't even be on the map.
+  const focusParty = !focusConsumed && focusPartyId
+    ? parties.find((p) => p.id === focusPartyId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (focusParty) setSelectedDay(focusParty.day);
+  }, [focusParty]);
 
   // Smart default: switch to the other day if the default day has no parties
   const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
@@ -220,6 +266,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 key={party.id}
                 position={[party.latitude, party.longitude]}
                 icon={icon}
+                ref={(el) => {
+                  markerRefs.current[party.id] = el;
+                }}
                 eventHandlers={{
                   click: () => {
                     trackEvent('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
@@ -400,6 +449,16 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           markerRef={sponsorMarkerRef}
         />
         */}
+
+        <PartyFocusHandler
+          focus={
+            focusParty
+              ? { id: focusParty.id, lat: focusParty.latitude, lng: focusParty.longitude }
+              : null
+          }
+          markerRefs={markerRefs}
+          onConsumed={() => setFocusConsumed(true)}
+        />
       </MapContainer>
     </div>
   );

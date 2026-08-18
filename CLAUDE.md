@@ -86,7 +86,9 @@ Use `trackEvent()` from `utils/analytics.ts` — it fires both Vercel Analytics 
 
 ## Styling
 
-Tailwind with a dark theme (black bg, purple `#b24bf3` primary, green `#10B981`). Custom shadows/animations in `tailwind.config.ts`, global utilities in `globals.css`. Map popup styles are plain CSS in `globals.css` (not Tailwind) because Leaflet generates its own HTML outside React.
+**`DESIGN.md` at the repo root is the design-system source of truth** (palette, tokens, kit inventory, card anatomy, system rules, decision log). The short version: black bg, purple `#b24bf3` primary, light purple `#e0d4ff` secondary, surfaces `#1a1a1d`/`#252528`, and a yellow `#FFD60A` HEADLINER badge — the app's ONE glow. Green and cyan are retired. The hyped accent lives as CSS vars in `globals.css` `:root` so the Leaflet popup CSS and Tailwind tokens (`temple.*`, `shadow-hyped-glow`) read the same values. Components use tokens, not raw hex.
+
+The reusable kit is `frontend/src/components/ui/` plus party-page pieces in `components/party/`. Feed cards share one props contract: `FeedCardProps` (exported from `PartyCard.tsx`) feeds both the compact `PartyCard` and the marquee `HeadlinerCard`. Cards are whole-card tap targets (stretched Link, only the GOING/navigate row floats above); card vote rows are read-only — rating lives on the party page. The party page is a pushed route: `AppShell hideBottomNav` swaps the mobile tab bar for a `StickyActionBar`; its `isHeadliner`/`hostStats` come from `GET /parties/{id}`, and its map button deep-links `/map?party=<id>` (focus handled in `MapContent`). Soft-gate rule: server-nulled counts stay `null` through hooks and props so the UI shows dashes/count-less labels, never fake zeros. Map popup styles are plain CSS in `globals.css` (not Tailwind) because Leaflet generates its own HTML outside React.
 
 ## Repo Notes
 

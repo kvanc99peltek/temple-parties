@@ -39,6 +39,7 @@ def _profile_to_user(profile: dict, email: Optional[str]) -> User:
         greek_life=profile.get("greek_life"),
         instagram=profile.get("instagram"),
         avatar_url=profile.get("avatar_url"),
+        is_host=bool(profile.get("is_host", False)),
     )
 
 

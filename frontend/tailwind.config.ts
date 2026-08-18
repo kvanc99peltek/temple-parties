@@ -20,12 +20,25 @@ const config: Config = {
           'green-dark': '#059669',
           card: 'rgba(40,40,40,0.5)',
           'card-info': 'rgba(40,40,40,0.9)',
+          // WF-B2 surfaces — same purple brand, darker card stack than v1 glass
+          surface: '#1a1a1d',
+          'surface-2': '#252528',
+          muted: '#9a9a9a',
+          // HYPED accent lives as a CSS var in globals.css :root so the
+          // hand-rolled Leaflet popup CSS can read the exact same value.
+          // Caveat: var-backed colors don't support Tailwind opacity
+          // modifiers (text-temple-hyped/50 won't work) — use them solid.
+          hyped: 'var(--temple-hyped)',
+          'hyped-ink': 'var(--temple-hyped-ink)',
         },
       },
       boxShadow: {
         'purple-glow': '0 4px 20px rgba(178, 75, 243, 0.3)',
         'purple-glow-lg': '0 8px 30px rgba(178, 75, 243, 0.4)',
         'green-glow': '0 4px 16px rgba(16, 185, 129, 0.4)',
+        // The app's one glow — sits under the HYPED badge (WF-B2). If the
+        // hyped accent ever changes, update this rgba alongside the :root vars.
+        'hyped-glow': '0 0 12px 1px rgba(255, 214, 10, 0.45)',
       },
       fontFamily: {
         'bitcount': ['"Bitcount Prop Single"', 'sans-serif'],

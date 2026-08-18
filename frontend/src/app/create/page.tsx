@@ -15,7 +15,7 @@ import WeekendCalendarPicker, {
   type WeekendOption,
 } from '@/components/WeekendCalendarPicker';
 import { useAuth } from '@/contexts/AuthContext';
-import { partiesApi } from '@/services/api';
+import { partiesApi, hostsApi } from '@/services/api';
 import { resizePosterFile } from '@/utils/posterImage';
 import { trackEvent } from '@/utils/analytics';
 
@@ -70,6 +70,8 @@ export default function CreatePartyPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hostPrefillRef = useRef(false);
 
+  const [hostChecking, setHostChecking] = useState(true);
+
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
@@ -80,6 +82,27 @@ export default function CreatePartyPage() {
       router.replace('/onboarding?next=/create');
     }
   }, [isAuthenticated, isLoading, needsOnboarding, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated || needsOnboarding || isLoading) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const me = await hostsApi.getMe();
+        if (cancelled) return;
+        if (!me.isHost) {
+          router.replace('/become-host');
+          return;
+        }
+        setHostChecking(false);
+      } catch {
+        if (!cancelled) router.replace('/become-host');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, needsOnboarding, isLoading, router]);
 
   useEffect(() => {
     if (!user?.username || hostPrefillRef.current) return;
@@ -267,7 +290,7 @@ export default function CreatePartyPage() {
   const stepIndex = STEPS.indexOf(step);
   const progressSteps = STEPS.filter((s) => s !== 'done');
 
-  if (isLoading || !isAuthenticated || needsOnboarding) {
+  if (isLoading || !isAuthenticated || needsOnboarding || hostChecking) {
     return (
       <AppShell>
         <div className="flex justify-center py-24">

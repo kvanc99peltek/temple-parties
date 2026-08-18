@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import DayTabs from '@/components/DayTabs';
 import PartyCard from '@/components/PartyCard';
+import HeadlinerCard from '@/components/HeadlinerCard';
+import SponsoredSlot from '@/components/SponsoredSlot';
+import SectionLabel from '@/components/ui/SectionLabel';
 import InviteModal from '@/components/InviteModal';
 import RatingModal from '@/components/RatingModal';
 import RatingReminderModal from '@/components/RatingReminderModal';
@@ -12,7 +15,7 @@ import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
 import RequireOnboarding from '@/components/RequireOnboarding';
-import { getDefaultDay } from '@/utils/dateHelpers';
+import { getAlsoTonightLabel, getDefaultDay } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
@@ -166,6 +169,39 @@ export default function HomePage() {
     trackEvent('party_rated', { partyId: currentPrompt.id, rating, source: 'reminder' });
   }, [currentPrompt, submitRating]);
 
+  // The feed splits into the headliner (the day's top party — HeadlinerCard)
+  // and the rest (compact PartyCards). Both cards take the same props, built
+  // once here — that's the "wire it up" contract.
+  const headliner = filteredParties.find((p) => p.id === topPartyId) ?? filteredParties[0];
+  const rest = headliner ? filteredParties.filter((p) => p.id !== headliner.id) : [];
+  const feedCardProps = (party: typeof filteredParties[number]) => ({
+    id: party.id,
+    title: party.title,
+    host: party.host,
+    category: party.category,
+    doorsOpen: party.doorsOpen,
+    address: party.address,
+    goingCount: party.goingCount,
+    isHyped: party.id === topPartyId,
+    userIsGoing: isGoing(party.id),
+    onGoingClick: handleGoingClick,
+    onNavigateClick: handleNavigateClick,
+    isAddressVisible: isAddressVisible(party.id),
+    onViewAddressClick: handleViewAddress,
+    // Soft-gate: when the server nulled the counts (logged out) we pass the
+    // null straight through so cards show dashes — the overlay getters would
+    // otherwise coerce it to a fake 0.
+    likePercentage: party.likePercentage === null ? null : getLikePercentage(party.id, party.likePercentage),
+    ratingCount: party.ratingCount === null ? null : getRatingCount(party.id, party.ratingCount),
+    userRating: getUserRating(party.id),
+    onRateClick: handleStarClick,
+    isRatingActive: party.ratingOpen ?? false,
+    isRatingLocked: party.ratingLocked ?? false,
+    isVerified: party.isVerified,
+    posterImage: party.posterImage,
+    onShowToast: showToast,
+  });
+
   if (!isHydrated) {
     return (
       <AppShell>
@@ -177,7 +213,7 @@ export default function HomePage() {
   return (
     <AppShell>
       <RequireOnboarding>
-      <div className="pb-20 lg:pb-8">
+      <div className="pb-24 lg:pb-8">
         <Header />
 
         <DayTabs
@@ -187,45 +223,33 @@ export default function HomePage() {
           saturdayDate={saturdayDate}
         />
 
-        <div className="max-w-xl lg:max-w-xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-xl mx-auto px-4 sm:px-6">
           {isLoadingParties ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-temple-purple" />
             </div>
-          ) : filteredParties.length === 0 ? (
+          ) : !headliner ? (
             <EmptyState selectedDay={selectedDay} />
           ) : (
-            filteredParties.map((party, index) => (
-              <div
-                key={party.id}
-                style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
-              >
-                <PartyCard
-                  id={party.id}
-                  title={party.title}
-                  host={party.host}
-                  category={party.category}
-                  doorsOpen={party.doorsOpen}
-                  address={party.address}
-                  goingCount={party.goingCount}
-                  isHyped={party.id === topPartyId}
-                  userIsGoing={isGoing(party.id)}
-                  onGoingClick={handleGoingClick}
-                  onNavigateClick={handleNavigateClick}
-                  isAddressVisible={isAddressVisible(party.id)}
-                  onViewAddressClick={handleViewAddress}
-                  likePercentage={getLikePercentage(party.id, party.likePercentage)}
-                  ratingCount={getRatingCount(party.id, party.ratingCount)}
-                  userRating={getUserRating(party.id)}
-                  onRateClick={handleStarClick}
-                  isRatingActive={party.ratingOpen ?? false}
-                  isRatingLocked={party.ratingLocked ?? false}
-                  isVerified={party.isVerified}
-                  posterImage={party.posterImage}
-                  onShowToast={showToast}
-                />
-              </div>
-            ))
+            <>
+              <HeadlinerCard {...feedCardProps(headliner)} />
+              <SponsoredSlot />
+              {rest.length > 0 && (
+                <>
+                  <SectionLabel className="mb-3 mt-1">
+                    {getAlsoTonightLabel(selectedDay, rest.length)}
+                  </SectionLabel>
+                  {rest.map((party, index) => (
+                    <div
+                      key={party.id}
+                      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+                    >
+                      <PartyCard {...feedCardProps(party)} />
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
           )}
         </div>
       </div>

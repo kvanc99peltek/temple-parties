@@ -1,37 +1,34 @@
 'use client';
 
+/**
+ * DayTabs — the Friday/Saturday switcher at the top of the feed and map.
+ *
+ * A thin domain wrapper: it knows the weekend (two days, their date numbers)
+ * and hands the actual look to the generic SegmentedTabs control, so the
+ * day switcher automatically matches any other segmented control in the app.
+ */
+
+import SegmentedTabs from '@/components/ui/SegmentedTabs';
+
 interface DayTabsProps {
   selectedDay: 'friday' | 'saturday';
   onDayChange: (day: 'friday' | 'saturday') => void;
+  /** Day-of-month strings from the server's weekend envelope ("21", "22"). */
   fridayDate: string;
   saturdayDate: string;
 }
 
 export default function DayTabs({ selectedDay, onDayChange, fridayDate, saturdayDate }: DayTabsProps) {
   return (
-    <div className="max-w-xl lg:max-w-3xl mx-auto px-4 lg:pwnx-8 pt-4 pb-6 lg:pt-6 lg:pb-6">
-      <div className="flex gap-[10px] justify-center">
-        <button
-          onClick={() => onDayChange('friday')}
-          className={`w-[122px] h-[42px] lg:w-[152px] lg:h-[48px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] lg:text-[19px] lg:leading-[22px] transition-all duration-200 ${
-            selectedDay === 'friday'
-              ? 'bg-[#b24bf3] text-white'
-              : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
-          }`}
-        >
-          Fri {fridayDate}
-        </button>
-        <button
-          onClick={() => onDayChange('saturday')}
-          className={`w-[122px] h-[42px] lg:w-[152px] lg:h-[48px] rounded-[12px] font-montserrat font-semibold text-[16px] leading-[18px] lg:text-[19px] lg:leading-[22px] transition-all duration-200 ${
-            selectedDay === 'saturday'
-              ? 'bg-[#b24bf3] text-white'
-              : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
-          }`}
-        >
-          Sat {saturdayDate}
-        </button>
-      </div>
+    <div className="max-w-xl mx-auto px-4 pt-3 pb-3 lg:max-w-3xl lg:px-8">
+      <SegmentedTabs
+        items={[
+          { key: 'friday', label: `FRI ${fridayDate}` },
+          { key: 'saturday', label: `SAT ${saturdayDate}` },
+        ]}
+        activeKey={selectedDay}
+        onChange={(key) => onDayChange(key as 'friday' | 'saturday')}
+      />
     </div>
   );
 }

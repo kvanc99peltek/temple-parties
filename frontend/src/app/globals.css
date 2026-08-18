@@ -79,6 +79,16 @@
   --green-success: #10B981;
   --card-bg: rgba(40,40,40,0.5);
   --card-info: rgba(40,40,40,0.9);
+  /*
+   * HYPED accent (WF-B2 redesign, owner-locked): bright yellow badge with
+   * near-black text — the app's ONE glow. These vars are the single source of
+   * truth for the accent: tailwind.config.ts points `temple-hyped` /
+   * `temple-hyped-ink` here, and the Leaflet popup CSS below reads them
+   * directly. Changing the accent everywhere (components AND map popups)
+   * is a two-line edit right here — they can never drift apart again.
+   */
+  --temple-hyped: #FFD60A;
+  --temple-hyped-ink: #0a0a0f;
 }
 
 * {
@@ -295,11 +305,13 @@ html {
   padding: 3px 8px;
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 9px;
-  font-weight: 500;
-  background: #e0d4ff;
-  color: #0b0b0b;
+  font-weight: 700;
+  /* Same HYPED accent the cards use — see the :root vars at the top of this file. */
+  background: var(--temple-hyped);
+  color: var(--temple-hyped-ink);
   border-radius: 9999px;
   text-transform: uppercase;
+  box-shadow: 0 0 12px 1px rgba(255, 214, 10, 0.45);
 }
 
 .popup-title {

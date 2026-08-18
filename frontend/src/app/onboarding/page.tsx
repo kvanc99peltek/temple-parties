@@ -10,6 +10,7 @@ import {
   SCHOOL_YEARS,
   USERNAME_PATTERN,
   firstIncompleteStep,
+  writeOnboardingComplete,
   type OnboardingStep,
 } from '@/lib/onboarding';
 import { resizeAvatarFile } from '@/utils/avatarImage';
@@ -116,6 +117,7 @@ function OnboardingFlow() {
   }, []);
 
   const finishOnboarding = useCallback(async () => {
+    if (user?.id) writeOnboardingComplete(user.id);
     trackEvent('onboarding_completed', {
       has_avatar: !!(pendingBlob || user?.avatarUrl),
       has_greek_life: !!greekLife.trim(),
@@ -124,7 +126,7 @@ function OnboardingFlow() {
     await refreshUser();
     setFlowActive(false);
     router.replace(safeNext);
-  }, [greekLife, instagram, pendingBlob, refreshUser, router, safeNext, user?.avatarUrl]);
+  }, [greekLife, instagram, pendingBlob, refreshUser, router, safeNext, user?.avatarUrl, user?.id]);
 
   const goNext = useCallback(() => {
     const next = ONBOARDING_STEPS[stepIndex + 1];

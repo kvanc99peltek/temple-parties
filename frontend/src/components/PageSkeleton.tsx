@@ -4,12 +4,14 @@
 export default function PageSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-16 bg-zinc-900/50 lg:hidden" />
-      <div className="max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="h-12 bg-zinc-900/50 rounded-xl" />
-        <div className="mt-6 space-y-4">
-          <div className="h-40 bg-zinc-900/50 rounded-xl" />
-          <div className="h-40 bg-zinc-900/50 rounded-xl" />
+      <div className="h-14 bg-zinc-900/50 lg:hidden" />
+      <div className="max-w-xl mx-auto px-4 py-3">
+        <div className="h-11 bg-zinc-900/50 rounded-xl" />
+        <div className="mt-3 h-[438px] bg-zinc-900/50 rounded-2xl" />
+        <div className="mt-4 h-3 w-32 bg-zinc-900/50 rounded" />
+        <div className="mt-3 space-y-3">
+          <div className="h-[121px] bg-zinc-900/50 rounded-[14px]" />
+          <div className="h-[121px] bg-zinc-900/50 rounded-[14px]" />
         </div>
       </div>
     </div>

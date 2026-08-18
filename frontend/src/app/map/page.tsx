@@ -23,6 +23,10 @@ export default function MapPage() {
   const [selectedDay] = useState<'friday' | 'saturday'>(() => getDefaultDay());
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
+  // Deep-link focus from the party page's map button (/map?party=<id>).
+  // Read from window.location after hydration instead of useSearchParams()
+  // so this statically-rendered page doesn't need a Suspense boundary.
+  const [focusPartyId, setFocusPartyId] = useState<string | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
@@ -40,6 +44,7 @@ export default function MapPage() {
   }, [authLoading, isAuthenticated, replayPendingAuthAction]);
 
   useEffect(() => {
+    setFocusPartyId(new URLSearchParams(window.location.search).get('party'));
     setIsHydrated(true);
   }, []);
 
@@ -90,7 +95,7 @@ export default function MapPage() {
       <RequireOnboarding>
       <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
         <Header title="Party Map" />
-        <div className="flex-1 pb-16 lg:pb-0">
+        <div className="flex-1 pb-20 lg:pb-0">
           {isLoadingParties ? (
             <div className="flex justify-center items-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
@@ -105,6 +110,7 @@ export default function MapPage() {
               onRateClick={handleStarClick}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
+              focusPartyId={focusPartyId}
             />
           )}
         </div>

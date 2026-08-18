@@ -1,30 +1,67 @@
 'use client';
 
+/**
+ * PartyCard — the compact feed card, on the classic v1 layout the app
+ * launched with (owner call): big poster pane on the left (~42% of the
+ * card), and the info column on the right — category tag, title, host,
+ * door time, the like/dislike counts, and a full-width GOING bar with the
+ * navigate button.
+ *
+ * The ENTIRE card is one tap target for the detail page: a stretched
+ * invisible Link covers it, and only the GOING/navigate action row floats
+ * above that link (z-index) as in-card actions. Everything else — poster,
+ * title, votes, chevron — falls through to the link. Rating on a feed card
+ * intentionally routes to the detail page too; that's where real rating
+ * lives (with its window and RSVP rules explained).
+ *
+ * The weekend's #1 party doesn't use this card at all — it gets the big
+ * HeadlinerCard. Both share the exact same props (FeedCardProps), so pages
+ * build ONE props object per party and simply choose which card to mount.
+ */
+
 import Image from 'next/image';
 import Link from 'next/link';
+import { memo, useCallback } from 'react';
 import GoingButton from './GoingButton';
-import ThumbsRating from './ThumbsRating';
+import IconButton from '@/components/ui/IconButton';
+import NavigateIcon from '@/components/ui/NavigateIcon';
+import Pill from '@/components/ui/Pill';
+import VerifiedMark from '@/components/ui/VerifiedMark';
+import VoteRow, { type RatingWindowState } from '@/components/ui/VoteRow';
+import { voteCounts } from '@/utils/ratingHelpers';
 import { openMapsDirections } from '../utils/shareHelpers';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
-interface PartyCardProps {
+/**
+ * The shared data contract for both feed cards (compact + headliner).
+ * Pages build this once per party — see feedCardProps() in app/page.tsx.
+ */
+export interface FeedCardProps {
   id: string;
   title: string;
   host: string;
   category: string;
   doorsOpen: string;
+  /** null = server soft-gated it (viewer is logged out). */
   address: string | null;
   goingCount: number | null;
+  /** Is this the weekend's top party? Only the headliner renders the badge. */
   isHyped: boolean;
   userIsGoing: boolean;
   onGoingClick: (partyId: string) => void;
   onNavigateClick?: (partyId: string) => void | Promise<void>;
   isAddressVisible: boolean;
   onViewAddressClick: (partyId: string) => void;
-  likePercentage: number;
-  ratingCount: number;
+  /** Overlay-adjusted rating numbers (they move instantly when you rate). */
+  likePercentage: number | null;
+  ratingCount: number | null;
   userRating: number | null;
-  onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
+  onRateClick: (
+    partyId: string,
+    title: string,
+    host: string,
+    isRatingActive: boolean,
+    isRatingLocked: boolean,
+  ) => void;
   isRatingActive: boolean;
   isRatingLocked: boolean;
   isVerified: boolean;
@@ -32,6 +69,11 @@ interface PartyCardProps {
   onShowToast?: (message: string) => void;
 }
 
+/** Maps the two server booleans onto the one window state the kit speaks. */
+export function ratingWindowState(isRatingActive: boolean, isRatingLocked: boolean): RatingWindowState {
+  if (isRatingLocked) return 'locked';
+  return isRatingActive ? 'open' : 'inactive';
+}
 
 function PartyCard({
   id,
@@ -41,35 +83,20 @@ function PartyCard({
   doorsOpen,
   address,
   goingCount,
-  isHyped,
   userIsGoing,
   onGoingClick,
   onNavigateClick,
-  isAddressVisible,
-  onViewAddressClick,
+  userRating,
   likePercentage,
   ratingCount,
-  userRating,
-  onRateClick,
   isRatingActive,
   isRatingLocked,
   isVerified,
   posterImage,
   onShowToast,
-}: PartyCardProps) {
-  const prevVisibleRef = useRef(isAddressVisible);
-  const [animateReveal, setAnimateReveal] = useState(false);
-
-  useEffect(() => {
-    const wasVisible = prevVisibleRef.current;
-    prevVisibleRef.current = isAddressVisible;
-    if (!wasVisible && isAddressVisible) {
-      setAnimateReveal(true);
-      const t = window.setTimeout(() => setAnimateReveal(false), 450);
-      return () => window.clearTimeout(t);
-    }
-  }, [isAddressVisible]);
-
+}: FeedCardProps) {
+  // Navigate always fires the page callback (which handles the login gate
+  // and auto-RSVP); directions only open when we actually have an address.
   const handleNavigate = () => {
     if (onNavigateClick) {
       void onNavigateClick(id);
@@ -80,153 +107,101 @@ function PartyCard({
   };
 
   const handleGoing = useCallback(() => onGoingClick(id), [onGoingClick, id]);
-  const handleViewAddress = useCallback(() => onViewAddressClick(id), [onViewAddressClick, id]);
-  const handleRate = useCallback(
-    () => onRateClick(id, title, host, isRatingActive, isRatingLocked),
-    [onRateClick, id, title, host, isRatingActive, isRatingLocked],
-  );
 
-  const displayCount = goingCount ?? 0;
-  const streetLine = address ? address.split(',')[0] : null;
-  const canShowAddress = isAddressVisible && !!streetLine;
+  const votes = voteCounts(likePercentage, ratingCount);
 
   return (
-    <div className="flex gap-[2px] w-full mb-3 sm:mb-4 lg:mb-5 animate-slide-up-fade min-h-[200px] lg:min-h-[240px] bg-[rgba(40,40,40,0.5)] rounded-[12px] lg:rounded-[16px]">
-      <div className="relative w-[42%] shrink-0 rounded-[12px] lg:rounded-[16px] overflow-hidden bg-[rgba(40,40,40,0.5)]">
-        <Link href={`/party/${id}`} className="absolute inset-0 z-[1]" aria-label={`View ${title}`}>
-          <span className="sr-only">View party</span>
-        </Link>
+    // No fixed height — the info column sizes the card, so there's never
+    // dead space between the last line and the action row.
+    <article className="relative flex w-full mb-3 bg-temple-surface-2 border border-white/10 rounded-[14px] overflow-hidden animate-slide-up-fade">
+      {/* The whole-card tap target. Sits above all content (z-1); only the
+          action row floats higher (z-2) to stay independently tappable. */}
+      <Link href={`/party/${id}`} className="absolute inset-0 z-[1]" aria-label={`View ${title}`}>
+        <span className="sr-only">View party</span>
+      </Link>
+
+      {/* Poster pane. */}
+      <div className="relative w-[42%] shrink-0 overflow-hidden bg-temple-surface">
         {posterImage ? (
           <Image
             src={posterImage}
             alt={`${title} poster`}
             fill
-            sizes="(max-width: 768px) 42vw, (max-width: 1024px) 30vw, 20vw"
+            sizes="(max-width: 768px) 42vw, 240px"
             className="object-cover"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#b24bf3]/30 to-[#252525] flex items-center justify-center">
-            <span className="text-white/20 font-montserrat font-bold text-2xl text-center px-2 leading-tight">
+          <div className="absolute inset-0 bg-gradient-to-br from-temple-purple/40 to-[#171f4d] flex items-center justify-center px-2">
+            <span className="text-white/25 font-montserrat font-bold text-[13px] text-center leading-tight">
               {title}
             </span>
           </div>
         )}
       </div>
 
-      <div className="flex-1 flex flex-col bg-[rgba(40,40,40,0.9)] rounded-[12px] lg:rounded-[16px] min-w-0">
-        <div className="flex-1 px-3 pt-[9px] pb-[10px] lg:px-5 lg:pt-4 lg:pb-4">
-          <div className="flex items-center justify-between mb-[6px]">
-            <div className="flex gap-[3px] items-center">
-              <span title="Party type" onClick={() => onShowToast?.('Party type')} className="inline-flex items-center justify-center px-2 py-[3px] lg:px-3 lg:py-1 bg-[#b24bf3] rounded-full cursor-pointer lg:cursor-default">
-                <span className="font-helvetica font-medium text-[9px] lg:text-[11px] text-white uppercase leading-none whitespace-nowrap">
-                  {category}
-                </span>
-              </span>
-              {isHyped && (
-                <span title="Most popular party this weekend" onClick={() => onShowToast?.('Most popular party this weekend')} className="inline-flex items-center justify-center px-2 py-[3px] lg:px-3 lg:py-1 bg-[#e0d4ff] rounded-full cursor-pointer lg:cursor-default">
-                  <span className="font-helvetica font-medium text-[9px] lg:text-[11px] text-[#0b0b0b] uppercase leading-none">
-                    HYPED
-                  </span>
-                </span>
-              )}
-            </div>
+      {/* Info column — short lines with room to breathe. */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 flex flex-col gap-2.5 px-3 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <Pill tone="accent" size="sm" shape="square">{category}</Pill>
+            {/* Decorative signpost — the tap itself lands on the card link. */}
+            <span className="text-temple-muted" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+                <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           </div>
 
-          <Link href={`/party/${id}`}>
-            <h2 className="font-montserrat font-bold text-[20px] leading-[22px] lg:text-[24px] lg:leading-[26px] text-white mb-[3px] hover:text-white/90">
-              {title}
-            </h2>
-          </Link>
+          <h2 className="font-montserrat font-bold text-[20px] leading-6 text-white truncate">
+            {title}
+          </h2>
 
-          <div className="flex items-center mb-[10px] lg:mb-[14px]">
-            <p className="font-montserrat text-[14px] leading-[18px] lg:text-[17px] lg:leading-[22px] text-white whitespace-nowrap overflow-hidden text-ellipsis">
-              <span className="font-medium">by </span>
-              <span className="font-semibold">{host}</span>
+          <div className="flex items-center text-[14px] text-temple-purple-light">
+            <p className="font-montserrat whitespace-nowrap overflow-hidden text-ellipsis">
+              by {host}
             </p>
-            {isVerified && (
-              <span title="Verified host" onClick={() => onShowToast?.('Verified host')} className="relative shrink-0 ml-0.5 w-[18px] h-[18px] inline-block cursor-pointer lg:cursor-default">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icons/verified-star.svg" alt="" className="absolute left-[3px] top-[3px] w-3 h-3" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icons/verified-check.svg" alt="" className="absolute left-[6px] top-[6.5px] w-[5.5px] h-[4.5px]" />
-              </span>
-            )}
+            {isVerified && <VerifiedMark onShowToast={onShowToast} />}
           </div>
 
-          <div className="flex flex-col gap-[3px] mb-[10px] lg:mb-[14px]">
-            <div className="flex items-center gap-[3px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icons/clock.svg" alt="" className="w-[15px] h-[15px] lg:w-[18px] lg:h-[18px] shrink-0" />
-              <span className="font-helvetica text-[12px] leading-[16px] lg:text-[15px] lg:leading-[20px] text-white/75">
-                {doorsOpen}
-              </span>
-            </div>
-            <div className="flex items-center gap-[3.8px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icons/map-pin.svg" alt="" className="w-[15px] h-[15px] lg:w-[18px] lg:h-[18px] shrink-0" />
-              {!canShowAddress ? (
-                <button
-                  type="button"
-                  onClick={handleViewAddress}
-                  className="font-helvetica text-[12px] leading-[16px] lg:text-[15px] lg:leading-[20px] text-white/75 underline underline-offset-2 hover:text-white/90 transition-colors"
-                >
-                  {address === null ? 'Sign in to view address' : 'View address'}
-                </button>
-              ) : (
-                <span className={`font-helvetica text-[12px] leading-[16px] lg:text-[15px] lg:leading-[20px] text-white/75 truncate ${animateReveal ? 'animate-fade-in' : ''}`}>
-                  {streetLine}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Single control opens modal — no nested buttons (§8.9) */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleRate}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleRate();
-              }
-            }}
-            title={!isRatingActive ? 'Ratings unlock when doors open' : isRatingLocked ? 'Ratings are now closed' : undefined}
-            className={`${!isRatingActive || isRatingLocked ? 'cursor-default' : 'cursor-pointer'}`}
-          >
-            <ThumbsRating
+          {/* Door time + votes share one row, sitting together on the left.
+              The votes are read-only here — tapping them (like anywhere
+              else) opens the detail page. */}
+          <div className="flex items-center gap-3 mt-1">
+            <p className="font-montserrat text-[14px] text-white/70 whitespace-nowrap">{doorsOpen}</p>
+            <VoteRow
+              likeCount={votes?.likeCount ?? null}
+              dislikeCount={votes?.dislikeCount ?? null}
               userRating={userRating}
-              likePercentage={likePercentage}
-              ratingCount={ratingCount}
-              onRate={() => {}}
-              disabled
-              size="sm"
-              displayOnly
+              state={ratingWindowState(isRatingActive, isRatingLocked)}
+              size="md"
             />
           </div>
         </div>
 
-        <div className="flex">
+        {/* Action row — floats above the card link so GOING/navigate stay
+            their own buttons. */}
+        <div className="relative z-[2] flex items-center gap-2 px-3 pb-3 pt-2">
           <GoingButton
-            partyId={id}
-            currentCount={displayCount}
+            currentCount={goingCount}
             userIsGoing={userIsGoing}
             onGoingClick={handleGoing}
+            variant="bar"
           />
-          <button
-            type="button"
-            onClick={handleNavigate}
+          <IconButton
+            label="Navigate"
             title="Opens walking directions"
-            disabled={!address}
-            className="flex-1 h-[41px] lg:h-[48px] rounded-br-[12px] lg:rounded-br-[16px] bg-[#e0d4ff] flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all duration-150 disabled:opacity-50"
+            onClick={handleNavigate}
+            tone="accent"
+            size="md"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icons/navigate.svg" alt="Navigate" className="w-5 h-5 lg:w-6 lg:h-6" />
-          </button>
+            <NavigateIcon />
+          </IconButton>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
+// memo: the feed re-renders on every realtime count tick; cards whose props
+// didn't change skip their render entirely.
 export default memo(PartyCard);

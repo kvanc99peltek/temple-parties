@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import { Party, AdminPartiesListResponse, User, PartyRanking, HostRanking, RatingResponse, PartiesListResponse } from '@/lib/types';
+import { Party, AdminPartiesListResponse, User, PartyRanking, HostRanking, RatingResponse, PartiesListResponse, HostMeResponse, HostApplication, AdminHostApplicationsListResponse } from '@/lib/types';
 
 type ApiError = Error & { status?: number };
 
@@ -164,6 +164,32 @@ export const authApi = {
   },
 };
 
+export const hostsApi = {
+  async getMe(): Promise<HostMeResponse> {
+    const response = await fetchWithAuth(`${API_URL}/hosts/me`);
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to load host status');
+    }
+    return response.json();
+  },
+
+  async apply(data: {
+    org_type: 'frat' | 'house' | 'other';
+    org_name: string;
+    instagram: string;
+    address: string;
+  }): Promise<HostApplication> {
+    const response = await fetchWithAuth(`${API_URL}/hosts/applications`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to submit host application');
+    }
+    return response.json();
+  },
+};
+
 // Parties API
 export const partiesApi = {
   async getParties(day?: string, weekendOf?: string): Promise<PartiesListResponse> {
@@ -220,6 +246,11 @@ export const partiesApi = {
     longitude?: number;
     description?: string;
     ticket_price?: string;
+    doors_close?: string;
+    external_ticket_url?: string;
+    promo_code?: string;
+    promo_label?: string;
+    promo_hint?: string;
     /** Storage path from uploadPoster — not an arbitrary URL. */
     poster_image?: string;
   }): Promise<Party> {
@@ -230,6 +261,40 @@ export const partiesApi = {
 
     if (!response.ok) {
       throw await buildApiError(response, 'Failed to create party');
+    }
+
+    return response.json();
+  },
+
+  async updateParty(
+    partyId: string,
+    data: {
+      title?: string;
+      host?: string;
+      pin_label?: string;
+      category?: string;
+      date?: string;
+      doors_open?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      description?: string | null;
+      ticket_price?: string | null;
+      doors_close?: string | null;
+      external_ticket_url?: string | null;
+      promo_code?: string | null;
+      promo_label?: string | null;
+      promo_hint?: string | null;
+      poster_image?: string | null;
+    }
+  ): Promise<Party> {
+    const response = await fetchWithAuth(`${API_URL}/parties/${partyId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to update party');
     }
 
     return response.json();
@@ -479,6 +544,52 @@ export const adminApi = {
       throw new Error(error.detail || 'Failed to reject party');
     }
 
+    return response.json();
+  },
+
+  async getHostApplications(
+    status?: string,
+    opts?: { limit?: number; offset?: number }
+  ): Promise<AdminHostApplicationsListResponse> {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    params.set('limit', String(opts?.limit ?? 20));
+    params.set('offset', String(opts?.offset ?? 0));
+    const response = await fetchWithAuth(
+      `${API_URL}/admin/host-applications?${params.toString()}`
+    );
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch host applications');
+    }
+    return response.json();
+  },
+
+  async approveHostApplication(
+    applicationId: string
+  ): Promise<{ message: string; application_id: string }> {
+    const response = await fetchWithAuth(
+      `${API_URL}/admin/host-applications/${applicationId}/approve`,
+      { method: 'POST' }
+    );
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to approve host');
+    }
+    return response.json();
+  },
+
+  async rejectHostApplication(
+    applicationId: string
+  ): Promise<{ message: string; application_id: string }> {
+    const response = await fetchWithAuth(
+      `${API_URL}/admin/host-applications/${applicationId}/reject`,
+      { method: 'POST' }
+    );
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to reject host');
+    }
     return response.json();
   },
 };

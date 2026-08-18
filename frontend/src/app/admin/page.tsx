@@ -4,10 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/api';
-import { AdminParty } from '@/lib/types';
+import { AdminParty, HostApplication } from '@/lib/types';
 import { trackEvent } from '@/utils/analytics';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
+type AdminTab = 'parties' | 'hosts';
 
 const PAGE_SIZE = 20;
 
@@ -18,6 +19,9 @@ export default function AdminPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [filter, setFilter] = useState<StatusFilter>('pending');
+  const [tab, setTab] = useState<AdminTab>('parties');
+  const [hostApps, setHostApps] = useState<HostApplication[]>([]);
+  const [hostOffset, setHostOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -38,16 +42,37 @@ export default function AdminPage() {
     }
   }, [filter]);
 
+  const fetchHostApps = useCallback(async (pageOffset: number) => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getHostApplications(
+        filter === 'all' ? undefined : filter,
+        { limit: PAGE_SIZE, offset: pageOffset }
+      );
+      setHostApps(data.applications);
+      setHostOffset(data.offset);
+    } catch {
+      setToast('Failed to load host applications');
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
+
   useEffect(() => {
     if (!isLoading && (!user || !user.isAdmin)) {
       router.push('/');
       return;
     }
     if (user?.isAdmin) {
-      setOffset(0);
-      fetchParties(0);
+      if (tab === 'parties') {
+        setOffset(0);
+        fetchParties(0);
+      } else {
+        setHostOffset(0);
+        fetchHostApps(0);
+      }
     }
-  }, [user, isLoading, router, fetchParties]);
+  }, [user, isLoading, router, fetchParties, fetchHostApps, tab]);
 
   useEffect(() => {
     if (toast) {
@@ -75,6 +100,26 @@ export default function AdminPage() {
       fetchParties(offset);
     } catch {
       setToast('Failed to reject party');
+    }
+  };
+
+  const handleRejectHost = async (applicationId: string) => {
+    try {
+      await adminApi.rejectHostApplication(applicationId);
+      setToast('Host rejected');
+      fetchHostApps(hostOffset);
+    } catch {
+      setToast('Failed to reject host');
+    }
+  };
+
+  const handleApproveHost = async (applicationId: string) => {
+    try {
+      await adminApi.approveHostApplication(applicationId);
+      setToast('Host approved');
+      fetchHostApps(hostOffset);
+    } catch {
+      setToast('Failed to approve host');
     }
   };
 
@@ -118,6 +163,29 @@ export default function AdminPage() {
         </div>
       </header>
 
+      <div className="max-w-xl mx-auto px-4 sm:px-6 mb-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTab('parties')}
+          className={`px-4 py-2 rounded-xl text-sm font-bold font-montserrat ${
+            tab === 'parties' ? 'bg-white text-black' : 'bg-zinc-800 text-gray-400'
+          }`}
+        >
+          Parties
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('hosts')}
+          className={`px-4 py-2 rounded-xl text-sm font-bold font-montserrat ${
+            tab === 'hosts' ? 'bg-white text-black' : 'bg-zinc-800 text-gray-400'
+          }`}
+        >
+          Hosts
+        </button>
+      </div>
+
+      {tab === 'parties' && (
+      <>
       {/* Status Filters */}
       <div className="max-w-xl mx-auto px-4 sm:px-6 mb-4">
         <div className="flex gap-2">
@@ -278,6 +346,70 @@ export default function AdminPage() {
           </>
         )}
       </div>
+      </>
+      )}
+
+      {tab === 'hosts' && (
+      <div className="max-w-xl mx-auto px-4 sm:px-6 pb-8">
+        <div className="flex gap-2 mb-4">
+          {filters.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`px-4 py-2 rounded-xl text-sm font-bold font-montserrat ${
+                filter === key
+                  ? 'bg-[#b24bf3] text-white'
+                  : 'bg-zinc-800 text-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {loading ? (
+          <p className="text-gray-400 font-montserrat text-center py-16">Loading hosts...</p>
+        ) : hostApps.length === 0 ? (
+          <p className="text-gray-400 font-montserrat text-center py-16">No applications</p>
+        ) : (
+          <div className="space-y-3">
+            {hostApps.map((app) => (
+              <div key={app.id} className="bg-[#202023] rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <StatusBadge status={app.status} />
+                  <span className="text-[10px] font-bold uppercase text-white/50 font-montserrat">
+                    {app.orgType}
+                  </span>
+                </div>
+                <h3 className="text-white font-black font-montserrat mb-1">{app.orgName}</h3>
+                <p className="text-white/50 text-sm font-montserrat">@{app.instagram}</p>
+                <p className="text-white/50 text-sm font-montserrat mb-2">{app.address}</p>
+                <p className="text-xs text-gray-500 font-montserrat mb-3">
+                  {app.applicantUsername || 'Unknown'} {app.applicantEmail}
+                </p>
+                {app.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleApproveHost(app.id)}
+                      className="flex-1 h-11 font-bold uppercase bg-[#10B981] text-white font-montserrat rounded-xl"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRejectHost(app.id)}
+                      className="flex-1 h-11 font-bold uppercase bg-red-500 text-white font-montserrat rounded-xl"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      )}
 
       {/* Toast */}
       {toast && (

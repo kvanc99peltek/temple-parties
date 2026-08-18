@@ -43,6 +43,7 @@ class ProfileUpdate(BaseModel):
 class User(UserBase):
     id: str
     is_admin: bool = False
+    is_host: bool = False
     created_at: datetime
     school_year: Optional[str] = None
     greek_life: Optional[str] = None

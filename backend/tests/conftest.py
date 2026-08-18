@@ -28,6 +28,7 @@ def mock_supabase():
          patch('app.routers.parties.supabase', mock_db), \
          patch('app.routers.admin.supabase', mock_db), \
          patch('app.routers.ratings.supabase', mock_db), \
+         patch('app.routers.hosts.supabase', mock_db), \
          patch('app.services.admin_check.supabase', mock_db), \
          patch('app.routers.parties.geocode_address', return_value=(39.981, -75.155)):
         yield mock_db
@@ -51,11 +52,13 @@ def client(mock_supabase):
     from app.routers.parties import limiter as parties_limiter
     from app.routers.ratings import limiter as ratings_limiter
     from app.routers.admin import limiter as admin_limiter
+    from app.routers.hosts import limiter as hosts_limiter
     auth_limiter.enabled = False
     profiles_limiter.enabled = False
     parties_limiter.enabled = False
     ratings_limiter.enabled = False
     admin_limiter.enabled = False
+    hosts_limiter.enabled = False
     # Per-email limiters are in-process and sticky — clear between tests.
     _otp_request_by_email._hits.clear()
     _otp_verify_by_email._hits.clear()
@@ -69,6 +72,7 @@ def client(mock_supabase):
     parties_limiter.enabled = True
     ratings_limiter.enabled = True
     admin_limiter.enabled = True
+    hosts_limiter.enabled = True
 
 
 @pytest.fixture

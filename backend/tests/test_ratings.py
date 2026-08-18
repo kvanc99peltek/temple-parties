@@ -105,6 +105,36 @@ class TestSubmitRating:
         assert response.status_code == 403
         assert "ended" in response.json()["detail"].lower()
 
+    def test_submit_rating_requires_rsvp(self, client, mock_supabase, mock_user, mock_party):
+        """Going-only gate: no party_going row -> 403, nothing written."""
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "parties":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([mock_party])
+            elif table_name == "party_going":
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([])
+            return mock_tbl
+
+        mock_supabase.table = mock_table
+
+        with patch("app.routers.ratings.is_rating_active", return_value=True), patch(
+            "app.routers.ratings.is_rating_locked", return_value=False
+        ):
+            response = client.post(
+                f"/ratings/{mock_party['id']}",
+                json={"rating": 1},
+                headers={"Authorization": "Bearer valid_token"},
+            )
+
+        assert response.status_code == 403
+        assert "going" in response.json()["detail"].lower()
+
     def test_submit_rating_insert(self, client, mock_supabase, mock_user, mock_party):
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
@@ -117,6 +147,10 @@ class TestSubmitRating:
                     create_mock_db_response([mock_party])
                 mock_tbl.update.return_value.eq.return_value.execute.return_value = \
                     create_mock_db_response([])
+            elif table_name == "party_going":
+                # rater has RSVP'd — passes the going-only gate
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"party_id": mock_party["id"]}])
             elif table_name == "party_ratings":
                 # existing check empty, then all ratings after insert
                 mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
@@ -156,6 +190,9 @@ class TestSubmitRating:
                     create_mock_db_response([mock_party])
                 mock_tbl.update.return_value.eq.return_value.execute.return_value = \
                     create_mock_db_response([])
+            elif table_name == "party_going":
+                mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"party_id": mock_party["id"]}])
             elif table_name == "party_ratings":
                 mock_tbl.select.return_value.eq.return_value.eq.return_value.execute.return_value = \
                     create_mock_db_response([{"id": "rating-1"}])

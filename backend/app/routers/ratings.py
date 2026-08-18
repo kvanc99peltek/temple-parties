@@ -49,6 +49,23 @@ async def submit_rating(
     if is_rating_locked(party):
         raise HTTPException(status_code=403, detail="Rating period has ended.")
 
+    # "Going only" gate (WF-D rating module): ratings come from people who
+    # said they went. An RSVP row is the cheapest honest proxy we have — it
+    # keeps drive-by review-bombing out and matches the UI copy
+    # ("Unlocks at 11 PM · Going only").
+    going = (
+        supabase.table("party_going")
+        .select("party_id")
+        .eq("party_id", party_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
+    if not going.data:
+        raise HTTPException(
+            status_code=403,
+            detail="Ratings are for people who went — tap GOING first.",
+        )
+
     existing = (
         supabase.table("party_ratings")
         .select("id")

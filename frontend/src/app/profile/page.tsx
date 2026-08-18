@@ -163,6 +163,16 @@ export default function ProfilePage() {
               Admin dashboard
             </Link>
           )}
+          {!user.isHost && !user.isAdmin && (
+            <Link href="/become-host" className="mt-3 text-sm font-montserrat text-[#b24bf3] underline">
+              Become a host
+            </Link>
+          )}
+          {(user.isHost || user.isAdmin) && (
+            <Link href="/create" className="mt-3 text-sm font-montserrat text-[#b24bf3] underline">
+              Post a party
+            </Link>
+          )}
         </div>
 
         <Link
@@ -271,8 +281,8 @@ export default function ProfilePage() {
           ) : myParties.length === 0 ? (
             <div className="px-4 py-6 rounded-xl bg-zinc-900/80 border border-zinc-800 text-center">
               <p className="text-white/50 text-sm font-montserrat mb-3">No listings yet</p>
-              <Link href="/create" className="text-[#b24bf3] text-sm font-montserrat font-semibold underline">
-                Create your first party
+              <Link href={user?.isHost || user?.isAdmin ? '/create' : '/become-host'} className="text-[#b24bf3] text-sm font-montserrat font-semibold underline">
+                {user?.isHost || user?.isAdmin ? 'Create your first party' : 'Become a host'}
               </Link>
             </div>
           ) : (

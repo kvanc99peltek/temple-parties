@@ -5,9 +5,15 @@ from slowapi.util import get_remote_address
 from app.constants import RATE_LIMITS
 from app.database import supabase
 from app.models.party import AdminPartyResponse, AdminPartiesListResponse
+from app.models.host import (
+    AdminHostApplicationResponse,
+    AdminHostApplicationsListResponse,
+)
 from app.routers.auth import require_auth
 from app.routers.parties import db_to_response
+from app.routers.hosts import row_to_application
 from app.services.admin_check import user_is_admin
+from app.services import weekend as weekend_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 limiter = Limiter(key_func=get_remote_address)
@@ -130,3 +136,103 @@ async def reject_party(request: Request, party_id: str, user: dict = Depends(req
     supabase.table("parties").update({"status": "rejected"}).eq("id", party_id).execute()
 
     return {"message": "Party rejected", "party_id": party_id}
+
+
+def _row_to_admin_host_app(row: dict) -> AdminHostApplicationResponse:
+    base = row_to_application(row)
+    profile = row.get("user_profiles") or {}
+    return AdminHostApplicationResponse(
+        **base.model_dump(),
+        applicantUsername=profile.get("username"),
+        applicantEmail=profile.get("email"),
+    )
+
+
+@router.get("/host-applications", response_model=AdminHostApplicationsListResponse)
+@limiter.limit(RATE_LIMITS["admin_read"])
+async def list_host_applications(
+    request: Request,
+    status: Optional[str] = Query(None, description="pending, approved, rejected"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    user: dict = Depends(require_admin),
+):
+    query = supabase.table("host_applications").select(
+        "*, user_profiles!user_id(username, email)",
+        count="exact",
+    )
+    if status:
+        query = query.eq("status", status)
+
+    result = (
+        query.order("created_at", desc=True)
+        .range(offset, offset + limit - 1)
+        .execute()
+    )
+    applications = [_row_to_admin_host_app(row) for row in (result.data or [])]
+    total = result.count if result.count is not None else len(applications)
+    return AdminHostApplicationsListResponse(
+        applications=applications,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post("/host-applications/{application_id}/approve")
+@limiter.limit(RATE_LIMITS["admin_write"])
+async def approve_host_application(
+    request: Request,
+    application_id: str,
+    user: dict = Depends(require_admin),
+):
+    result = (
+        supabase.table("host_applications").select("*").eq("id", application_id).execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Application not found")
+    application = result.data[0]
+    if application["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Application is not pending")
+
+    now = weekend_service.now_eastern().isoformat()
+    supabase.table("host_applications").update(
+        {
+            "status": "approved",
+            "reviewed_at": now,
+            "reviewed_by": user["id"],
+        }
+    ).eq("id", application_id).execute()
+    supabase.table("user_profiles").update({"is_host": True}).eq(
+        "id", application["user_id"]
+    ).execute()
+
+    return {"message": "Host approved", "application_id": application_id}
+
+
+@router.post("/host-applications/{application_id}/reject")
+@limiter.limit(RATE_LIMITS["admin_write"])
+async def reject_host_application(
+    request: Request,
+    application_id: str,
+    user: dict = Depends(require_admin),
+):
+    result = (
+        supabase.table("host_applications").select("*").eq("id", application_id).execute()
+    )
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Application not found")
+    application = result.data[0]
+    if application["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Application is not pending")
+
+    now = weekend_service.now_eastern().isoformat()
+    supabase.table("host_applications").update(
+        {
+            "status": "rejected",
+            "reviewed_at": now,
+            "reviewed_by": user["id"],
+        }
+    ).eq("id", application_id).execute()
+
+    return {"message": "Host application rejected", "application_id": application_id}

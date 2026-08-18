@@ -217,16 +217,19 @@ async def update_my_profile(
             if clash.data:
                 raise HTTPException(status_code=409, detail="Username already taken")
 
+        # postgrest returns the updated row by default (return=representation),
+        # so no extra .select() is needed — and the filter builder has no such
+        # method; chaining one raises AttributeError (the 1.0.5 bug).
         result = (
             supabase.table("user_profiles")
             .update(updates)
             .eq("id", user["id"])
-            .select("*")
             .execute()
         )
         row = result.data[0] if result.data else None
         if row is None:
-            # Some PostgREST configs return no representation on UPDATE.
+            # Belt-and-braces: if the UPDATE matched but returned nothing,
+            # read the row back before declaring failure.
             readback = (
                 supabase.table("user_profiles")
                 .select("*")

@@ -444,20 +444,6 @@ class TestAdminPrivilegeEscalation:
             }])
         mock_supabase.table.return_value.select.return_value.eq.return_value.neq.return_value.execute.return_value = \
             create_mock_db_response([])
-        # The PATCH route now chains .select("*") after .update().eq() so the
-        # UPDATE returns the row — mock that path (and the old one below, for safety).
-        mock_supabase.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = \
-            create_mock_db_response([{
-                "id": mock_user["id"],
-                "email": mock_user["email"],
-                "username": "hacker",
-                "is_admin": False,
-                "created_at": "2024-01-01T00:00:00",
-                "school_year": None,
-                "greek_life": None,
-                "instagram": None,
-                "avatar_url": None,
-            }])
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([{
                 "id": mock_user["id"],

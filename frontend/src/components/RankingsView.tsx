@@ -1,7 +1,20 @@
 'use client';
 
+/**
+ * RankingsView — the Ranks tab: parties ranked by like percentage, or hosts
+ * ranked by the Wilson-score leaderboard.
+ *
+ * One dropdown drives everything (Last Weekend / This Month / This Semester
+ * / By Hosts — owner's call: a single familiar control beats stacked tabs).
+ * The rows are cards in the v2 feed language; party cards link straight to
+ * their party page, and rank numbers medal: #1 gold, #2 light purple,
+ * #3 purple, the rest quiet.
+ */
+
 import { useState, useEffect, useMemo } from 'react';
+import Header from './Header';
 import RankingsDropdown, { RankingsFilter } from './RankingsDropdown';
+import RankChampionCard from './RankChampionCard';
 import RankingRow from './RankingRow';
 import HostRankingRow from './HostRankingRow';
 import HostRankingInfoModal from './HostRankingInfoModal';
@@ -22,8 +35,8 @@ function previousFridayISO(fridayISO: string): string {
 }
 
 interface RankingsViewProps {
-  // When set, RankingsView ignores its own filter state and pins the parties
-  // leaderboard to this single weekend. Used by /demo for a frozen snapshot.
+  // When set, RankingsView pins the parties leaderboard to this single
+  // weekend on load. Used by /demo for a frozen snapshot.
   weekendOverride?: string;
 }
 
@@ -111,15 +124,20 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
   const showHosts = fetchSpec?.mode === 'hosts';
   const hasRows = showHosts ? sortedHostRankings.length > 0 : sortedPartyRankings.length > 0;
 
+  // The #1 party gets the hero treatment — but only a REAL #1 (meets the
+  // rating threshold). An unrated period just renders the plain list.
+  const champion = !showHosts && sortedPartyRankings[0]?.ratingCount >= 5
+    ? sortedPartyRankings[0]
+    : null;
+  const restOfParties = champion ? sortedPartyRankings.slice(1) : sortedPartyRankings;
+  const championPeriodLabel =
+    selectedFilter === 'last-week' ? 'LAST WEEKEND'
+    : selectedFilter === 'this-month' ? 'THIS MONTH'
+    : 'THIS SEMESTER';
+
   return (
-    <div className="pb-20 lg:pb-8">
-      <header className="bg-black pt-10 pb-4 lg:hidden">
-        <div className="max-w-xl lg:max-w-3xl mx-auto px-6 lg:px-8">
-          <h1 className="text-[36px] leading-[27px] lg:text-[44px] lg:leading-[34px] font-normal text-white font-bitcount">
-            Leaderboards
-          </h1>
-        </div>
-      </header>
+    <div className="pb-24 lg:pb-8">
+      <Header title="Rankings" />
 
       <RankingsDropdown
         selectedFilter={selectedFilter}
@@ -128,11 +146,10 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
         onInfoClick={selectedFilter === 'by-hosts' ? () => setInfoOpen(true) : undefined}
       />
 
-
-      <div className={`max-w-xl lg:max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
+      <div className={`max-w-xl mx-auto px-4 sm:px-6 transition-opacity duration-200 ${isDropdownOpen ? 'opacity-70' : 'opacity-100'}`}>
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-temple-purple"></div>
           </div>
         ) : !hasRows ? (
           <EmptyState
@@ -140,26 +157,31 @@ export default function RankingsView({ weekendOverride }: RankingsViewProps = {}
             leaderboardsHref={null}
           />
         ) : (
-          <div className="bg-[#202023] rounded-2xl overflow-hidden animate-slide-up-fade">
-            {showHosts
-              ? sortedHostRankings.map((host, index) => (
-                  <HostRankingRow
-                    key={host.hostCode}
-                    rank={index + 1}
-                    host={host}
-                    isLast={index === sortedHostRankings.length - 1}
-                    isBelowThreshold={!host.isEligible}
-                  />
-                ))
-              : sortedPartyRankings.map((party, index) => (
+          <div className="animate-slide-up-fade">
+            {showHosts ? (
+              sortedHostRankings.map((host, index) => (
+                <HostRankingRow
+                  key={host.hostCode}
+                  rank={index + 1}
+                  host={host}
+                  isBelowThreshold={!host.isEligible}
+                />
+              ))
+            ) : (
+              <>
+                {champion && (
+                  <RankChampionCard party={champion} periodLabel={championPeriodLabel} />
+                )}
+                {restOfParties.map((party, index) => (
                   <RankingRow
                     key={party.id}
-                    rank={index + 1}
+                    rank={index + (champion ? 2 : 1)}
                     party={party}
-                    isLast={index === sortedPartyRankings.length - 1}
                     isBelowThreshold={party.ratingCount < 5}
                   />
                 ))}
+              </>
+            )}
           </div>
         )}
       </div>

@@ -44,13 +44,31 @@ export function isOnboardingRequired(user: User | null | undefined): boolean {
   return !readOnboardingComplete(user.id);
 }
 
-export const SCHOOL_YEARS = [
-  { value: 'freshman', label: 'Freshman' },
-  { value: 'sophomore', label: 'Sophomore' },
-  { value: 'junior', label: 'Junior' },
-  { value: 'senior', label: 'Senior' },
-  { value: 'graduate', label: 'Graduate' },
-] as const;
+/**
+ * Graduation-year choices (owner call 2026-08-17: the field asks WHEN you
+ * graduate, not what class standing you are — "Class of '28" is how people
+ * actually talk). Computed from today's date so the list never goes stale:
+ * this year through +6 covers December grads up to first-year grad students.
+ * Stored value is the bare year string ("2028") — the backend accepts any
+ * 4-digit year (legacy "junior"-style values from old accounts still save).
+ */
+export const GRAD_YEARS: { value: string; label: string }[] = Array.from(
+  { length: 7 },
+  (_, i) => {
+    const year = new Date().getFullYear() + i;
+    return { value: String(year), label: `Class of ${year}` };
+  },
+);
+
+/**
+ * Display label for a stored school_year value — "Class of 2028" for years,
+ * capitalized passthrough ("Junior") for legacy class-standing values.
+ */
+export function schoolYearLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (/^\d{4}$/.test(value)) return `Class of ${value}`;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 export const USERNAME_PATTERN = /^[a-zA-Z0-9_]{2,30}$/;
 

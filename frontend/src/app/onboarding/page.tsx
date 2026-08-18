@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/services/api';
 import {
   ONBOARDING_STEPS,
-  SCHOOL_YEARS,
+  GRAD_YEARS,
   USERNAME_PATTERN,
   firstIncompleteStep,
   writeOnboardingComplete,
@@ -285,11 +285,11 @@ function OnboardingFlow() {
         {step === 'school-year' && (
           <form onSubmit={saveSchoolYear} className="space-y-5">
             <div>
-              <h1 className="text-white text-2xl font-montserrat font-semibold">School year</h1>
-              <p className="text-white/60 text-sm font-montserrat mt-1">Required — helps hosts know the crowd.</p>
+              <h1 className="text-white text-2xl font-montserrat font-semibold">Class of</h1>
+              <p className="text-white/60 text-sm font-montserrat mt-1">Required — helps hosts know the crowd. When do you walk?</p>
             </div>
             <div className="grid gap-2">
-              {SCHOOL_YEARS.map((y) => (
+              {GRAD_YEARS.map((y) => (
                 <button
                   key={y.value}
                   type="button"

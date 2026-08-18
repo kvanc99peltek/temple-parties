@@ -49,7 +49,9 @@ page), `VoteArrow` (reddit-style, fills when cast), `VoteRow`, `AddressGate`,
 `VerifiedMark`, `NavigateIcon` (solid paper plane), `Wordmark`.
 
 Party-page pieces in `components/party/`: `PartyHero`, `HostRow`,
-`WhenWhereCard`, `PromoCard`, `RatingPanel`.
+`WhenWhereCard`, `PromoCard`, `RatingPanel`. Also in the kit:
+`AddressAutocomplete` (shared by create-party + become-host) and the
+rankings pieces `RankChampionCard` / `RankingRow` / `HostRankingRow`.
 
 ## Card anatomy (the feed)
 
@@ -107,3 +109,13 @@ server-side, surfaced as toast, never preached in copy) → INVITE → sticky ba
 | 2026-08-17 | Compact card: classic v1 layout (42% poster) with new skin; no address/icons; whole card tappable (owner) |
 | 2026-08-17 | Badge copy: `HEADLINER` (was HYPED · TONIGHT'S HEADLINER); category chip joins it on hero + detail |
 | 2026-08-17 | Detail page gets `isHeadliner` from the server (top going_count of its night) |
+| 2026-08-17 | Map popups repainted to the card language: one chip (HEADLINER wins over category), surface-2, read-only VoteRow, no address row; going/nav bar keeps its fused shape |
+| 2026-08-17 | Map day filter = the same SegmentedTabs as home, floating over the map |
+| 2026-08-17 | Sponsor system revived (owner): home slot + map pin/popup, all driven by `lib/sponsors.ts` (empty array = everything off); text banner + nightly reminder stay retired |
+| 2026-08-17 | Rankings: dropdown filter kept (owner rejected stacked tabs), champion hero (#1 on the 280px stage w/ gold `#1 · <period>` chip), medal rank colors (gold/light-purple/purple), rows as linked cards |
+| 2026-08-17 | Profile: identity card + role-aware CTA stack (Host profile row ABOVE Create a party), grouped details card, `LIVE`/`IN REVIEW`/`REJECTED` listing chips |
+| 2026-08-17 | school_year became GRAD YEAR ("Class of 2028"), onboarding heading "Class of"; legacy class-standing values still accepted server-side |
+| 2026-08-17 | Become-a-host = WF-BH 3-step (pitch → org → CLAIM/pending), vertically centered (`my-auto`, never `justify-center` — it clips overflow) |
+| 2026-08-17 | Host org identity: approved application locks the posting host name and gates the Frat Party category (server-enforced); read-only `/host` page is the future paid-tier seam |
+| 2026-08-17 | AddressAutocomplete extracted to the kit — create-party + become-host share it |
+| 2026-08-17 | Poster upload preview = 4:5 vertical, same ratio the app renders flyers |

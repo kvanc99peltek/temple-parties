@@ -3,6 +3,10 @@ from typing import Optional
 from datetime import datetime
 
 
+# Legacy class-standing values from the original onboarding. The field moved
+# to graduation YEARS (owner call 2026-08-17) — see _validate_school_year in
+# routers/profiles.py, which accepts a 4-digit year OR one of these so rows
+# written before the switch keep saving without errors.
 ALLOWED_SCHOOL_YEARS = (
     "freshman",
     "sophomore",

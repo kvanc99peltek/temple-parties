@@ -2,7 +2,6 @@
 
 import {
   FormEvent,
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -10,12 +9,14 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 import WeekendCalendarPicker, {
   formatWeekendRange,
   type WeekendOption,
 } from '@/components/WeekendCalendarPicker';
 import { useAuth } from '@/contexts/AuthContext';
 import { partiesApi, hostsApi } from '@/services/api';
+import type { HostApplication } from '@/lib/types';
 import { resizePosterFile } from '@/utils/posterImage';
 import { trackEvent } from '@/utils/analytics';
 
@@ -25,12 +26,6 @@ const CATEGORIES = ['Frat Party', 'House Party', 'House Show', 'Rooftop Party', 
 type Step = 'basics' | 'poster' | 'description' | 'ticket' | 'done';
 
 const STEPS: Step[] = ['basics', 'poster', 'description', 'ticket', 'done'];
-
-interface AddressSuggestion {
-  display_name: string;
-  lat: string;
-  lon: string;
-}
 
 /**
  * FLOW 8 create-party (Epic 8.3/8.4): multi-step host submission → pending.
@@ -61,16 +56,14 @@ export default function CreatePartyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [weekendLoading, setWeekendLoading] = useState(true);
 
-  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const addressInputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hostPrefillRef = useRef(false);
 
   const [hostChecking, setHostChecking] = useState(true);
+  // The approved application IS the host's org identity: it locks the host
+  // name and gates the Frat category (admins have no application — free rein).
+  const [hostOrg, setHostOrg] = useState<HostApplication | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
@@ -94,6 +87,7 @@ export default function CreatePartyPage() {
           router.replace('/become-host');
           return;
         }
+        if (me.application?.status === 'approved') setHostOrg(me.application);
         setHostChecking(false);
       } catch {
         if (!cancelled) router.replace('/become-host');
@@ -105,10 +99,18 @@ export default function CreatePartyPage() {
   }, [isAuthenticated, needsOnboarding, isLoading, router]);
 
   useEffect(() => {
-    if (!user?.username || hostPrefillRef.current) return;
-    hostPrefillRef.current = true;
-    setHost(user.username.slice(0, 30));
-  }, [user]);
+    if (hostPrefillRef.current) return;
+    // Approved hosts post under their org's name — locked, not a suggestion.
+    if (hostOrg) {
+      hostPrefillRef.current = true;
+      setHost(hostOrg.orgName.slice(0, 30));
+      return;
+    }
+    if (user?.isAdmin && user.username) {
+      hostPrefillRef.current = true;
+      setHost(user.username.slice(0, 30));
+    }
+  }, [user, hostOrg]);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,52 +146,6 @@ export default function CreatePartyPage() {
       if (posterPreview?.startsWith('blob:')) URL.revokeObjectURL(posterPreview);
     };
   }, [posterPreview]);
-
-  const fetchAddressSuggestions = useCallback(async (query: string) => {
-    if (query.length < 3) {
-      setAddressSuggestions([]);
-      return;
-    }
-    setIsLoadingSuggestions(true);
-    try {
-      // Proxy through our API — browsers get 403 calling Nominatim directly.
-      const data = await partiesApi.suggestAddresses(query);
-      setAddressSuggestions(
-        data.map((row) => ({
-          display_name: row.display_name,
-          lat: String(row.lat),
-          lon: String(row.lon),
-        }))
-      );
-    } catch {
-      setAddressSuggestions([]);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  }, []);
-
-  const handleAddressChange = (value: string) => {
-    setAddress(value);
-    setCoords(null); // typing invalidates a picked suggestion's lat/lng
-    if (errors.address) setErrors((prev) => ({ ...prev, address: '' }));
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
-      void fetchAddressSuggestions(value);
-      setShowSuggestions(true);
-    }, 300);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (addressInputRef.current && !addressInputRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    if (showSuggestions) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showSuggestions]);
 
   const validateBasics = (): boolean => {
     const next: Record<string, string> = {};
@@ -351,16 +307,25 @@ export default function CreatePartyPage() {
             </Field>
 
             <Field label="Host" required error={errors.host}>
-              <input
-                value={host}
-                onChange={(e) => {
-                  setHost(e.target.value);
-                  if (errors.host) setErrors((p) => ({ ...p, host: '' }));
-                }}
-                maxLength={30}
-                placeholder="e.g., Sigma Chi"
-                className={inputClass}
-              />
+              {hostOrg ? (
+                <>
+                  <input value={host} readOnly disabled className={`${inputClass} opacity-60 cursor-not-allowed`} />
+                  <p className="text-temple-muted text-[11px] font-montserrat mt-1.5">
+                    Locked to your host account — parties post as {hostOrg.orgName}.
+                  </p>
+                </>
+              ) : (
+                <input
+                  value={host}
+                  onChange={(e) => {
+                    setHost(e.target.value);
+                    if (errors.host) setErrors((p) => ({ ...p, host: '' }));
+                  }}
+                  maxLength={30}
+                  placeholder="e.g., Sigma Chi"
+                  className={inputClass}
+                />
+              )}
             </Field>
 
             <Field label="Map pin label" required error={errors.pinLabel} hint="Max 5 characters">
@@ -376,48 +341,22 @@ export default function CreatePartyPage() {
               />
             </Field>
 
-            <div className="relative" ref={addressInputRef}>
-              <Field label="Address" required error={errors.address}>
-                <input
-                  value={address}
-                  onChange={(e) => handleAddressChange(e.target.value)}
-                  onFocus={() => {
-                    if (addressSuggestions.length > 0) setShowSuggestions(true);
-                  }}
-                  placeholder="Start typing address…"
-                  autoComplete="off"
-                  className={inputClass}
-                />
-              </Field>
-              {isLoadingSuggestions && (
-                <div className="absolute right-4 top-11 text-white/40">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                </div>
-              )}
-              {showSuggestions && addressSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl max-h-60 overflow-y-auto">
-                  {addressSuggestions.map((suggestion, index) => (
-                    <button
-                      key={`${suggestion.lat}-${suggestion.lon}-${index}`}
-                      type="button"
-                      onClick={() => {
-                        // Backend already returns Google-style labels — use whole string.
-                        setAddress(suggestion.display_name);
-                        setCoords({
-                          lat: Number(suggestion.lat),
-                          lng: Number(suggestion.lon),
-                        });
-                        setShowSuggestions(false);
-                        setAddressSuggestions([]);
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-zinc-800 text-white text-sm border-b border-zinc-800 last:border-b-0"
-                    >
-                      <div className="font-medium">{suggestion.display_name}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Field label="Address" required error={errors.address}>
+              {/* Shared with the become-host form — one autocomplete, no drift. */}
+              <AddressAutocomplete
+                value={address}
+                onChange={(v) => {
+                  setAddress(v);
+                  setCoords(null); // typing invalidates a picked suggestion's lat/lng
+                  if (errors.address) setErrors((prev) => ({ ...prev, address: '' }));
+                }}
+                onSelect={(addr, picked) => {
+                  setAddress(addr);
+                  setCoords(picked);
+                }}
+                inputClassName={inputClass}
+              />
+            </Field>
 
             <Field label="Night" required error={errors.date}>
               {weekendLoading ? (
@@ -457,7 +396,9 @@ export default function CreatePartyPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 className={inputClass}
               >
-                {CATEGORIES.map((c) => (
+                {CATEGORIES.filter(
+                  (c) => c !== 'Frat Party' || user?.isAdmin || hostOrg?.orgType === 'frat',
+                ).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -482,7 +423,7 @@ export default function CreatePartyPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={submitting}
-              className="w-full aspect-[3/4] max-h-80 rounded-xl border border-dashed border-zinc-600 bg-zinc-900/60 flex flex-col items-center justify-center overflow-hidden disabled:opacity-60"
+              className="w-full max-w-[260px] mx-auto aspect-[4/5] rounded-xl border border-dashed border-white/20 bg-temple-surface flex flex-col items-center justify-center overflow-hidden disabled:opacity-60"
             >
               {posterPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element

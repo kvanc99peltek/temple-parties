@@ -68,6 +68,8 @@ export interface AdminPartiesListResponse {
 }
 
 export interface PartyRanking {
+  /** Public poster URL — the Ranks page's champion hero renders the flyer. */
+  posterImage?: string | null;
   id: string;
   title: string;
   host: string;

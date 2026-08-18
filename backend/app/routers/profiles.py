@@ -84,11 +84,16 @@ def _validate_username(username: str) -> str:
 
 
 def _validate_school_year(value: str) -> str:
+    """The field stores a GRADUATION YEAR ("2028") since the 2026-08-17
+    redesign; the legacy class-standing values stay accepted so accounts
+    created before the switch keep working."""
     cleaned = value.strip().lower()
+    if cleaned.isdigit() and len(cleaned) == 4 and 2020 <= int(cleaned) <= 2040:
+        return cleaned
     if cleaned not in ALLOWED_SCHOOL_YEARS:
         raise HTTPException(
             status_code=400,
-            detail=f"school_year must be one of: {', '.join(ALLOWED_SCHOOL_YEARS)}",
+            detail="school_year must be a graduation year (e.g. 2028)",
         )
     return cleaned
 

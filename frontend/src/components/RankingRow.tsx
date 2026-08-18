@@ -1,99 +1,82 @@
-"use client";
+'use client';
 
-import { memo } from "react";
-import { PartyRanking } from "@/lib/types";
-import { formatShortDate } from "@/utils/dateHelpers";
+/**
+ * RankingRow — one party on the Ranks tab, as a card in the feed language.
+ *
+ * The whole card links to the party's detail page. Rank numbers medal:
+ * #1 wears the hyped gold, #2 light purple, #3 purple, the rest stay quiet.
+ * Below the 5-rating threshold the card dims and the percentage shows a
+ * dash — a score built on two votes isn't a score.
+ */
+
+import Link from 'next/link';
+import { memo } from 'react';
+import { PartyRanking } from '@/lib/types';
+import { formatShortDate } from '@/utils/dateHelpers';
+import VoteArrow from '@/components/ui/VoteArrow';
+
+/** Medal colors for the podium ranks; everyone else stays muted. */
+export function rankColor(rank: number): string {
+  if (rank === 1) return 'text-temple-hyped';
+  if (rank === 2) return 'text-temple-purple-light';
+  if (rank === 3) return 'text-temple-purple';
+  return 'text-white/30';
+}
+
+/** Small "people going" readout shared by both ranking cards. */
+export function GoingStat({ count }: { count: number }) {
+  return (
+    <span className="flex items-center justify-end gap-1 font-montserrat text-[12px] text-temple-muted">
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+        />
+      </svg>
+      {count}
+    </span>
+  );
+}
 
 interface RankingRowProps {
   rank: number;
   party: PartyRanking;
-  isLast?: boolean;
   isBelowThreshold?: boolean;
 }
 
-function RankingRow({ rank, party, isLast, isBelowThreshold }: RankingRowProps) {
-  const isTop3 = rank <= 3;
-
+function RankingRow({ rank, party, isBelowThreshold }: RankingRowProps) {
   return (
-    <div
-      className={`pl-4 pr-3 pt-3 pb-3 lg:pl-6 lg:pr-5 lg:pt-4 lg:pb-4 ${!isLast ? "border-b border-white/[0.06]" : ""} ${isBelowThreshold ? "opacity-60" : ""}`}
-    >
-      {/* Line 1: Rank + Title + Date + Rating */}
-      <div className="flex items-center">
-        <div className="w-8 lg:w-10 flex-shrink-0">
-          <span
-            className={`text-xl lg:text-2xl font-bold font-montserrat ${isTop3 ? "text-[#e0d4ff]" : "text-white/40"}`}
-          >
-            {rank}
-          </span>
-        </div>
-
-        <p className="flex-1 min-w-0 text-base lg:text-lg font-bold text-white font-montserrat truncate leading-tight">
-          {party.title}
-        </p>
-
-        {/* Date — fixed width for alignment */}
-        <div className="w-20 lg:w-24 flex-shrink-0 flex items-center justify-end gap-1">
-          {party.date && (
-            <>
-              <svg
-                className="w-4 h-4 lg:w-5 lg:h-5 text-white/40"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
-                />
-              </svg>
-              <span className="text-sm lg:text-base text-white/40 font-montserrat font-normal">
-                {formatShortDate(party.date)}
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* Rating — fixed width for alignment */}
-        <div className="w-24 lg:w-28 flex-shrink-0 flex items-center justify-end gap-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icons/thumbs-up.svg" alt="" className="w-4 h-4 lg:w-5 lg:h-5 opacity-50" />
-          <span className="text-base lg:text-lg font-bold text-white font-montserrat">
-            {party.ratingCount >= 5 ? `${Math.round(party.likePercentage)}%` : "—"}
-          </span>
-          <span className="text-sm lg:text-base text-white/30 font-montserrat font-normal">
-            ({party.ratingCount})
-          </span>
-        </div>
-      </div>
-
-      {/* Line 2: Host + Going count */}
-      <div className="flex items-center mt-1 pl-8">
-        <span className="text-sm lg:text-base text-white/30 font-montserrat font-semibold truncate min-w-0 flex-1">
-          by {party.host}
+    <Link href={`/party/${party.id}`} className="block mb-3">
+      <article
+        className={`flex items-center gap-4 bg-temple-surface-2 border border-white/10 rounded-[14px] px-4 py-3.5 transition-colors hover:border-white/20 ${
+          isBelowThreshold ? 'opacity-60' : ''
+        }`}
+      >
+        <span className={`w-8 shrink-0 font-montserrat font-bold text-[22px] leading-none ${rankColor(rank)}`}>
+          {rank}
         </span>
-        <div className="flex items-center gap-0.5 ml-3 flex-shrink-0">
-          <svg
-            className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-white/30"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-            />
-          </svg>
-          <span className="text-sm lg:text-base text-white/30 font-montserrat font-medium">
-            {party.goingCount}
-          </span>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-montserrat font-bold text-[15.5px] leading-5 text-white truncate">
+            {party.title}
+          </p>
+          <p className="font-montserrat text-[12.5px] text-temple-purple-light truncate mt-1">
+            by {party.host}
+            {party.date && <span className="text-temple-muted"> · {formatShortDate(party.date)}</span>}
+          </p>
         </div>
-      </div>
-    </div>
+
+        <div className="shrink-0 flex flex-col items-end gap-1.5">
+          <span className="flex items-center gap-1 font-montserrat font-bold text-[14px] text-white">
+            <VoteArrow direction="up" className="w-[15px] h-[15px]" />
+            {isBelowThreshold ? '—' : `${Math.round(party.likePercentage)}%`}
+            <span className="font-medium text-[12px] text-temple-muted">({party.ratingCount})</span>
+          </span>
+          <GoingStat count={party.goingCount} />
+        </div>
+      </article>
+    </Link>
   );
 }
 

@@ -472,7 +472,21 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     Geocode failures surface as 422 (no silent fake pins — Epic 8.2 / §8.14).
     Hosts only — apply at POST /hosts/applications first.
     """
-    require_host_poster(user)
+    profile = require_host_poster(user)
+
+    # A host's approved application IS their org identity: parties post under
+    # the org's name (not whatever the request claims), and only frat orgs
+    # may use the Frat Party category. Admins have no application — free rein.
+    host_name = data.host
+    if not profile.get("is_admin"):
+        org = _approved_host_application(user["id"])
+        if org:
+            host_name = org["org_name"][:30]
+            if data.category == "Frat Party" and org.get("org_type") != "frat":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Only frat host accounts can post Frat Party listings",
+                )
 
     _require_own_poster_path(data.poster_image, user["id"])
 
@@ -499,7 +513,7 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     try:
         party_data = {
             "title": data.title,
-            "host": data.host,
+            "host": host_name,
             "pin_label": data.pin_label,
             "category": data.category,
             "day": day,
@@ -531,6 +545,30 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     except Exception:
         logger.exception("POST /parties failed")
         raise HTTPException(status_code=400, detail="Failed to create party")
+
+
+def _approved_host_application(user_id: str) -> Optional[dict]:
+    """Latest approved host application — the host's org identity.
+
+    Best-effort: any lookup failure returns None (the caller falls back to
+    the submitted host name), because posting must not break if this table
+    hiccups. Admins and legacy hosts without an application also get None.
+    """
+    try:
+        result = (
+            supabase.table("host_applications")
+            .select("org_name, org_type")
+            .eq("user_id", user_id)
+            .eq("status", "approved")
+            .order("reviewed_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+    except Exception:
+        logger.exception("approved host application lookup failed for %s", user_id)
+    return None
 
 
 def _require_own_poster_path(poster_image: Optional[str], user_id: str) -> None:

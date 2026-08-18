@@ -1104,6 +1104,102 @@ class TestAddressSuggest:
         assert response.status_code == 422
 
 
+class TestHostOrgIdentity:
+    """Approved application = org identity: locked host name, gated Frat category."""
+
+    def _mock_tables(self, mock_supabase, mock_user, valid_party_data, org):
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "user_profiles":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
+            elif table_name == "host_applications":
+                mock_tbl.select.return_value.eq.return_value.eq.return_value \
+                    .order.return_value.limit.return_value.execute.return_value = \
+                    create_mock_db_response([org] if org else [])
+            elif table_name == "parties":
+                created = {
+                    **valid_party_data,
+                    "id": str(uuid.uuid4()),
+                    "day": "friday",
+                    "weekend_of": valid_party_data["date"],
+                    "latitude": 39.981,
+                    "longitude": -75.155,
+                    "going_count": 0,
+                    "status": "pending",
+                }
+                mock_tbl.insert.return_value.execute.return_value = create_mock_db_response([created])
+            return mock_tbl
+        mock_supabase.table = mock_table
+
+    def test_host_name_locked_to_org(self, client, mock_supabase, mock_user, valid_party_data):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["host"] = "Impostor Name"
+        self._mock_tables(mock_supabase, mock_user, valid_party_data,
+                          {"org_name": "Alpha Sigma Phi", "org_type": "frat"})
+
+        captured = {}
+        original = mock_supabase.table
+
+        def spy_table(name):
+            tbl = original(name)
+            if name == "parties":
+                real_insert = tbl.insert
+
+                def capture(payload):
+                    captured.update(payload)
+                    return real_insert(payload)
+
+                tbl.insert = capture
+            return tbl
+
+        mock_supabase.table = spy_table
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        assert captured["host"] == "Alpha Sigma Phi"
+
+    def test_non_frat_org_cannot_post_frat_party(self, client, mock_supabase, mock_user, valid_party_data):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["category"] = "Frat Party"
+        self._mock_tables(mock_supabase, mock_user, valid_party_data,
+                          {"org_name": "The Basement", "org_type": "house"})
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+        assert "frat" in response.json()["detail"].lower()
+
+    def test_frat_org_can_post_frat_party(self, client, mock_supabase, mock_user, valid_party_data):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["category"] = "Frat Party"
+        self._mock_tables(mock_supabase, mock_user, valid_party_data,
+                          {"org_name": "Alpha Sigma Phi", "org_type": "frat"})
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+
+
 class TestUpdateParty:
     """Tests for PATCH /parties/{party_id}."""
 

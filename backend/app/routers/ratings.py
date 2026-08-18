@@ -6,6 +6,7 @@ from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse, HostRankingResponse
 from app.routers.auth import get_current_user, require_auth
+from app.routers.parties import _resolve_poster_image
 from app.services import weekend as weekend_service
 from app.constants import RATE_LIMITS
 
@@ -237,6 +238,7 @@ async def get_rankings(
             ratingCount=party.get("rating_count") or 0,
             goingCount=party.get("going_count") or 0,
             userRating=user_ratings_map.get(party["id"]),
+            posterImage=_resolve_poster_image(party.get("poster_image")),
         ))
 
     return rankings

@@ -48,6 +48,7 @@ function OnboardingFlow() {
     updateProfile,
     uploadAvatar,
     refreshUser,
+    logout,
   } = useAuth();
 
   const [flowActive, setFlowActive] = useState(false);
@@ -265,11 +266,26 @@ function OnboardingFlow() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8">
-        <Link href="/" className="inline-block text-[28px] leading-[22px] font-bitcount text-white mb-6">
-          Temple
-          <br />
-          Parties
-        </Link>
+        {/* Escape hatch: onboarding used to be a dead end — every route
+            redirected back here and the only logout lived on /profile,
+            which also redirected here. If saves fail, this link is the
+            way out instead of "try logging in again" five times. */}
+        <div className="flex items-start justify-between mb-6">
+          <Link href="/" className="inline-block text-[28px] leading-[22px] font-bitcount text-white">
+            Temple
+            <br />
+            Parties
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              void logout().then(() => router.replace('/login'));
+            }}
+            className="text-white/40 hover:text-white/70 text-xs font-montserrat underline underline-offset-2 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
         <div className="flex gap-1.5 mb-4">
           {ONBOARDING_STEPS.map((s, i) => (
             <div

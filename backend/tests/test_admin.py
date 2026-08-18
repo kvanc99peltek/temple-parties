@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, MagicMock
 import uuid
+from supabase_auth.errors import AuthApiError
 
 from tests.conftest import create_mock_auth_response, create_mock_db_response
 
@@ -500,7 +501,7 @@ class TestAdminPrivilegeEscalation:
 
     def test_admin_cannot_access_without_valid_token(self, client, mock_supabase, mock_admin_user):
         """Even admin users need valid tokens."""
-        mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Invalid token"))
+        mock_supabase.auth.get_user = MagicMock(side_effect=AuthApiError("Invalid token", 401, None))
 
         response = client.get(
             "/admin/parties/pending",

@@ -4,14 +4,15 @@ import re
 from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from typing import Optional
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
+from supabase_auth.errors import AuthApiError
 from app.database import supabase
 from app.models.user import UserCreate, OtpVerify
 from app.constants import ALLOWED_EMAIL_DOMAIN, RATE_LIMITS
 from app.services.email_rate_limit import EmailRateLimiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 logger = logging.getLogger(__name__)
 
 # Per-email caps (slowapi covers per-IP). Windows match RATE_LIMITS comments.
@@ -31,35 +32,79 @@ def _normalize_temple_email(email: str) -> str:
     return normalized
 
 
-async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    """Extract and verify user from Supabase JWT token."""
-    if not authorization or not authorization.startswith("Bearer "):
-        return None
+class AuthServiceUnavailable(Exception):
+    """We couldn't ASK Supabase about a token (network trouble, Supabase
+    outage) — deliberately distinct from "Supabase said the token is bad".
+    Callers turn this into a 503 so the app knows to retry, never into a
+    401 that would log a real user out. (During the 2026-08-18 incident,
+    infra failures surfacing as auth failures sent onboarded users back
+    through onboarding five times in a row.)"""
 
-    token = authorization.replace("Bearer ", "")
 
+async def _verify_token(token: str) -> Optional[dict]:
+    """Ask Supabase who this JWT belongs to.
+
+    Returns the user dict, or None when Supabase examined the token and
+    rejected it (expired, forged, revoked). Raises AuthServiceUnavailable
+    when Supabase couldn't be reached or answered with a server error —
+    in that case we simply don't know, and must not pretend we do.
+    """
     try:
-        # Verify the JWT with Supabase (run in thread to avoid blocking event loop)
+        # Run in a thread so the sync Supabase client doesn't block the event loop.
         user_response = await asyncio.to_thread(supabase.auth.get_user, token)
-        if user_response and user_response.user:
-            return {
-                "id": user_response.user.id,
-                "email": user_response.user.email
-            }
+    except AuthApiError as e:
+        # Supabase answered. A 5xx body is still "service trouble", so only
+        # sub-500 statuses count as a genuine rejection of the token.
+        if (getattr(e, "status", None) or 0) >= 500:
+            logger.warning("Supabase auth 5xx during token check: %s", e)
+            raise AuthServiceUnavailable() from e
+        logger.info("Token rejected by Supabase: %s", e)
+        return None
     except Exception as e:
+        # Network blip, timeout, library error — verification never happened.
         logger.warning(
-            "Supabase token verification failed: %s: %s",
-            type(e).__name__,
-            str(e),
-            exc_info=True,
+            "Token check unavailable: %s: %s", type(e).__name__, e, exc_info=True
         )
+        raise AuthServiceUnavailable() from e
 
+    if user_response and user_response.user:
+        return {
+            "id": user_response.user.id,
+            "email": user_response.user.email
+        }
     return None
 
 
+async def get_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    """Optional auth: anonymous callers get None, valid tokens get the user.
+    If the auth service is unreachable, public reads degrade to the anonymous
+    (soft-gated) view instead of erroring the whole page."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.replace("Bearer ", "")
+    try:
+        return await _verify_token(token)
+    except AuthServiceUnavailable:
+        return None
+
+
 async def require_auth(authorization: Optional[str] = Header(None)) -> dict:
-    """Require authenticated user."""
-    user = await get_current_user(authorization)
+    """Require an authenticated user.
+
+    Status codes carry meaning the frontend relies on:
+    - 401 = the token itself is bad → the client may treat the session as dead.
+    - 503 = we couldn't check right now → the client should retry, NOT sign out.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.replace("Bearer ", "")
+    try:
+        user = await _verify_token(token)
+    except AuthServiceUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail="Sign-in check is temporarily unavailable — try again in a moment.",
+        )
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user

@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 
 from app.constants import RATE_LIMITS
 from app.database import supabase
@@ -11,7 +11,7 @@ from app.routers.auth import require_auth
 from app.routers.profiles import ensure_profile, _validate_instagram
 
 router = APIRouter(prefix="/hosts", tags=["hosts"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 logger = logging.getLogger(__name__)
 
 

@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, HTTPException, Depends, Query, Request, Upl
 from typing import List, Optional
 from datetime import date, timedelta
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 from app.config import get_settings
 from app.database import supabase
 from app.models.party import (
@@ -28,7 +28,7 @@ from app.services.admin_check import user_is_admin
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/parties", tags=["parties"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 logger = logging.getLogger(__name__)
 
 _POSTER_MAX_BYTES = 1_048_576  # matches posters bucket limit (1MB)
@@ -495,19 +495,25 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     """
     profile = require_host_poster(user)
 
-    # A host's approved application IS their org identity: parties post under
-    # the org's name (not whatever the request claims), and only frat orgs
-    # may use the Frat Party category. Admins have no application — free rein.
+    # A host's approved application IS their org identity: parties render
+    # under the org's name (not whatever the request claims), so posting
+    # REQUIRES one — a legacy is_host flag alone is no longer enough. This
+    # guarantees the feed never shows someone's personal username as the
+    # host. Admins are the one exception: no application, free rein.
     host_name = data.host
     if not profile.get("is_admin"):
         org = _approved_host_application(user["id"])
-        if org:
-            host_name = org["org_name"][:30]
-            if data.category == "Frat Party" and org.get("org_type") != "frat":
-                raise HTTPException(
-                    status_code=422,
-                    detail="Only frat host accounts can post Frat Party listings",
-                )
+        if org is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Set up your host account first — apply on the Become a Host page",
+            )
+        host_name = org["org_name"][:30]
+        if data.category == "Frat Party" and org.get("org_type") != "frat":
+            raise HTTPException(
+                status_code=422,
+                detail="Only frat host accounts can post Frat Party listings",
+            )
 
     _require_own_poster_path(data.poster_image, user["id"])
 
@@ -571,9 +577,11 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
 def _approved_host_application(user_id: str) -> Optional[dict]:
     """Latest approved host application — the host's org identity.
 
-    Best-effort: any lookup failure returns None (the caller falls back to
-    the submitted host name), because posting must not break if this table
-    hiccups. Admins and legacy hosts without an application also get None.
+    Returns None only when the user genuinely has no approved application
+    (admins, or hosts who haven't applied/been approved yet). A lookup
+    FAILURE raises instead: since the org name is now required to post, a
+    DB hiccup must fail loudly rather than quietly treat a real host as
+    unapproved (or, worse, let a submitted name through unchecked).
     """
     try:
         result = (
@@ -585,11 +593,13 @@ def _approved_host_application(user_id: str) -> Optional[dict]:
             .limit(1)
             .execute()
         )
-        if result.data:
-            return result.data[0]
     except Exception:
         logger.exception("approved host application lookup failed for %s", user_id)
-    return None
+        raise HTTPException(
+            status_code=503,
+            detail="Couldn't verify your host account — try again in a moment",
+        )
+    return result.data[0] if result.data else None
 
 
 def _require_own_poster_path(poster_image: Optional[str], user_id: str) -> None:
@@ -615,7 +625,7 @@ async def update_party(
     Owner edit. Pending and approved only — rejected listings stay frozen.
     Rate limited to 10 requests per minute per IP.
     """
-    ensure_profile(user)
+    profile = ensure_profile(user)
 
     result = supabase.table("parties").select("*").eq("id", party_id).execute()
     if not result.data:
@@ -628,6 +638,17 @@ async def update_party(
         raise HTTPException(status_code=403, detail="Rejected parties cannot be edited")
 
     updates = data.model_dump(exclude_unset=True)
+
+    # Same rule as create: the rendered host name is the host account's org
+    # name, never free text. A non-admin edit that touches `host` gets the
+    # org name re-stamped over it; with no approved application the rename
+    # is simply dropped (the party keeps the name it was created with).
+    if "host" in updates and not profile.get("is_admin"):
+        org = _approved_host_application(user["id"])
+        if org:
+            updates["host"] = org["org_name"][:30]
+        else:
+            updates.pop("host")
 
     if "poster_image" in updates:
         _require_own_poster_path(updates["poster_image"], user["id"])

@@ -1,18 +1,18 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 from slowapi.errors import RateLimitExceeded
 from app.routers import auth_router, parties_router, admin_router, ratings_router, profiles_router, hosts_router
 from app.config import get_settings
 
 # Rate limiter configuration
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 
 app = FastAPI(
     title="Temple Parties API",
     description="Backend API for Temple Parties app",
-    version="1.0.6"  # Bump to trigger Railway redeploy
+    version="1.0.7"  # Bump to trigger Railway redeploy
 )
 
 # Add rate limiter to app state

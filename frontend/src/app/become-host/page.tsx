@@ -6,7 +6,7 @@
  *
  *   1 · PITCH        sell the upside; prime that hosting is its own thing
  *   2 · ORG DETAILS  who you are (type, name, Instagram, house address)
- *   3 · PROOF        DM the word CLAIM to @tuparties from the org's IG,
+ *   3 · PROOF        DM the word "claim" to @rafiatamir_ from the org's IG,
  *                    then wait out admin review
  *
  * The friction is the point (owner call): a deliberate application + a
@@ -41,11 +41,13 @@ const PITCH_POINTS = [
 
 export default function BecomeHostPage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading, needsOnboarding, refreshUser } = useAuth();
+  const { user, isAuthenticated, isLoading, needsOnboarding, refreshUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [application, setApplication] = useState<HostApplication | null>(null);
-  const [isHost, setIsHost] = useState(false);
+  // True while we bounce an already-set-up host over to /create — keeps the
+  // spinner up so the application form never flashes during the redirect.
+  const [redirecting, setRedirecting] = useState(false);
   const [step, setStep] = useState<Step>('pitch');
 
   const [orgType, setOrgType] = useState<OrgType>('frat');
@@ -73,9 +75,12 @@ export default function BecomeHostPage() {
       try {
         const me = await hostsApi.getMe();
         if (cancelled) return;
-        setIsHost(me.isHost);
         setApplication(me.application);
-        if (me.isHost) {
+        // Only a host account — an APPROVED application (or being an admin) —
+        // skips this page. Parties render under the host account's org name,
+        // so a legacy is_host flag alone still means "apply here first".
+        if (me.application?.status === 'approved' || user?.isAdmin) {
+          setRedirecting(true);
           router.replace('/create');
           return;
         }
@@ -91,7 +96,7 @@ export default function BecomeHostPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, needsOnboarding, router]);
+  }, [isAuthenticated, needsOnboarding, router, user]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -115,7 +120,7 @@ export default function BecomeHostPage() {
     }
   };
 
-  if (isLoading || !isAuthenticated || loading || isHost) {
+  if (isLoading || !isAuthenticated || loading || redirecting) {
     return (
       <AppShell>
         <div className="flex justify-center py-16">
@@ -263,13 +268,13 @@ export default function BecomeHostPage() {
 
             {/* The proof step: only whoever runs the org's Instagram can send this. */}
             <a
-              href="https://www.instagram.com/tuparties"
+              href="https://www.instagram.com/rafiatamir_"
               target="_blank"
               rel="noopener noreferrer"
               className="block bg-temple-surface-2 border border-white/10 rounded-[14px] px-4 py-4 mb-3 hover:border-white/20 transition-colors"
             >
               <p className="text-white font-montserrat font-bold text-[15px]">
-                DM the word CLAIM to @tuparties
+                DM the word &quot;claim&quot; to @rafiatamir_ on IG
               </p>
               <p className="text-temple-muted text-[13px] font-montserrat mt-1">
                 from your org&apos;s Instagram — that&apos;s the whole verification

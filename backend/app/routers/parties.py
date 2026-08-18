@@ -257,10 +257,15 @@ async def get_parties(
     if day:
         query = query.eq("day", day)
 
-    result = query.order("going_count", desc=True).execute()
+    try:
+        result = query.order("going_count", desc=True).execute()
+        rows = result.data or []
+    except Exception:
+        logger.exception("GET /parties query failed")
+        raise HTTPException(status_code=500, detail="Failed to load parties") from None
 
     parties: List[PartyResponse] = []
-    for party in result.data or []:
+    for party in rows:
         try:
             parties.append(db_to_response(party, reveal=reveal))
         except Exception:
@@ -321,8 +326,9 @@ async def get_demo_weekend():
         wk = row.get("weekend_of")
         if not wk:
             continue
-        counts[wk] = counts.get(wk, 0) + 1
-        going_sums[wk] = going_sums.get(wk, 0) + (row.get("going_count") or 0)
+        wk_key = wk.isoformat() if hasattr(wk, "isoformat") else str(wk)
+        counts[wk_key] = counts.get(wk_key, 0) + 1
+        going_sums[wk_key] = going_sums.get(wk_key, 0) + (row.get("going_count") or 0)
 
     chosen: Optional[str] = None
 

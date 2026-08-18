@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL =
+  typeof window === 'undefined'
+    ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    : '/backend';
 
 import { Party, AdminPartiesListResponse, User, PartyRanking, HostRanking, RatingResponse, PartiesListResponse, HostMeResponse, HostApplication, AdminHostApplicationsListResponse } from '@/lib/types';
 

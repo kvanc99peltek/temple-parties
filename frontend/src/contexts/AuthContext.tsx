@@ -369,6 +369,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return { success: true, user: nextUser };
       } catch (err) {
+        // Safari reports a failed CORS preflight as AbortError ("The
+        // operation was aborted") — retry once after a beat.
+        if (err instanceof Error && err.name === 'AbortError') {
+          try {
+            const profile = await authApi.updateProfile(fields);
+            const nextUser = profileToAuthUser(profile);
+            rememberCompletedOnboarding(nextUser);
+            if (session) {
+              dispatch({ type: 'SET_AUTH', session, user: nextUser });
+            }
+            return { success: true, user: nextUser };
+          } catch (retryErr) {
+            return {
+              success: false,
+              error:
+                retryErr instanceof Error ? retryErr.message : 'Failed to update profile',
+            };
+          }
+        }
         return {
           success: false,
           error: err instanceof Error ? err.message : 'Failed to update profile',

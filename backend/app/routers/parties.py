@@ -160,19 +160,27 @@ def db_to_response(party: dict, *, reveal: bool = True, host_stats: Optional[Hos
     rating_count = (party.get("rating_count") or 0) if reveal else None
     like_count, dislike_count = _like_dislike_counts(party) if reveal else (None, None)
 
+    if hasattr(party_date, "isoformat"):
+        party_date = party_date.isoformat()
+    day = (party.get("day") or "friday")
+    if isinstance(day, str):
+        day = day.lower()
+    lat = party.get("latitude")
+    lng = party.get("longitude")
+
     return PartyResponse(
         id=party["id"],
         title=party["title"],
         host=party["host"],
-        pinLabel=party.get("pin_label", ""),
+        pinLabel=party.get("pin_label") or "",
         category=party["category"],
-        day=party["day"],
-        date=party_date,
-        doorsOpen=party["doors_open"],
+        day=day,
+        date=party_date or "",
+        doorsOpen=party.get("doors_open") or "",
         doorsClose=party.get("doors_close"),
         address=address,
-        latitude=float(party["latitude"]),
-        longitude=float(party["longitude"]),
+        latitude=float(lat) if lat is not None else 0.0,
+        longitude=float(lng) if lng is not None else 0.0,
         goingCount=going_count,
         status=party.get("status"),
         likePercentage=like_pct,
@@ -251,11 +259,18 @@ async def get_parties(
 
     result = query.order("going_count", desc=True).execute()
 
+    parties: List[PartyResponse] = []
+    for party in result.data or []:
+        try:
+            parties.append(db_to_response(party, reveal=reveal))
+        except Exception:
+            logger.exception("Skipping unreadable party %s", party.get("id"))
+
     return PartiesListResponse(
         weekendOf=meta.weekend_of.isoformat(),
         fridayDate=meta.friday_date.isoformat(),
         saturdayDate=meta.saturday_date.isoformat(),
-        parties=[db_to_response(party, reveal=reveal) for party in result.data],
+        parties=parties,
     )
 
 

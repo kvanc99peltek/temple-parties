@@ -175,6 +175,15 @@ export default function AdminPage() {
             </svg>
           </button>
           <h1 className="text-[24px] font-montserrat font-bold text-white">Admin HQ</h1>
+          {/* Manual upload: post on behalf of a host with no account — the
+              create wizard in ?manual=1 mode keeps the typed host name and
+              publishes instantly (no approval queue). */}
+          <button
+            onClick={() => router.push('/create?manual=1')}
+            className="ml-auto border border-temple-purple text-temple-purple rounded-[10px] px-3 py-1.5 font-montserrat font-bold text-[10.5px] tracking-[0.63px] uppercase hover:bg-temple-purple hover:text-white transition-colors"
+          >
+            + Manual upload
+          </button>
         </div>
       </header>
 

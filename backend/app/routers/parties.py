@@ -496,26 +496,43 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     profile = require_host_poster(user)
 
     # A host's approved application IS their org identity: parties render
-    # under the org's name (not whatever the request claims), so posting
-    # REQUIRES one — a legacy is_host flag alone is no longer enough. This
-    # guarantees the feed never shows someone's personal username as the
-    # host. Admins are the one exception: no application, free rein.
+    # under the org's name (not whatever the request claims) — ADMINS
+    # INCLUDED, so nobody's personal username ever shows as the host. The
+    # only free-text case left is an admin with no application at all
+    # (posting on behalf of an org that hasn't onboarded — the name they
+    # type is deliberate, never a defaulted username). Everyone else must
+    # apply first; a legacy is_host flag alone is no longer enough.
     host_name = data.host
-    if not profile.get("is_admin"):
-        org = _approved_host_application(user["id"])
-        if org is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Set up your host account first — apply on the Become a Host page",
-            )
+    org = _approved_host_application(user["id"])
+    if org:
         host_name = org["org_name"][:30]
-        if data.category == "Frat Party" and org.get("org_type") != "frat":
+        if data.category == "Frat Party" and org.get("org_type") != "frat" and not profile.get("is_admin"):
             raise HTTPException(
                 status_code=422,
                 detail="Only frat host accounts can post Frat Party listings",
             )
+    elif not profile.get("is_admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Set up your host account first — apply on the Become a Host page",
+        )
 
-    _require_own_poster_path(data.poster_image, user["id"])
+    return await insert_party(data, user["id"], host_name=host_name, status="pending")
+
+
+async def insert_party(
+    data: PartyCreate, user_id: str, *, host_name: str, status: str
+) -> PartyResponse:
+    """The shared create core: poster ownership check → geocode → weekend
+    validation → insert.
+
+    Both posting flows funnel through here — the host flow above (org-stamped
+    name, pending review) and the admin manual-upload flow in routers/admin.py
+    (typed name, live immediately) — so the validation rules can never drift
+    between them. Callers decide WHO the party posts as and WHAT status it
+    starts in; this function guarantees everything else is legit.
+    """
+    _require_own_poster_path(data.poster_image, user_id)
 
     lat, lng = data.latitude, data.longitude
     if lat is None or lng is None:
@@ -551,8 +568,8 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
             "latitude": lat,
             "longitude": lng,
             "going_count": 0,
-            "created_by": user["id"],
-            "status": "pending",
+            "created_by": user_id,
+            "status": status,
             "weekend_of": weekend.isoformat(),
             "poster_image": data.poster_image,
             "description": data.description,
@@ -570,7 +587,7 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     except HTTPException:
         raise
     except Exception:
-        logger.exception("POST /parties failed")
+        logger.exception("party insert failed")
         raise HTTPException(status_code=400, detail="Failed to create party")
 
 
@@ -639,10 +656,12 @@ async def update_party(
 
     updates = data.model_dump(exclude_unset=True)
 
-    # Same rule as create: the rendered host name is the host account's org
-    # name, never free text. A non-admin edit that touches `host` gets the
-    # org name re-stamped over it; with no approved application the rename
-    # is simply dropped (the party keeps the name it was created with).
+    # Same rule as create for regular hosts: the rendered host name is the
+    # org name, never free text — any edit that touches `host` gets it
+    # re-stamped (or dropped if they somehow have no application). Admins
+    # are exempt HERE even though create stamps them: they own the
+    # manual-upload flow, and fixing a manually posted party's host name
+    # would otherwise get the admin's own org stamped over it.
     if "host" in updates and not profile.get("is_admin"):
         org = _approved_host_application(user["id"])
         if org:

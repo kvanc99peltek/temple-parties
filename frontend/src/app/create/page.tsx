@@ -16,7 +16,7 @@ import WeekendCalendarPicker, {
   type WeekendOption,
 } from '@/components/WeekendCalendarPicker';
 import { useAuth } from '@/contexts/AuthContext';
-import { partiesApi, hostsApi } from '@/services/api';
+import { partiesApi, hostsApi, adminApi } from '@/services/api';
 import type { HostApplication } from '@/lib/types';
 import { resizePosterFile } from '@/utils/posterImage';
 import { normalizeTicketUrl } from '@/utils/ticketUrl';
@@ -77,6 +77,17 @@ export default function CreatePartyPage() {
   // name and gates the Frat category (admins have no application — free rein).
   const [hostOrg, setHostOrg] = useState<HostApplication | null>(null);
 
+  // Manual-upload mode (?manual=1, admins only — reached from the admin
+  // dashboard): posts through the admin endpoint instead, so the host name
+  // is kept exactly as typed (no org stamp) and the party goes live with no
+  // approval queue. Read from window instead of useSearchParams to keep this
+  // client page out of a Suspense boundary.
+  const [manualParam, setManualParam] = useState(false);
+  useEffect(() => {
+    setManualParam(new URLSearchParams(window.location.search).get('manual') === '1');
+  }, []);
+  const manualUpload = manualParam && !!user?.isAdmin;
+
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
@@ -120,17 +131,17 @@ export default function CreatePartyPage() {
 
   useEffect(() => {
     if (hostPrefillRef.current) return;
+    // Manual uploads type the host by hand — no prefill at all.
+    if (manualUpload) return;
     // Approved hosts post under their org's name — locked, not a suggestion.
+    // Deliberately NO other prefill: an admin with no host account types the
+    // org they're posting for; a personal username must never be the default
+    // (parties belong to host accounts, not people).
     if (hostOrg) {
       hostPrefillRef.current = true;
       setHost(hostOrg.orgName.slice(0, 30));
-      return;
     }
-    if (user?.isAdmin && user.username) {
-      hostPrefillRef.current = true;
-      setHost(user.username.slice(0, 30));
-    }
-  }, [user, hostOrg]);
+  }, [hostOrg, manualUpload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,7 +243,10 @@ export default function CreatePartyPage() {
         setPosterPath(path);
       }
 
-      await partiesApi.createParty({
+      // Manual uploads go through the admin endpoint: same payload, but the
+      // host name is kept verbatim and the party skips the approval queue.
+      const createParty = manualUpload ? adminApi.createParty : partiesApi.createParty;
+      await createParty({
         title: title.trim(),
         host: host.trim(),
         pin_label: pinLabel.trim(),
@@ -252,6 +266,7 @@ export default function CreatePartyPage() {
       });
 
       trackEvent('party_created', {
+        source: manualUpload ? 'admin_manual' : 'host',
         category,
         has_poster: !!path,
         has_description: !!description.trim(),
@@ -370,7 +385,7 @@ export default function CreatePartyPage() {
             </Field>
 
             <Field label="Host" required error={errors.host}>
-              {hostOrg ? (
+              {hostOrg && !manualUpload ? (
                 <>
                   <input value={host} readOnly disabled className={`${inputClass} opacity-60 cursor-not-allowed`} />
                   <p className="text-temple-muted text-[11px] font-montserrat mt-1.5">
@@ -378,16 +393,23 @@ export default function CreatePartyPage() {
                   </p>
                 </>
               ) : (
-                <input
-                  value={host}
-                  onChange={(e) => {
-                    setHost(e.target.value);
-                    if (errors.host) setErrors((p) => ({ ...p, host: '' }));
-                  }}
-                  maxLength={30}
-                  placeholder="e.g., Sigma Chi"
-                  className={inputClass}
-                />
+                <>
+                  <input
+                    value={host}
+                    onChange={(e) => {
+                      setHost(e.target.value);
+                      if (errors.host) setErrors((p) => ({ ...p, host: '' }));
+                    }}
+                    maxLength={30}
+                    placeholder="e.g., Sigma Chi"
+                    className={inputClass}
+                  />
+                  {manualUpload && (
+                    <p className="text-temple-muted text-[11px] font-montserrat mt-1.5">
+                      Manual upload — the party posts under exactly this name and goes live immediately.
+                    </p>
+                  )}
+                </>
               )}
             </Field>
 
@@ -704,17 +726,23 @@ export default function CreatePartyPage() {
             </div>
             <div>
               <h1 className="text-white text-2xl font-montserrat font-semibold">
-                Submitted — awaiting approval
+                {manualUpload ? 'Posted — it’s live' : 'Submitted — awaiting approval'}
               </h1>
               <p className="text-white/60 text-sm font-montserrat mt-2">
-                Your party won&apos;t appear on the feed until an admin approves it
-                {selectedWeekend
-                  ? `, and it stays scheduled until the ${formatWeekendRange(
-                      selectedWeekend.fridayDate,
-                      selectedWeekend.saturdayDate
-                    )} weekend goes live`
-                  : ''}
-                . Track status under My parties.
+                {manualUpload ? (
+                  <>Manual uploads skip the approval queue — the party is on the feed now.</>
+                ) : (
+                  <>
+                    Your party won&apos;t appear on the feed until an admin approves it
+                    {selectedWeekend
+                      ? `, and it stays scheduled until the ${formatWeekendRange(
+                          selectedWeekend.fridayDate,
+                          selectedWeekend.saturdayDate
+                        )} weekend goes live`
+                      : ''}
+                    . Track status under My parties.
+                  </>
+                )}
               </p>
             </div>
             <PrimaryButton type="button" onClick={() => router.push('/profile')}>

@@ -237,26 +237,7 @@ export const partiesApi = {
     return response.json();
   },
 
-  async createParty(data: {
-    title: string;
-    host: string;
-    pin_label: string;
-    category: string;
-    date: string;
-    doors_open: string;
-    address: string;
-    latitude?: number;
-    longitude?: number;
-    description?: string;
-    ticket_price?: string;
-    doors_close?: string;
-    external_ticket_url?: string;
-    promo_code?: string;
-    promo_label?: string;
-    promo_hint?: string;
-    /** Storage path from uploadPoster — not an arbitrary URL. */
-    poster_image?: string;
-  }): Promise<Party> {
+  async createParty(data: PartyCreateInput): Promise<Party> {
     const response = await fetchWithAuth(`${API_URL}/parties`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -504,8 +485,48 @@ export const ratingsApi = {
   },
 };
 
+// One payload shape for both ways a party gets posted: the host flow
+// (partiesApi.createParty, org-stamped + pending) and the admin manual
+// upload (adminApi.createParty, name kept as typed + live immediately).
+export interface PartyCreateInput {
+  title: string;
+  host: string;
+  pin_label: string;
+  category: string;
+  date: string;
+  doors_open: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+  ticket_price?: string;
+  doors_close?: string;
+  external_ticket_url?: string;
+  promo_code?: string;
+  promo_label?: string;
+  promo_hint?: string;
+  /** Storage path from uploadPoster — not an arbitrary URL. */
+  poster_image?: string;
+}
+
 // Admin API
 export const adminApi = {
+  /** Manual upload: posts on behalf of any host — the name is kept exactly
+   * as typed and the party goes live with no pending queue (the admin IS
+   * the approver). Server-enforced admin-only. */
+  async createParty(data: PartyCreateInput): Promise<Party> {
+    const response = await fetchWithAuth(`${API_URL}/admin/parties`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw await buildApiError(response, 'Failed to create party');
+    }
+
+    return response.json();
+  },
+
   async getParties(
     status?: string,
     opts?: { limit?: number; offset?: number }

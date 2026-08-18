@@ -148,7 +148,9 @@ def db_to_response(party: dict, *, reveal: bool = True, host_stats: Optional[Hos
 
     Soft-gate (Epic 7.3): when reveal is False (anonymous caller), street
     address and engagement counts are null. Lat/lng stay so the map works.
-    Promo and ticketUrl stay public (same as ticketPrice / description).
+    The promo CODE is gated too — the label/hint stay public as the carrot
+    ("PROMO · 20% OFF"), but the code itself needs a sign-in, same as the
+    address. ticketUrl / ticketPrice / description stay public.
     host_stats is attached by the detail endpoint only (list stays lean).
     """
     party_date = weekend_service.resolve_party_date(party)
@@ -192,7 +194,7 @@ def db_to_response(party: dict, *, reveal: bool = True, host_stats: Optional[Hos
         description=party.get("description"),
         ticketPrice=party.get("ticket_price"),
         ticketUrl=_ticket_url_with_ref(party.get("external_ticket_url")),
-        promoCode=party.get("promo_code"),
+        promoCode=party.get("promo_code") if reveal else None,
         promoLabel=party.get("promo_label"),
         promoHint=party.get("promo_hint"),
         ratingOpen=rating_open,

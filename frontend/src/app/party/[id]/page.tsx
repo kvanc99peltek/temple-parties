@@ -183,6 +183,13 @@ export default function PartyPage() {
     trackEvent('promo_code_copied', { partyId: party?.id, code });
   }, [party, toast]);
 
+  // Logged-out viewers see the coupon's label but a masked code — SIGN IN
+  // routes through login and back to this party (same soft-gate as address).
+  const handlePromoSignIn = useCallback(() => {
+    trackEvent('promo_signin_clicked', { partyId: party?.id });
+    openLogin(undefined, `/party/${partyId}`);
+  }, [party?.id, partyId, openLogin]);
+
   // Jump to the Map tab focused on this party's pin (spatial context lives
   // there — this page deliberately has no embedded map).
   const handleOpenMap = useCallback(() => {
@@ -290,12 +297,16 @@ export default function PartyPage() {
               <StatTile value={goingCount === null ? '—' : String(goingCount)} label="GOING" />
             </div>
 
-            {party.promoCode && party.promoLabel && (
+            {/* Renders on the label alone: for logged-out viewers the server
+                strips promoCode to null, and the card shows its gated state
+                (masked code + SIGN IN) instead of disappearing. */}
+            {party.promoLabel && (
               <PromoCard
                 code={party.promoCode}
                 label={party.promoLabel}
                 hint={party.promoHint}
                 onCopied={handlePromoCopied}
+                onSignIn={handlePromoSignIn}
               />
             )}
 

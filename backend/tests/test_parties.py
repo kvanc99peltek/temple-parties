@@ -164,7 +164,10 @@ class TestGetParty:
         assert response.json()["likeCount"] is None
         assert response.json()["dislikeCount"] is None
 
-    def test_get_party_ticket_url_and_promo_public_for_anon(self, client, mock_supabase, mock_party):
+    def test_get_party_promo_code_gated_for_anon(self, client, mock_supabase, mock_party):
+        """Soft-gate: ticketUrl and the promo label stay public (the carrot),
+        but the promo CODE itself is stripped for anonymous callers — the UI
+        shows a masked code + SIGN IN instead."""
         mock_party["external_ticket_url"] = "https://dice.fm/event/rave"
         mock_party["promo_code"] = "TUPARTY25"
         mock_party["promo_label"] = "$2 OFF TICKETS"
@@ -178,7 +181,7 @@ class TestGetParty:
         assert data["address"] is None
         assert data["goingCount"] is None
         assert data["ticketUrl"] == "https://dice.fm/event/rave?ref=tuparty"
-        assert data["promoCode"] == "TUPARTY25"
+        assert data["promoCode"] is None
         assert data["promoLabel"] == "$2 OFF TICKETS"
         assert data["doorsClose"] == "2:00 AM"
 

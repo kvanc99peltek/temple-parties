@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * ModalWrapper — the one shared shell every modal sits in (invite, rating,
+ * ranking info…). It owns the chrome so individual modals only bring content:
+ * the dimmed backdrop, the centered panel, escape/backdrop-click to close.
+ *
+ * v2 skin (DESIGN.md): the panel is a flat `temple-surface` module with the
+ * same hairline border as cards — no purple border, and NO glow shadow. The
+ * old purple halo broke the "one glow" rule (only the HEADLINER badge glows),
+ * so elevation now comes from a plain black shadow instead. The backdrop is
+ * a solid dim, not backdrop-blur — live blur over a scrollable page is the
+ * exact thing rule 3 bans.
+ */
+
 import useModalBehavior from '@/hooks/useModalBehavior';
 
 interface ModalWrapperProps {
@@ -14,6 +27,8 @@ export default function ModalWrapper({ isOpen, onClose, children, className }: M
 
   if (!isOpen) return null;
 
+  // Only close when the click landed on the backdrop itself — a click inside
+  // the panel bubbles up here too, and currentTarget tells them apart.
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -22,12 +37,12 @@ export default function ModalWrapper({ isOpen, onClose, children, className }: M
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 flex items-center justify-center p-4 bg-black/85 animate-fade-in"
       onClick={handleBackdropClick}
       data-testid="modal-backdrop"
       style={{ zIndex: 10000 }}
     >
-      <div className={`w-full max-w-sm lg:max-w-md bg-zinc-900 rounded-2xl lg:rounded-3xl p-8 lg:p-10 shadow-2xl shadow-[#b24bf3]/30 border border-[#b24bf3]/30 animate-scale-in relative ${className || ''}`}>
+      <div className={`w-full max-w-sm lg:max-w-md bg-temple-surface border border-white/10 rounded-[16px] p-6 sm:p-7 shadow-2xl animate-scale-in relative ${className || ''}`}>
         {children}
       </div>
     </div>

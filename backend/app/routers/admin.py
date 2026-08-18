@@ -4,13 +4,18 @@ from slowapi import Limiter
 from app.rate_limit import client_ip_key
 from app.constants import RATE_LIMITS
 from app.database import supabase
-from app.models.party import AdminPartyResponse, AdminPartiesListResponse
+from app.models.party import (
+    AdminPartyResponse,
+    AdminPartiesListResponse,
+    PartyCreate,
+    PartyResponse,
+)
 from app.models.host import (
     AdminHostApplicationResponse,
     AdminHostApplicationsListResponse,
 )
 from app.routers.auth import require_auth
-from app.routers.parties import db_to_response
+from app.routers.parties import db_to_response, insert_party
 from app.routers.hosts import row_to_application
 from app.services.admin_check import user_is_admin
 from app.services import weekend as weekend_service
@@ -24,6 +29,24 @@ async def require_admin(user: dict = Depends(require_auth)) -> dict:
     if not user_is_admin(user["id"]):
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+@router.post("/parties", response_model=PartyResponse)
+@limiter.limit(RATE_LIMITS["admin_write"])
+async def admin_create_party(
+    request: Request,
+    data: PartyCreate,
+    user: dict = Depends(require_admin),
+):
+    """Manual upload — an admin posts on behalf of a host with no account.
+
+    This is the one deliberate exception to the org-name stamp: the typed
+    host name is kept verbatim (the org being posted for hasn't onboarded,
+    so there's nothing to stamp), and the listing goes live immediately —
+    the poster IS the approver, so a pending queue would be theater.
+    Normal posting still goes through POST /parties and gets stamped.
+    """
+    return await insert_party(data, user["id"], host_name=data.host, status="approved")
 
 
 def _row_to_admin_party(row: dict) -> AdminPartyResponse:

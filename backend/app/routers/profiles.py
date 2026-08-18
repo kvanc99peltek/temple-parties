@@ -1,6 +1,7 @@
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -29,12 +30,14 @@ _INSTAGRAM_RE = re.compile(r"^[a-zA-Z0-9._]{1,30}$")
 
 
 def _profile_to_user(profile: dict, email: Optional[str]) -> User:
+    raw_email = (email or profile.get("email") or "").strip()
+    created = profile.get("created_at") or datetime.now(timezone.utc).isoformat()
     return User(
-        id=profile["id"],
-        email=email or profile.get("email") or "",
+        id=str(profile["id"]),
+        email=raw_email or "unknown@temple.edu",
         username=profile.get("username"),
-        is_admin=profile.get("is_admin", False),
-        created_at=profile["created_at"],
+        is_admin=bool(profile.get("is_admin", False)),
+        created_at=created,
         school_year=profile.get("school_year"),
         greek_life=profile.get("greek_life"),
         instagram=profile.get("instagram"),
@@ -218,12 +221,23 @@ async def update_my_profile(
             supabase.table("user_profiles")
             .update(updates)
             .eq("id", user["id"])
+            .select("*")
             .execute()
         )
-        if not result.data:
+        row = result.data[0] if result.data else None
+        if row is None:
+            # Some PostgREST configs return no representation on UPDATE.
+            readback = (
+                supabase.table("user_profiles")
+                .select("*")
+                .eq("id", user["id"])
+                .execute()
+            )
+            row = readback.data[0] if readback.data else None
+        if not row:
             raise HTTPException(status_code=400, detail="Failed to update profile")
 
-        return _profile_to_user(result.data[0], user.get("email"))
+        return _profile_to_user(row, user.get("email"))
     except HTTPException:
         raise
     except Exception as e:

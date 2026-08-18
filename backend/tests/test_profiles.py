@@ -77,6 +77,8 @@ class TestPatchProfileMe:
         select_chain = mock_supabase.table.return_value.select.return_value
         select_chain.eq.return_value.execute.return_value = create_mock_db_response([existing])
         select_chain.eq.return_value.neq.return_value.execute.return_value = create_mock_db_response([])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = \
+            create_mock_db_response([updated])
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([updated])
 
@@ -100,6 +102,8 @@ class TestPatchProfileMe:
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([existing])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = \
+            create_mock_db_response([updated])
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([updated])
 
@@ -133,6 +137,8 @@ class TestPatchProfileMe:
     def test_patch_accepts_graduation_year(self, client, mock_supabase, mock_user):
         """school_year is a grad year since the 2026-08-17 redesign."""
         _auth(mock_supabase, mock_user)
+        mock_supabase.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = \
+            create_mock_db_response([_profile_row(mock_user, school_year="2028")])
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([_profile_row(mock_user, school_year="2028")])
 
@@ -203,6 +209,8 @@ class TestPatchProfileMe:
             create_mock_db_response([existing])
         mock_supabase.table.return_value.select.return_value.eq.return_value.neq.return_value.execute.return_value = \
             create_mock_db_response([])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = \
+            create_mock_db_response([updated])
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([updated])
 
@@ -307,6 +315,8 @@ class TestAvatarUpload:
 
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([existing])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.select.return_value.execute.return_value = \
+            create_mock_db_response([updated])
         mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
             create_mock_db_response([updated])
         mock_supabase.storage.from_.return_value.upload.return_value = {"path": "ok"}

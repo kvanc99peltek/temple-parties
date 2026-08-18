@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Query, Depends
 from typing import List, Optional
 from datetime import date
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 from app.database import supabase
 from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse, HostRankingResponse
 from app.routers.auth import get_current_user, require_auth
@@ -11,7 +11,7 @@ from app.services import weekend as weekend_service
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/ratings", tags=["ratings"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 
 # Thin aliases so existing imports/tests stay stable where needed.
 get_current_weekend = weekend_service.get_current_weekend

@@ -56,11 +56,20 @@ type AuthState = {
   user: AuthUser | null;
   session: Session | null;
   isLoading: boolean;
+  /**
+   * True only when `user` came from a real GET /profiles/me response.
+   * When the profile fetch fails we fall back to a blank session stub so the
+   * UI stays signed in — but that stub must never be mistaken for a real
+   * profile: during the 2026-08-18 backend outage it made finished accounts
+   * look brand-new and funneled the owner through onboarding five times.
+   * Anything that gates on profile fields (onboarding!) must check this flag.
+   */
+  profileLoaded: boolean;
 };
 
 type AuthAction =
   | { type: 'START_LOADING' }
-  | { type: 'SET_AUTH'; session: Session; user: AuthUser }
+  | { type: 'SET_AUTH'; session: Session; user: AuthUser; profileLoaded: boolean }
   | { type: 'CLEAR_AUTH'; keepLoading?: boolean }
   | { type: 'FINISH_LOADING' }
   | { type: 'REFRESH_SESSION'; session: Session };
@@ -69,6 +78,7 @@ const initialState: AuthState = {
   user: null,
   session: null,
   isLoading: true,
+  profileLoaded: false,
 };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
@@ -81,12 +91,14 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         session: action.session,
         user: action.user,
         isLoading: false,
+        profileLoaded: action.profileLoaded,
       };
     case 'CLEAR_AUTH':
       return {
         user: null,
         session: null,
         isLoading: action.keepLoading ?? false,
+        profileLoaded: false,
       };
     case 'FINISH_LOADING':
       return { ...state, isLoading: false };
@@ -165,14 +177,29 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Retry schedule for a failed profile fetch. Short first gap so a Railway
+// cold start heals fast; capped attempts so a real outage doesn't hammer.
+const PROFILE_RETRY_DELAYS_MS = [2000, 5000, 15000];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [{ user, session, isLoading }, dispatch] = useReducer(authReducer, initialState);
+  const [{ user, session, isLoading, profileLoaded }, dispatch] = useReducer(
+    authReducer,
+    initialState
+  );
   const requestIdRef = useRef(0);
   const userRef = useRef<AuthUser | null>(null);
   userRef.current = user;
+  const profileLoadedRef = useRef(false);
+  profileLoadedRef.current = profileLoaded;
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const syncAuthState = useCallback(async (nextSession: Session | null) => {
+  const syncAuthState = useCallback(async (nextSession: Session | null, attempt = 0) => {
     const requestId = ++requestIdRef.current;
+    // A fresh sync supersedes any retry queued by an older failure.
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
 
     if (!nextSession) {
       dispatch({ type: 'CLEAR_AUTH' });
@@ -203,10 +230,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         type: 'SET_AUTH',
         session: nextSession,
         user: nextUser,
+        profileLoaded: true,
       });
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.status === 401) {
+        // The backend now answers 401 ONLY when Supabase itself rejected the
+        // token (infra trouble is 503), so signing out here is safe — this is
+        // a genuinely dead session, not a hiccup.
         await supabase.auth.signOut();
         if (requestId !== requestIdRef.current) return;
         dispatch({ type: 'CLEAR_AUTH' });
@@ -218,6 +249,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // stub (null username / school year) made finished accounts look new
       // and RequireOnboarding sent them through the flow again.
       const existing = userRef.current;
+      const reusingLoadedProfile =
+        !!existing && existing.id === nextSession.user.id && profileLoadedRef.current;
       const fallback =
         existing && existing.id === nextSession.user.id
           ? existing
@@ -226,7 +259,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         type: 'SET_AUTH',
         session: nextSession,
         user: fallback,
+        // Only counts as "loaded" if we're reusing a profile that really came
+        // from the server earlier — a fresh stub is explicitly not loaded.
+        profileLoaded: reusingLoadedProfile,
       });
+
+      // 503 / network / timeout: the profile exists, we just couldn't get it.
+      // Retry quietly in the background instead of leaving a nameless user.
+      const delay = PROFILE_RETRY_DELAYS_MS[attempt];
+      if (delay !== undefined) {
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          // Skip if a newer sync (login/logout/refresh) happened meanwhile.
+          if (requestId === requestIdRef.current) {
+            void syncAuthState(nextSession, attempt + 1);
+          }
+        }, delay);
+      }
     }
   }, []);
 
@@ -274,6 +323,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
     };
   }, [syncAuthState]);
 
@@ -365,7 +418,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const nextUser = profileToAuthUser(profile);
         rememberCompletedOnboarding(nextUser);
         if (session) {
-          dispatch({ type: 'SET_AUTH', session, user: nextUser });
+          // The server just returned the saved profile — that's a real load.
+          dispatch({ type: 'SET_AUTH', session, user: nextUser, profileLoaded: true });
         }
         return { success: true, user: nextUser };
       } catch (err) {
@@ -377,7 +431,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const nextUser = profileToAuthUser(profile);
             rememberCompletedOnboarding(nextUser);
             if (session) {
-              dispatch({ type: 'SET_AUTH', session, user: nextUser });
+              dispatch({ type: 'SET_AUTH', session, user: nextUser, profileLoaded: true });
             }
             return { success: true, user: nextUser };
           } catch (retryErr) {
@@ -403,7 +457,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = await authApi.uploadAvatar(blob);
         const nextUser = profileToAuthUser(profile);
         if (session) {
-          dispatch({ type: 'SET_AUTH', session, user: nextUser });
+          // The server just returned the saved profile — that's a real load.
+          dispatch({ type: 'SET_AUTH', session, user: nextUser, profileLoaded: true });
         }
         return { success: true, user: nextUser };
       } catch (err) {
@@ -434,7 +489,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session, syncAuthState]);
 
-  const onboardingIncomplete = isOnboardingRequired(user ? authUserToProfile(user) : null);
+  // Gate on profileLoaded: a fallback stub (profile fetch failed) must never
+  // send an already-onboarded account back through /onboarding. Unknown
+  // profile ≠ incomplete profile — the background retry will settle it.
+  const onboardingIncomplete =
+    profileLoaded && isOnboardingRequired(user ? authUserToProfile(user) : null);
 
   return (
     <AuthContext.Provider

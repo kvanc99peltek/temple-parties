@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import Mock, MagicMock
 import uuid
+from supabase_auth.errors import AuthApiError
 import json
 
 from tests.conftest import create_mock_auth_response, create_mock_db_response
@@ -320,7 +321,7 @@ class TestAuthenticationBypass:
 
     def test_invalid_bearer_token(self, client, mock_supabase):
         """Should reject invalid bearer tokens."""
-        mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Invalid token"))
+        mock_supabase.auth.get_user = MagicMock(side_effect=AuthApiError("Invalid token", 401, None))
 
         response = client.patch(
             "/profiles/me",
@@ -332,7 +333,7 @@ class TestAuthenticationBypass:
 
     def test_expired_token(self, client, mock_supabase):
         """Should reject expired tokens."""
-        mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Token expired"))
+        mock_supabase.auth.get_user = MagicMock(side_effect=AuthApiError("Token expired", 401, None))
 
         response = client.get(
             "/profiles/me",
@@ -343,20 +344,23 @@ class TestAuthenticationBypass:
 
     def test_malformed_auth_headers(self, client, mock_supabase):
         """Should handle malformed authorization headers."""
+        # Any garbage that reaches Supabase gets a proper rejection (so the
+        # route answers 401, never the 503 reserved for auth-service outages).
+        mock_supabase.auth.get_user = MagicMock(
+            side_effect=AuthApiError("Invalid token", 401, None)
+        )
         malformed_headers = [
             {"Authorization": "Bearer"},          # Missing token
             {"Authorization": "Basic token123"},   # Wrong scheme
             {"Authorization": "token123"},         # Missing scheme
             {"Authorization": ""},                 # Empty
             {"Authorization": "Bearer  "},         # Whitespace token
-            {"Authorization": "BEARER token"},     # Wrong case (might work)
+            {"Authorization": "BEARER token"},     # Wrong case
         ]
 
         for headers in malformed_headers:
             response = client.get("/profiles/me", headers=headers)
-            # Should either reject (401), handle gracefully (200), or return
-            # bad request (400) if the token causes downstream issues
-            assert response.status_code in [400, 401, 200]
+            assert response.status_code == 401
 
 
 class TestAuthorizationBypass:

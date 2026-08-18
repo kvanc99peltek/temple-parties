@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, HTTPException, Depends, Query, Request, Upl
 from typing import List, Optional
 from datetime import date, timedelta
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 from app.config import get_settings
 from app.database import supabase
 from app.models.party import (
@@ -28,7 +28,7 @@ from app.services.admin_check import user_is_admin
 from app.constants import RATE_LIMITS
 
 router = APIRouter(prefix="/parties", tags=["parties"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 logger = logging.getLogger(__name__)
 
 _POSTER_MAX_BYTES = 1_048_576  # matches posters bucket limit (1MB)

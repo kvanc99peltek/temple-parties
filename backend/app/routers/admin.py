@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import Optional
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 from app.constants import RATE_LIMITS
 from app.database import supabase
 from app.models.party import AdminPartyResponse, AdminPartiesListResponse
@@ -16,7 +16,7 @@ from app.services.admin_check import user_is_admin
 from app.services import weekend as weekend_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 
 
 async def require_admin(user: dict = Depends(require_auth)) -> dict:

@@ -3,6 +3,7 @@ Test cases for authentication endpoints (OTP request/verify) and auth helpers.
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
+from supabase_auth.errors import AuthApiError
 
 from tests.conftest import create_mock_auth_response, create_mock_db_response
 
@@ -195,13 +196,44 @@ class TestRequireAuth:
         assert response.status_code == 401
 
     def test_require_auth_rejects_invalid_token(self, client, mock_supabase):
-        mock_supabase.auth.get_user = MagicMock(side_effect=Exception("Invalid token"))
+        # AuthApiError = Supabase looked at the token and said no → 401.
+        mock_supabase.auth.get_user = MagicMock(
+            side_effect=AuthApiError("Invalid token", 401, None)
+        )
 
-        with patch("app.routers.auth.logger.warning") as mock_warning:
+        with patch("app.routers.auth.logger.info") as mock_info:
             response = client.get(
                 "/profiles/me",
                 headers={"Authorization": "Bearer invalid_token"},
             )
 
         assert response.status_code == 401
-        mock_warning.assert_called_once()
+        mock_info.assert_called_once()
+
+    def test_require_auth_returns_503_when_auth_service_down(self, client, mock_supabase):
+        # A network error means we never verified the token — that must be a
+        # 503 ("retry me"), never a 401 that would sign a real user out.
+        mock_supabase.auth.get_user = MagicMock(side_effect=ConnectionError("boom"))
+
+        response = client.get(
+            "/profiles/me",
+            headers={"Authorization": "Bearer some_valid_token"},
+        )
+
+        assert response.status_code == 503
+
+    def test_optional_auth_degrades_to_anonymous_when_auth_service_down(
+        self, client, mock_supabase
+    ):
+        # Public reads keep working (soft-gated) even if token checks are down.
+        mock_supabase.auth.get_user = MagicMock(side_effect=ConnectionError("boom"))
+        mock_supabase.table.return_value.select.return_value.eq.return_value \
+            .eq.return_value.order.return_value.execute.return_value = \
+            create_mock_db_response([])
+
+        response = client.get(
+            "/parties",
+            headers={"Authorization": "Bearer some_valid_token"},
+        )
+
+        assert response.status_code == 200

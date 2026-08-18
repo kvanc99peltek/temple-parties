@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from slowapi import Limiter
-from slowapi.util import get_remote_address
+from app.rate_limit import client_ip_key
 
 from app.constants import RATE_LIMITS
 from app.config import get_settings
@@ -22,7 +22,7 @@ _AVATAR_MIME_TO_EXT = {
 }
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=client_ip_key)
 logger = logging.getLogger(__name__)
 
 _USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{2,30}$")
@@ -132,8 +132,14 @@ async def get_my_profile(user: dict = Depends(require_auth)):
     except HTTPException:
         raise
     except Exception as e:
+        # DB trouble, not a bad request — 503 tells the client "retry me",
+        # while a 400/401 here made healthy accounts look brand-new during
+        # the 2026-08-18 outage and re-triggered onboarding.
         logger.exception("GET /profiles/me failed")
-        raise HTTPException(status_code=400, detail="Failed to load profile") from e
+        raise HTTPException(
+            status_code=503,
+            detail="Your profile is temporarily unavailable — try again in a moment.",
+        ) from e
 
 
 @router.get("/username-available")
@@ -171,7 +177,10 @@ async def username_available(
         }
     except Exception as e:
         logger.exception("GET /profiles/username-available failed")
-        raise HTTPException(status_code=400, detail="Failed to check username") from e
+        raise HTTPException(
+            status_code=503,
+            detail="Couldn't check that username right now — try again in a moment.",
+        ) from e
 
 
 @router.patch("/me", response_model=User)
@@ -249,7 +258,12 @@ async def update_my_profile(
         msg = str(e).lower()
         if "unique" in msg or "duplicate" in msg:
             raise HTTPException(status_code=409, detail="Username already taken") from e
-        raise HTTPException(status_code=400, detail="Failed to update profile") from e
+        # Anything else is on us (DB / network), so say "retry" instead of
+        # blaming the request with a 400.
+        raise HTTPException(
+            status_code=503,
+            detail="Couldn't save your profile right now — try again in a moment.",
+        ) from e
 
 
 @router.post("/me/avatar", response_model=User)
@@ -310,4 +324,7 @@ async def upload_my_avatar(
         raise
     except Exception as e:
         logger.exception("POST /profiles/me/avatar failed")
-        raise HTTPException(status_code=400, detail="Failed to upload avatar") from e
+        raise HTTPException(
+            status_code=503,
+            detail="Couldn't upload your avatar right now — try again in a moment.",
+        ) from e

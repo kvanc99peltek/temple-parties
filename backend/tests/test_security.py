@@ -296,6 +296,9 @@ class TestAuthenticationBypass:
         """Should reject requests without auth header to protected endpoints."""
         protected_endpoints = [
             ("POST", "/parties"),
+            ("GET", "/hosts/me"),
+            ("POST", "/hosts/applications"),
+            ("PATCH", "/parties/some-id"),
             ("DELETE", "/parties/some-id"),
             ("POST", "/parties/some-id/going"),
             ("GET", "/parties/user/going"),

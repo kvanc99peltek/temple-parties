@@ -6,6 +6,7 @@ from slowapi.util import get_remote_address
 from app.database import supabase
 from app.models.rating import RatingCreate, RatingResponse, PartyRankingResponse, HostRankingResponse
 from app.routers.auth import get_current_user, require_auth
+from app.routers.parties import _resolve_poster_image
 from app.services import weekend as weekend_service
 from app.constants import RATE_LIMITS
 
@@ -48,6 +49,23 @@ async def submit_rating(
 
     if is_rating_locked(party):
         raise HTTPException(status_code=403, detail="Rating period has ended.")
+
+    # "Going only" gate (WF-D rating module): ratings come from people who
+    # said they went. An RSVP row is the cheapest honest proxy we have — it
+    # keeps drive-by review-bombing out and matches the UI copy
+    # ("Unlocks at 11 PM · Going only").
+    going = (
+        supabase.table("party_going")
+        .select("party_id")
+        .eq("party_id", party_id)
+        .eq("user_id", user["id"])
+        .execute()
+    )
+    if not going.data:
+        raise HTTPException(
+            status_code=403,
+            detail="Ratings are for people who went — tap GOING first.",
+        )
 
     existing = (
         supabase.table("party_ratings")
@@ -220,6 +238,7 @@ async def get_rankings(
             ratingCount=party.get("rating_count") or 0,
             goingCount=party.get("going_count") or 0,
             userRating=user_ratings_map.get(party["id"]),
+            posterImage=_resolve_poster_image(party.get("poster_image")),
         ))
 
     return rankings

@@ -20,6 +20,40 @@ export function getDefaultDay(): 'friday' | 'saturday' {
 }
 
 /**
+ * Feed section label under the headliner ("ALSO TONIGHT · 5").
+ * Uses the same 6 AM rollover as getDefaultDay so a 2 AM Saturday still reads as Friday night.
+ */
+export function getAlsoTonightLabel(
+  selectedDay: 'friday' | 'saturday',
+  count: number,
+  now: Date = new Date(),
+): string {
+  let dayOfWeek = now.getDay();
+  if (now.getHours() < 6) {
+    dayOfWeek = (dayOfWeek - 1 + 7) % 7;
+  }
+  const isTonight =
+    (selectedDay === 'friday' && dayOfWeek === 5) ||
+    (selectedDay === 'saturday' && dayOfWeek === 6);
+  const word = isTonight ? 'TONIGHT' : selectedDay === 'friday' ? 'FRIDAY' : 'SATURDAY';
+  return `ALSO ${word} · ${count}`;
+}
+
+/**
+ * Party-page date line: "2026-10-16" → "FRI OCT 16".
+ * Parses the ISO string manually as a LOCAL date — new Date("2026-10-16")
+ * would read it as UTC midnight, which shifts to the previous day for
+ * everyone west of Greenwich (i.e. all of our users).
+ */
+export function getPartyDateLabel(dateISO: string): string {
+  const [year, month, day] = dateISO.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const weekday = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
+  const monthName = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][date.getMonth()];
+  return `${weekday} ${monthName} ${day}`;
+}
+
+/**
  * Get the upcoming weekend's Friday and Saturday dates for display in home page tabs.
  * On Saturday-Monday, shows this weekend. On Tuesday-Friday, shows next weekend.
  */

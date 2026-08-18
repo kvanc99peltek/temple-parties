@@ -19,7 +19,7 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { authApi, partiesApi, adminApi } from '../services/api';
+import { authApi, partiesApi, adminApi, hostsApi } from '../services/api';
 
 describe('API Service', () => {
   beforeEach(() => {
@@ -160,6 +160,35 @@ describe('API Service', () => {
 
         await expect(authApi.getMe()).rejects.toThrow('Not authenticated');
       });
+    });
+  });
+
+  describe('hostsApi', () => {
+    it('should fetch host status', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ isHost: false, application: null }),
+      });
+      const result = await hostsApi.getMe();
+      expect(result.isHost).toBe(false);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/hosts/me'),
+        expect.any(Object)
+      );
+    });
+
+    it('should submit an application', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: '1', status: 'pending', orgName: 'Alpha Sig' }),
+      });
+      const result = await hostsApi.apply({
+        org_type: 'frat',
+        org_name: 'Alpha Sig',
+        instagram: 'alphasig',
+        address: '123 Broad St',
+      });
+      expect(result.status).toBe('pending');
     });
   });
 
@@ -377,6 +406,46 @@ describe('API Service', () => {
           expect.objectContaining({
             body: expect.stringContaining('"poster_image":"user-id/abc.jpg"'),
           })
+        );
+      });
+
+      it('should send ticket url, promo, and doors_close', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: '123', status: 'pending', goingCount: 0 }),
+        });
+
+        await partiesApi.createParty({
+          ...validPartyData,
+          doors_close: '2:00 AM',
+          external_ticket_url: 'https://dice.fm/event/rave',
+          promo_code: 'TUPARTY25',
+          promo_label: '$2 OFF TICKETS',
+        });
+
+        const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+        expect(body.external_ticket_url).toBe('https://dice.fm/event/rave');
+        expect(body.promo_code).toBe('TUPARTY25');
+        expect(body.doors_close).toBe('2:00 AM');
+      });
+    });
+
+    describe('updateParty', () => {
+      it('should PATCH party fields', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: '123', promoCode: 'TUPARTY25' }),
+        });
+
+        const result = await partiesApi.updateParty('123', {
+          promo_code: 'TUPARTY25',
+          promo_label: '$2 OFF COVER',
+        });
+
+        expect(result.promoCode).toBe('TUPARTY25');
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/parties/123'),
+          expect.objectContaining({ method: 'PATCH' })
         );
       });
     });
@@ -602,6 +671,36 @@ describe('API Service', () => {
         const result = await adminApi.rejectParty('123');
 
         expect(result.message).toContain('rejected');
+      });
+    });
+
+    describe('host applications', () => {
+      it('should fetch pending host applications', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            applications: [{ id: '1', status: 'pending', orgName: 'Alpha Sig' }],
+            total: 1,
+            limit: 20,
+            offset: 0,
+          }),
+        });
+
+        const result = await adminApi.getHostApplications('pending');
+        expect(result.applications).toHaveLength(1);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringMatching(/\/admin\/host-applications\?.*status=pending/),
+          expect.any(Object)
+        );
+      });
+
+      it('should approve a host application', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ message: 'Host approved', application_id: '1' }),
+        });
+        const result = await adminApi.approveHostApplication('1');
+        expect(result.message).toContain('approved');
       });
     });
   });

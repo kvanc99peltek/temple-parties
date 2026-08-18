@@ -4,7 +4,7 @@ import {
   savePendingAuthAction,
   takePendingAuthAction,
 } from '@/lib/pendingAuthAction';
-import { needsOnboarding, USERNAME_PATTERN, firstIncompleteStep } from '@/lib/onboarding';
+import { needsOnboarding, USERNAME_PATTERN, firstIncompleteStep, isOnboardingRequired, writeOnboardingComplete } from '@/lib/onboarding';
 
 describe('pendingAuthAction', () => {
   beforeEach(() => {
@@ -105,5 +105,40 @@ describe('onboarding helpers', () => {
         school_year: 'freshman',
       })
     ).toBe('avatar');
+  });
+});
+
+describe('isOnboardingRequired', () => {
+  const incomplete = {
+    id: 'user-1',
+    email: 'a@temple.edu',
+    username: null as string | null,
+    is_admin: false,
+    created_at: '',
+    school_year: null as string | null,
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('sends new users with missing fields through onboarding', () => {
+    expect(isOnboardingRequired(incomplete)).toBe(true);
+  });
+
+  it('does not reopen onboarding after it has been completed', () => {
+    writeOnboardingComplete('user-1');
+    expect(isOnboardingRequired(incomplete)).toBe(false);
+  });
+
+  it('latches completion when required fields are present', () => {
+    expect(
+      isOnboardingRequired({
+        ...incomplete,
+        username: 'owl',
+        school_year: 'junior',
+      })
+    ).toBe(false);
+    expect(isOnboardingRequired(incomplete)).toBe(false);
   });
 });

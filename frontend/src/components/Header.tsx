@@ -1,35 +1,28 @@
 'use client';
 
-import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
+/**
+ * Header — the compact mobile page header: the tuparties wordmark (or a
+ * page title on inner pages like the map).
+ *
+ * Mobile-only (lg:hidden) because desktop gets the fixed top bar from
+ * BottomNav instead. The old login/profile link is gone — Profile is a
+ * bottom-nav tab now, so the header stays a quiet one-liner.
+ */
+
+import Wordmark from '@/components/ui/Wordmark';
 
 interface HeaderProps {
+  /** Inner pages pass a title ("Party Map"); the feed shows the wordmark. */
   title?: string;
 }
 
 export default function Header({ title }: HeaderProps) {
-  const { isAuthenticated, isLoading, user } = useAuth();
-
   return (
-    <header className="bg-black pt-10 pb-4 lg:hidden">
-      <div className="max-w-xl lg:max-w-3xl mx-auto px-6 lg:px-8 flex items-start justify-between gap-4">
-        <h1 className="text-[36px] leading-[27px] lg:text-[44px] lg:leading-[34px] font-normal text-white font-bitcount">
-          {title ?? (
-            <>
-              Temple
-              <br />
-              Parties
-            </>
-          )}
+    <header className="bg-black pt-10 pb-2 lg:hidden">
+      <div className="max-w-xl mx-auto px-4">
+        <h1 className="font-montserrat font-bold text-[20px] leading-6 text-white">
+          {title ?? <Wordmark />}
         </h1>
-        {!isLoading && (
-          <Link
-            href={isAuthenticated ? '/profile' : '/login'}
-            className="mt-1 shrink-0 text-sm font-montserrat font-semibold text-[#b24bf3]"
-          >
-            {isAuthenticated ? (user?.username ? `@${user.username}` : 'Profile') : 'Log in'}
-          </Link>
-        )}
       </div>
     </header>
   );

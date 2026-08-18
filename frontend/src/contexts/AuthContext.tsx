@@ -13,14 +13,16 @@ import { supabase } from '@/lib/supabase';
 import { authApi } from '@/services/api';
 import type { Session } from '@supabase/supabase-js';
 import type { User as ProfileUser } from '@/lib/types';
-import { needsOnboarding } from '@/lib/onboarding';
+import { isOnboardingRequired, writeOnboardingComplete } from '@/lib/onboarding';
 import { trackEvent } from '@/utils/analytics';
+import { isTempleEmail, microsoftCallbackUrl, sanitizeNextPath } from '@/lib/authHelpers';
 
 export type AuthUser = {
   id: string;
   email: string;
   username: string | null;
   isAdmin: boolean;
+  isHost: boolean;
   createdAt: string;
   schoolYear: string | null;
   greekLife: string | null;
@@ -37,6 +39,10 @@ interface AuthContextType {
   needsUsername: boolean;
   requestOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithMicrosoft: (
+    nextPath?: string,
+    options?: { selectAccount?: boolean }
+  ) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (
     fields: Parameters<typeof authApi.updateProfile>[0]
   ) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
@@ -56,7 +62,8 @@ type AuthAction =
   | { type: 'START_LOADING' }
   | { type: 'SET_AUTH'; session: Session; user: AuthUser }
   | { type: 'CLEAR_AUTH'; keepLoading?: boolean }
-  | { type: 'FINISH_LOADING' };
+  | { type: 'FINISH_LOADING' }
+  | { type: 'REFRESH_SESSION'; session: Session };
 
 const initialState: AuthState = {
   user: null,
@@ -83,6 +90,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       };
     case 'FINISH_LOADING':
       return { ...state, isLoading: false };
+    case 'REFRESH_SESSION':
+      return { ...state, session: action.session };
     default:
       return state;
   }
@@ -94,6 +103,7 @@ function profileToAuthUser(profile: ProfileUser): AuthUser {
     email: profile.email,
     username: profile.username,
     isAdmin: profile.is_admin,
+    isHost: !!profile.is_host,
     createdAt: profile.created_at,
     schoolYear: profile.school_year ?? null,
     greekLife: profile.greek_life ?? null,
@@ -108,6 +118,7 @@ function authUserToProfile(user: AuthUser): ProfileUser {
     email: user.email,
     username: user.username,
     is_admin: user.isAdmin,
+    is_host: user.isHost,
     created_at: user.createdAt,
     school_year: user.schoolYear,
     greek_life: user.greekLife,
@@ -122,12 +133,19 @@ function sessionToAuthUser(session: Session): AuthUser {
     email: session.user.email || '',
     username: null,
     isAdmin: false,
+    isHost: false,
     createdAt: new Date().toISOString(),
     schoolYear: null,
     greekLife: null,
     instagram: null,
     avatarUrl: null,
   };
+}
+
+function rememberCompletedOnboarding(user: AuthUser) {
+  if (user.username && user.schoolYear) {
+    writeOnboardingComplete(user.id);
+  }
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -150,6 +168,8 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [{ user, session, isLoading }, dispatch] = useReducer(authReducer, initialState);
   const requestIdRef = useRef(0);
+  const userRef = useRef<AuthUser | null>(null);
+  userRef.current = user;
 
   const syncAuthState = useCallback(async (nextSession: Session | null) => {
     const requestId = ++requestIdRef.current;
@@ -168,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (requestId !== requestIdRef.current) return;
 
       const nextUser = profileToAuthUser(profile);
+      rememberCompletedOnboarding(nextUser);
       try {
         const posthog = (await import('posthog-js')).default;
         posthog.identify(nextUser.id, {
@@ -193,11 +214,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (requestId !== requestIdRef.current) return;
-      // Profile fetch failed (network etc.) — keep session, treat as incomplete onboarding.
+      // Keep the profile we already have. Replacing it with a blank session
+      // stub (null username / school year) made finished accounts look new
+      // and RequireOnboarding sent them through the flow again.
+      const existing = userRef.current;
+      const fallback =
+        existing && existing.id === nextSession.user.id
+          ? existing
+          : sessionToAuthUser(nextSession);
       dispatch({
         type: 'SET_AUTH',
         session: nextSession,
-        user: sessionToAuthUser(nextSession),
+        user: fallback,
       });
     }
   }, []);
@@ -231,6 +259,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Token rotation isn't a profile change — refetching /profiles/me here
+      // raced with getSession() and a timeout looked like "never onboarded".
+      if (event === 'TOKEN_REFRESHED') {
+        if (activeSession) dispatch({ type: 'REFRESH_SESSION', session: activeSession });
+        return;
+      }
+
+      // initAuth already loaded the session; don't double-fetch on subscribe.
+      if (event === 'INITIAL_SESSION') return;
+
       await syncAuthState(activeSession);
     });
 
@@ -239,9 +277,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [syncAuthState]);
 
+  const signInWithMicrosoft = useCallback(
+    async (
+      nextPath?: string,
+      options?: { selectAccount?: boolean }
+    ): Promise<{ success: boolean; error?: string }> => {
+      try {
+        trackEvent('signup_started', { method: 'azure' });
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'azure',
+          options: {
+            scopes: 'email',
+            redirectTo: microsoftCallbackUrl(window.location.origin, sanitizeNextPath(nextPath)),
+            queryParams: {
+              domain_hint: 'temple.edu',
+              // By default Microsoft silently reuses whoever is already signed
+              // in on this browser — great on your own phone, wrong on a
+              // friend's computer. `prompt: 'select_account'` forces the
+              // account picker (one-tap tiles + "Use another account"), so the
+              // "Use a different account" link can rescue shared-computer
+              // logins without adding friction to the normal path.
+              ...(options?.selectAccount ? { prompt: 'select_account' } : {}),
+            },
+          },
+        });
+        if (error) throw error;
+        return { success: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Microsoft sign-in failed';
+        return { success: false, error: message };
+      }
+    },
+    []
+  );
+
   const requestOtp = useCallback(async (email: string): Promise<{ success: boolean; error?: string }> => {
     const normalized = email.trim().toLowerCase();
-    if (!normalized.endsWith('@temple.edu')) {
+    if (!isTempleEmail(normalized)) {
       return { success: false, error: 'Please use your Temple.edu email' };
     }
 
@@ -291,6 +363,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const profile = await authApi.updateProfile(fields);
         const nextUser = profileToAuthUser(profile);
+        rememberCompletedOnboarding(nextUser);
         if (session) {
           dispatch({ type: 'SET_AUTH', session, user: nextUser });
         }
@@ -342,7 +415,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session, syncAuthState]);
 
-  const onboardingIncomplete = needsOnboarding(user ? authUserToProfile(user) : null);
+  const onboardingIncomplete = isOnboardingRequired(user ? authUserToProfile(user) : null);
 
   return (
     <AuthContext.Provider
@@ -354,6 +427,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         needsUsername: onboardingIncomplete,
         requestOtp,
         verifyOtp,
+        signInWithMicrosoft,
         updateProfile,
         uploadAvatar,
         logout,

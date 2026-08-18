@@ -1,7 +1,7 @@
 from .user import User, UserCreate, UserUpdate, OtpVerify, ProfileUpdate
-from .party import PartyCreate, PartyResponse
+from .party import PartyCreate, PartyUpdate, PartyResponse
 
 __all__ = [
     "User", "UserCreate", "UserUpdate", "OtpVerify", "ProfileUpdate",
-    "PartyCreate", "PartyResponse",
+    "PartyCreate", "PartyUpdate", "PartyResponse",
 ]

@@ -79,6 +79,16 @@
   --green-success: #10B981;
   --card-bg: rgba(40,40,40,0.5);
   --card-info: rgba(40,40,40,0.9);
+  /*
+   * HYPED accent (WF-B2 redesign, owner-locked): bright yellow badge with
+   * near-black text — the app's ONE glow. These vars are the single source of
+   * truth for the accent: tailwind.config.ts points `temple-hyped` /
+   * `temple-hyped-ink` here, and the Leaflet popup CSS below reads them
+   * directly. Changing the accent everywhere (components AND map popups)
+   * is a two-line edit right here — they can never drift apart again.
+   */
+  --temple-hyped: #FFD60A;
+  --temple-hyped-ink: #0a0a0f;
 }
 
 * {
@@ -240,12 +250,13 @@ html {
 }
 
 /* Dark popup styles */
+/* Popup surface mirrors the feed cards: surface-2 grey + hairline border. */
 .party-popup-dark .leaflet-popup-content-wrapper {
-  background: #202023;
-  border-radius: 16px;
+  background: #252528;
+  border-radius: 14px;
   padding: 0;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -255,9 +266,9 @@ html {
 }
 
 .party-popup-dark .leaflet-popup-tip {
-  background: #202023;
-  border-left: 1px solid rgba(178, 75, 243, 0.3);
-  border-bottom: 1px solid rgba(178, 75, 243, 0.3);
+  background: #252528;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Popup content styling */
@@ -274,32 +285,39 @@ html {
   margin-bottom: 6px !important;
 }
 
+/* Chips match the card chips: square-ish 4px corners, Montserrat, tracked. */
 .popup-category-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 8px;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 500;
+  padding: 5px 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   background: #b24bf3;
   color: #ffffff;
-  border-radius: 9999px;
+  border-radius: 4px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .popup-hyped-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 8px;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 500;
-  background: #e0d4ff;
-  color: #0b0b0b;
-  border-radius: 9999px;
+  padding: 5px 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  /* Same HEADLINER accent the cards use — see the :root vars at the top of this file. */
+  background: var(--temple-hyped);
+  color: var(--temple-hyped-ink);
+  border-radius: 4px;
   text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 0 12px 1px rgba(255, 214, 10, 0.45);
 }
 
 .popup-title {
@@ -314,7 +332,8 @@ html {
 .popup-host {
   font-family: 'Montserrat', sans-serif;
   font-size: 14px;
-  color: white;
+  /* Host line reads in the secondary light purple, same as the cards. */
+  color: #e0d4ff;
   margin: 0 0 10px 0 !important;
   line-height: 18px;
   display: flex;
@@ -454,6 +473,8 @@ html {
   cursor: pointer;
   transition: all 0.15s ease;
   background: #e0d4ff;
+  /* The inline NavigateIcon draws with currentColor — brand purple plane. */
+  color: #b24bf3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -467,7 +488,8 @@ html {
   transform: scale(0.98);
 }
 
-/* Sponsored marker styles — commented out (deal cancelled)
+/* Sponsored marker + popup — driven by lib/sponsors.ts (empty = off).
+   Same design language as the party popups: surface-2 card, square chips. */
 .sponsor-marker {
   display: flex;
   align-items: center;
@@ -475,8 +497,8 @@ html {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: rgba(224, 212, 255, 0.9);
-  backdrop-filter: blur(4px);
+  /* Solid fill — no backdrop-filter (the no-live-blur rule, see DESIGN.md). */
+  background: #e0d4ff;
   border: 2px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 2px 12px rgba(224, 212, 255, 0.4);
   cursor: pointer;
@@ -495,22 +517,24 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 8px;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 500;
+  padding: 5px 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   background: #e0d4ff;
   color: #0b0b0b;
-  border-radius: 9999px;
+  border-radius: 4px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .sponsor-popup-dark .leaflet-popup-content-wrapper {
-  background: #202023;
-  border-radius: 16px;
+  background: #252528;
+  border-radius: 14px;
   padding: 0;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(178, 75, 243, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -520,11 +544,10 @@ html {
 }
 
 .sponsor-popup-dark .leaflet-popup-tip {
-  background: #202023;
-  border-left: 1px solid rgba(178, 75, 243, 0.3);
-  border-bottom: 1px solid rgba(178, 75, 243, 0.3);
+  background: #252528;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-*/
 
 /* Leaflet controls dark theme */
 .leaflet-control-zoom {

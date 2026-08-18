@@ -1,17 +1,42 @@
 'use client';
 
+/**
+ * Party detail page (WF-D) — the full story of one party, on a pushed route:
+ * back arrow instead of the tab bar, and a sticky action bar pinned to the
+ * bottom so GOING / navigate stay one thumb away at any scroll depth.
+ *
+ * Top to bottom: stage hero (poster + back/share) → category tag → title →
+ * host credibility row → date/time → cover & going stat tiles → promo code
+ * (the attribution coupon) → address + navigate (or the sign-in gate) →
+ * host's description → the "WAS IT GOOD?" rating module → invite → sticky
+ * actions. Ticketed parties (WF-D2) swap the sticky bar to BUY TICKETS
+ * primary with GOING as a quiet outline.
+ *
+ * Soft gate: logged-out visitors see everything EXCEPT the address (the
+ * server nulls it, plus the counts) — the address module becomes the
+ * "SIGN IN WITH .EDU" card. Browse stays free; the address is the carrot.
+ */
+
 import { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import GoingButton from '@/components/GoingButton';
-import ThumbsRating from '@/components/ThumbsRating';
-import RatingModal from '@/components/RatingModal';
 import InviteModal from '@/components/InviteModal';
 import Toast from '@/components/Toast';
 import RequireOnboarding from '@/components/RequireOnboarding';
-import { partiesApi } from '@/services/api';
+import PartyHero from '@/components/party/PartyHero';
+import HostRow from '@/components/party/HostRow';
+import WhenWhereCard from '@/components/party/WhenWhereCard';
+import PromoCard from '@/components/party/PromoCard';
+import RatingPanel from '@/components/party/RatingPanel';
+import Pill from '@/components/ui/Pill';
+import StatTile from '@/components/ui/StatTile';
+import SectionLabel from '@/components/ui/SectionLabel';
+import StickyActionBar from '@/components/ui/StickyActionBar';
+import NavigateIcon from '@/components/ui/NavigateIcon';
+import { ratingWindowState } from '@/components/PartyCard';
+import { partiesApi, ratingsApi } from '@/services/api';
 import type { Party } from '@/lib/types';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
@@ -19,7 +44,8 @@ import useModalState from '@/hooks/useModalState';
 import useToast from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import { openMapsDirections, shareContent } from '@/utils/shareHelpers';
-import { getDayName } from '@/utils/dateHelpers';
+import { getPartyDateLabel } from '@/utils/dateHelpers';
+import { voteCounts } from '@/utils/ratingHelpers';
 import { trackEvent } from '@/utils/analytics';
 
 export default function PartyPage() {
@@ -43,8 +69,32 @@ export default function PartyPage() {
   const [party, setParty] = useState<Party | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
+  // Your past rating, from the server. useRatingStatus only knows about
+  // ratings submitted THIS session, so without this a reload would show
+  // outline thumbs even though you already voted.
+  const [serverUserRating, setServerUserRating] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (!partyId || !isAuthenticated) {
+      setServerUserRating(null);
+      return;
+    }
+    let cancelled = false;
+    ratingsApi
+      .getPartyRating(partyId)
+      .then((r) => {
+        if (!cancelled) setServerUserRating(r.userRating ?? null);
+      })
+      .catch(() => {
+        // Decorative — the page works fine without the seed.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [partyId, isAuthenticated]);
+
+  // Refetch when auth flips: the server reveals address/counts to signed-in
+  // viewers, so the same party ID returns more data after login.
   useEffect(() => {
     if (!partyId) return;
     let cancelled = false;
@@ -79,12 +129,14 @@ export default function PartyPage() {
       return;
     }
     if (requireAuthForGoing(party.id, `/party/${party.id}`)) return;
+    // Navigating implies attending — keep the v1 auto-RSVP behavior.
     void ensureGoing(party.id);
     openMapsDirections(party.address);
     trackEvent('navigate_clicked', { partyId: party.id, source: 'party_page' });
   }, [party, partyId, isAuthenticated, openLogin, requireAuthForGoing, ensureGoing]);
 
-  const handleRateOpen = useCallback(() => {
+  // Inline thumbs submit directly — the party page IS the context, no modal.
+  const handleRate = useCallback(async (rating: 1 | 0) => {
     if (!party) return;
     if (requireAuthForRating(`/party/${party.id}`)) return;
     if (!party.ratingOpen) {
@@ -95,14 +147,15 @@ export default function PartyPage() {
       toast.show('Ratings are now closed');
       return;
     }
-    setShowRatingModal(true);
-  }, [party, requireAuthForRating, toast]);
-
-  const handleRate = useCallback(async (rating: number) => {
-    if (!party) return;
+    // Server enforces the going-only gate too; checking here just gives a
+    // friendlier message than a raw 403.
+    if (!isGoing(party.id)) {
+      toast.show('Ratings are for people who went — tap GOING first');
+      return;
+    }
     await submitRating(party.id, rating);
     trackEvent('party_rated', { partyId: party.id, rating, source: 'party_page' });
-  }, [party, submitRating]);
+  }, [party, requireAuthForRating, isGoing, submitRating, toast]);
 
   const handleShare = useCallback(async () => {
     if (!party) return;
@@ -113,11 +166,24 @@ export default function PartyPage() {
     }
   }, [party, toast]);
 
+  const handlePromoCopied = useCallback((code: string) => {
+    toast.show('Promo code copied');
+    trackEvent('promo_code_copied', { partyId: party?.id, code });
+  }, [party, toast]);
+
+  // Jump to the Map tab focused on this party's pin (spatial context lives
+  // there — this page deliberately has no embedded map).
+  const handleOpenMap = useCallback(() => {
+    if (!party) return;
+    trackEvent('party_map_opened', { partyId: party.id });
+    router.push(`/map?party=${party.id}`);
+  }, [party, router]);
+
   if (loading) {
     return (
-      <AppShell>
+      <AppShell hideBottomNav>
         <div className="flex justify-center py-24">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-temple-purple" />
         </div>
       </AppShell>
     );
@@ -125,10 +191,10 @@ export default function PartyPage() {
 
   if (notFound || !party) {
     return (
-      <AppShell>
+      <AppShell hideBottomNav>
         <div className="pb-24 max-w-xl mx-auto px-6 pt-10">
           <h1 className="text-white text-2xl font-montserrat font-semibold mb-4">Party not found</h1>
-          <Link href="/" className="text-[#b24bf3] font-montserrat font-semibold underline">
+          <Link href="/" className="text-temple-purple font-montserrat font-semibold underline">
             Back to Home
           </Link>
         </div>
@@ -136,144 +202,169 @@ export default function PartyPage() {
     );
   }
 
-  const goingCount = getCount(party.id, party.goingCount);
-  const likePct = getLikePercentage(party.id, party.likePercentage);
-  const ratingCount = getRatingCount(party.id, party.ratingCount);
-  const userRating = getUserRating(party.id);
+  // null-through rule (same as the feed): server-stripped counts stay null so
+  // the UI shows dashes for logged-out viewers instead of fake zeros.
+  const goingCount = party.goingCount === null ? null : getCount(party.id, party.goingCount);
+  const likePct = party.likePercentage === null ? null : getLikePercentage(party.id, party.likePercentage);
+  const ratingCount = party.ratingCount === null ? null : getRatingCount(party.id, party.ratingCount);
+  // This session's tap wins; otherwise fall back to the server-known vote.
+  const userRating = getUserRating(party.id) ?? serverUserRating;
+  const votes = voteCounts(likePct, ratingCount);
+  const userIsGoing = isGoing(party.id);
+  const ticketed = !!party.ticketUrl;
+
+  const windowState = ratingWindowState(party.ratingOpen ?? false, party.ratingLocked ?? false);
+  // The going-only rule is enforced server-side and surfaced as a toast on
+  // attempt (see handleRate) — no need to preach it on the panel itself.
+  const ratingLockCopy =
+    windowState === 'locked'
+      ? 'Ratings are closed'
+      : windowState === 'inactive'
+        ? `Unlocks at ${party.doorsOpen}`
+        : null;
+
+  const hostSubtitle = party.hostStats
+    ? `${party.category} · ${party.hostStats.partiesHosted} ${party.hostStats.partiesHosted === 1 ? 'party' : 'parties'} hosted · ↑ ${Math.round(party.hostStats.avgLikePercentage)}% avg`
+    : undefined;
 
   return (
-    <AppShell>
+    <AppShell hideBottomNav>
       <RequireOnboarding>
-        <div className="pb-24 lg:pb-8 max-w-xl mx-auto">
-          <div className="relative w-full aspect-[4/5] bg-[rgba(40,40,40,0.5)]">
-            {party.posterImage ? (
-              <Image
-                src={party.posterImage}
-                alt={`${party.title} poster`}
-                fill
-                className="object-cover"
-                priority
-                sizes="(max-width: 768px) 100vw, 576px"
+        {/* pb-32 clears the sticky action bar so the invite button never hides under it. */}
+        <div className="pb-32 lg:pb-32 max-w-xl mx-auto">
+          <PartyHero posterImage={party.posterImage} title={party.title} onShare={handleShare} />
+
+          <div className="flex flex-col gap-3.5 px-4 pt-4 sm:px-6">
+            {/* Tag row. The announcements bell from the design lands with the
+                Phase 2 announcements feature — nothing to ring yet. */}
+            <div className="flex items-center gap-2">
+              {party.isHeadliner && (
+                <Pill tone="hyped" size="sm" shape="square" title="Tonight's most popular party">
+                  HEADLINER
+                </Pill>
+              )}
+              <Pill tone="accent" size="sm" shape="square">{party.category}</Pill>
+            </div>
+
+            <h1 className="text-white text-[28px] leading-8 font-montserrat font-bold uppercase">
+              {party.title}
+            </h1>
+
+            <HostRow
+              name={party.host}
+              isVerified={party.isVerified}
+              subtitle={hostSubtitle}
+              avatarUrl={party.hostStats?.logoUrl}
+              onShowToast={toast.show}
+            />
+
+            <WhenWhereCard
+              dateLabel={getPartyDateLabel(party.date)}
+              doorsOpen={party.doorsOpen}
+              doorsClose={party.doorsClose}
+              address={party.address}
+              onUnlock={() => openLogin(undefined, `/party/${party.id}`)}
+              onOpenMap={handleOpenMap}
+            />
+
+            <div className="flex gap-2.5">
+              {/* No price text: a ticketed party says ONLINE (the link knows
+                  the price), a plain one says FREE. "FREE / TICKETS" next to
+                  a BUY TICKETS bar would be a lie. */}
+              <StatTile
+                value={party.ticketPrice || (ticketed ? 'ONLINE' : 'FREE')}
+                label={ticketed ? 'TICKETS' : 'COVER'}
               />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-[#b24bf3]/30 to-[#252525] flex items-center justify-center">
-                <span className="text-white/20 font-montserrat font-bold text-4xl text-center px-6">
-                  {party.title}
-                </span>
-              </div>
+              <StatTile value={goingCount === null ? '—' : String(goingCount)} label="GOING" />
+            </div>
+
+            {party.promoCode && party.promoLabel && (
+              <PromoCard
+                code={party.promoCode}
+                label={party.promoLabel}
+                hint={party.promoHint}
+                onCopied={handlePromoCopied}
+              />
             )}
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="absolute top-4 left-4 z-10 px-3 py-1.5 rounded-full bg-black/60 text-white text-sm font-montserrat"
-            >
-              Back
-            </button>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="absolute top-4 right-4 z-10 px-3 py-1.5 rounded-full bg-black/60 text-white text-sm font-montserrat"
-            >
-              Share
-            </button>
-          </div>
-
-          <div className="px-6 pt-5">
-            <div className="flex gap-2 mb-3">
-              <span className="inline-flex px-2 py-1 bg-[#b24bf3] rounded-full text-[10px] font-helvetica font-medium text-white uppercase">
-                {party.category}
-              </span>
-              {party.isVerified && (
-                <span className="inline-flex px-2 py-1 bg-[#e0d4ff] rounded-full text-[10px] font-helvetica font-medium text-[#0b0b0b] uppercase">
-                  Verified
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-white text-3xl font-montserrat font-bold mb-1">{party.title}</h1>
-            <p className="text-white/80 font-montserrat text-lg mb-4">
-              by <span className="font-semibold">{party.host}</span>
-            </p>
-
-            <div className="flex flex-col gap-2 mb-4 text-white/75 font-helvetica text-sm">
-              <div className="flex items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icons/clock.svg" alt="" className="w-4 h-4" />
-                <span>
-                  {getDayName(party.day)} · {party.doorsOpen}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icons/map-pin.svg" alt="" className="w-4 h-4" />
-                {party.address ? (
-                  <span>{party.address}</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => openLogin(undefined, `/party/${party.id}`)}
-                    className="underline"
-                  >
-                    Sign in to view address
-                  </button>
-                )}
-              </div>
-              {party.ticketPrice && (
-                <p className="text-white/60">Tickets: {party.ticketPrice}</p>
-              )}
-            </div>
 
             {party.description && (
-              <p className="text-white/70 font-montserrat text-sm mb-6 whitespace-pre-wrap">
-                {party.description}
-              </p>
+              <div className="flex flex-col gap-1.5">
+                <SectionLabel className="!text-[10px] !tracking-[1px]">FROM THE HOST</SectionLabel>
+                <p className="font-montserrat text-[13px] leading-[19px] text-white/70 whitespace-pre-wrap">
+                  {party.description}
+                </p>
+              </div>
             )}
 
-            <button type="button" onClick={handleRateOpen} className="mb-6">
-              <ThumbsRating
-                userRating={userRating}
-                likePercentage={likePct}
-                ratingCount={ratingCount}
-                onRate={() => {}}
-                disabled
-                displayOnly
-                size="md"
-              />
-            </button>
+            <RatingPanel
+              likePercentage={likePct}
+              likeCount={votes?.likeCount ?? null}
+              dislikeCount={votes?.dislikeCount ?? null}
+              userRating={userRating}
+              state={windowState}
+              lockCopy={ratingLockCopy}
+              onRate={handleRate}
+            />
 
-            <div className="flex gap-2">
-              <GoingButton
-                partyId={party.id}
-                currentCount={goingCount}
-                userIsGoing={isGoing(party.id)}
-                onGoingClick={handleGoing}
-              />
-              <button
-                type="button"
-                onClick={handleNavigate}
-                disabled={!party.address && isAuthenticated}
-                className="flex-1 h-[41px] lg:h-[48px] rounded-[12px] bg-[#e0d4ff] flex items-center justify-center font-montserrat font-bold text-[#0b0b0b] disabled:opacity-50"
-              >
-                Navigate
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={openInviteModal}
+              className="w-full border border-white/15 rounded-[10px] py-[11px] font-montserrat font-bold text-[10.5px] tracking-[0.63px] uppercase text-white hover:border-white/30 transition-colors"
+            >
+              INVITE YOUR FRIENDS
+            </button>
           </div>
         </div>
 
-        <InviteModal isOpen={showInviteModal} onClose={closeInviteModal} onShare={handleShare} />
+        {/* Sticky actions. Ticketed parties (WF-D2): BUY TICKETS deep-links
+            out (the backend already appended ref=tuparty so redemptions
+            prove we drove the sale); GOING survives as the in-app signal. */}
+        <StickyActionBar>
+          {ticketed ? (
+            <>
+              <GoingButton
+                currentCount={goingCount}
+                userIsGoing={userIsGoing}
+                onGoingClick={handleGoing}
+                variant="bar"
+                tone="secondary"
+              />
+              <a
+                href={party.ticketUrl!}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackEvent('buy_tickets_clicked', { partyId: party.id })}
+                className="flex-1 min-w-0 py-3 rounded-[10px] bg-temple-purple text-white font-montserrat font-bold text-[14px] uppercase text-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+              >
+                BUY TICKETS ↗
+              </a>
+            </>
+          ) : (
+            <>
+              {/* 70/30 split — both actions fill the bar's full height, no
+                  little square button floating in it. */}
+              <div className="flex-[7] min-w-0 flex">
+                <GoingButton
+                  currentCount={goingCount}
+                  userIsGoing={userIsGoing}
+                  onGoingClick={handleGoing}
+                  variant="bar"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleNavigate}
+                aria-label="Navigate"
+                title="Opens walking directions"
+                className="flex-[3] py-3 rounded-[10px] bg-temple-purple-light text-temple-purple flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+              >
+                <NavigateIcon className="w-[18px] h-[18px]" />
+              </button>
+            </>
+          )}
+        </StickyActionBar>
 
-        {showRatingModal && (
-          <RatingModal
-            isOpen={showRatingModal}
-            onClose={() => setShowRatingModal(false)}
-            partyTitle={party.title}
-            partyHost={party.host}
-            likePercentage={likePct}
-            ratingCount={ratingCount}
-            userRating={userRating}
-            onRate={handleRate}
-          />
-        )}
+        <InviteModal isOpen={showInviteModal} onClose={closeInviteModal} onShare={handleShare} />
 
         <Toast message={toast.message} isVisible={toast.isVisible} onClose={toast.hide} />
       </RequireOnboarding>

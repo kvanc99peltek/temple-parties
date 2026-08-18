@@ -1,18 +1,80 @@
 'use client';
 
+/**
+ * BottomNav — the app's chrome: a 4-tab bottom bar on mobile (Home / Map /
+ * Ranks / Profile, per the WF-B2 redesign) and a fixed top bar on desktop.
+ *
+ * On /demo/* paths every link swaps to its demo twin (and Profile is hidden)
+ * so the read-only demo can never leak into the live app.
+ *
+ * The Profile tab is the login entry point too: logged-out visitors who tap
+ * it hit /profile, which redirects them to /login — no separate login link
+ * needed anywhere else.
+ *
+ * `desktopOnly` supports "pushed" routes (the party page): they suppress the
+ * mobile tab bar in favor of a back arrow + their own sticky action bar,
+ * while desktop keeps its top bar.
+ */
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { ReactNode } from 'react';
+import Wordmark from '@/components/ui/Wordmark';
 
-type NavKey = 'home' | 'map' | 'rankings';
+type NavKey = 'home' | 'map' | 'rankings' | 'profile';
 
-const MAIN_NAV: { key: NavKey; href: string; label: string; icon: string; iconActive: string; mobileClass: string }[] = [
+// Inline SVGs (stroke = currentColor) so the active tint is pure CSS —
+// no separate "-active" asset needed per icon like the old PNG approach.
+function HomeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-[22px]" aria-hidden>
+      <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19v-8.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M9.5 20.5v-7h5v7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MapIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-[22px]" aria-hidden>
+      <path d="M9 18.5 3 21V6l6-2.5M9 18.5 15 21M9 18.5V3.5M15 21l6-2.5V4l-6 2.5M15 21V6.5M15 6.5 9 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RanksIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-[22px]" aria-hidden>
+      <path d="M8 20V10M12 20V4M16 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ProfileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-[22px]" aria-hidden>
+      <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M5.5 19c1.2-3 3.5-4.5 6.5-4.5s5.3 1.5 6.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const ICONS: Record<NavKey, () => ReactNode> = {
+  home: HomeIcon,
+  map: MapIcon,
+  rankings: RanksIcon,
+  profile: ProfileIcon,
+};
+
+// icon/iconActive file paths survive only for the desktop bar, which still
+// uses the original SVG assets next to its text labels.
+const MAIN_NAV: { key: NavKey; href: string; label: string; icon: string; iconActive: string }[] = [
   {
     key: 'home',
     href: '/',
     label: 'Home',
     icon: '/icons/home.svg',
     iconActive: '/icons/home-active.svg',
-    mobileClass: 'w-10 h-10',
   },
   {
     key: 'map',
@@ -20,19 +82,24 @@ const MAIN_NAV: { key: NavKey; href: string; label: string; icon: string; iconAc
     label: 'Map',
     icon: '/icons/map.svg',
     iconActive: '/icons/map-active.svg',
-    mobileClass: 'w-10 h-10',
   },
   {
     key: 'rankings',
     href: '/leaderboards',
-    label: 'Leaderboards',
+    label: 'Ranks',
     icon: '/icons/leaderboards.svg',
     iconActive: '/icons/leaderboards-active.svg',
-    mobileClass: 'w-[26px] h-[31px]',
+  },
+  {
+    key: 'profile',
+    href: '/profile',
+    label: 'Profile',
+    icon: '',
+    iconActive: '',
   },
 ];
 
-const DEMO_NAV = MAIN_NAV.map((item) => ({
+const DEMO_NAV = MAIN_NAV.filter((item) => item.key !== 'profile').map((item) => ({
   ...item,
   href:
     item.key === 'home'
@@ -55,10 +122,11 @@ function activeKeyFromPath(pathname: string): NavKey {
   ) {
     return 'rankings';
   }
+  if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'profile';
   return 'home';
 }
 
-export default function BottomNav() {
+export default function BottomNav({ desktopOnly = false }: { desktopOnly?: boolean }) {
   const pathname = usePathname() ?? '/';
   const demo = isDemoPath(pathname);
   const nav = demo ? DEMO_NAV : MAIN_NAV;
@@ -67,82 +135,70 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* Desktop top bar — hidden below lg */}
+      {/* Desktop top bar — always present so big screens keep persistent nav. */}
       <nav
         className="hidden lg:flex fixed top-0 left-0 right-0 h-16 bg-[#0b0b0b]/95 backdrop-blur-md border-b border-white/10 items-center px-8"
         style={{ zIndex: 9999 }}
       >
-        <Link href={homeHref} className="text-[28px] font-normal text-white font-bitcount leading-none">
-          Temple<br />Parties
+        <Link href={homeHref}>
+          <Wordmark />
         </Link>
 
         <div className="ml-auto flex items-center gap-8">
           {nav.map((item) => {
             const isActive = active === item.key;
+            const desktopLabel = item.key === 'rankings' ? 'Leaderboards' : item.label;
             return (
               <Link
                 key={item.key}
                 href={item.href}
                 className={`flex items-center gap-2 text-[15px] font-montserrat font-semibold transition-colors duration-200 ${
-                  isActive ? 'text-[#b24bf3]' : 'text-white/60 hover:text-white'
+                  isActive ? 'text-temple-purple' : 'text-white/60 hover:text-white'
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={isActive ? item.iconActive : item.icon}
-                  alt=""
-                  className="w-6 h-6"
-                />
-                {item.label}
+                {item.icon && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={isActive ? item.iconActive : item.icon}
+                    alt=""
+                    className="w-6 h-6"
+                  />
+                )}
+                {desktopLabel}
               </Link>
             );
           })}
-          {!demo && (
-            <Link
-              href="/profile"
-              className={`text-[15px] font-montserrat font-semibold transition-colors duration-200 ${
-                pathname === '/profile' || pathname.startsWith('/profile/')
-                  ? 'text-[#b24bf3]'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              Profile
-            </Link>
-          )}
         </div>
       </nav>
 
-      {/* Mobile pill — hidden at lg+ */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0" style={{ zIndex: 9999 }}>
-        <div
-          className="absolute inset-x-0 bottom-0 h-[100px] pointer-events-none"
-          style={{ background: 'linear-gradient(to bottom, transparent, black)' }}
-        />
-
-        <div className="relative flex justify-center pb-3">
-          <div className="w-[232px] h-[50px] bg-[#b24bf3] rounded-[24px] flex items-center justify-center gap-[35px]">
+      {/* Mobile tab bar — suppressed on pushed routes via desktopOnly. */}
+      {!desktopOnly && (
+        <nav
+          className="lg:hidden fixed bottom-0 left-0 right-0 bg-temple-surface border-t border-white/10"
+          style={{ zIndex: 9999 }}
+        >
+          <div className="flex items-start justify-between px-8 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
             {nav.map((item) => {
               const isActive = active === item.key;
+              const Icon = ICONS[item.key];
               return (
                 <Link
                   key={item.key}
                   href={item.href}
-                  className="transition-opacity duration-200 hover:opacity-80"
+                  className={`flex flex-col items-center gap-1 min-w-[44px] transition-colors duration-200 ${
+                    isActive ? 'text-temple-purple' : 'text-temple-muted'
+                  }`}
                   aria-label={item.label}
                   aria-current={isActive ? 'page' : undefined}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={isActive ? item.iconActive : item.icon}
-                    alt={item.label}
-                    className={item.mobileClass}
-                  />
+                  <Icon />
+                  <span className="font-montserrat font-medium text-[10px]">{item.label}</span>
                 </Link>
               );
             })}
           </div>
-        </div>
-      </nav>
+        </nav>
+      )}
     </>
   );
 }

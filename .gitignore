@@ -55,3 +55,4 @@ supabase/DEV_NEVER_PROMOTE.md
 
 # Claude Code local settings (contains machine-local secrets)
 .claude/
+.gstack/

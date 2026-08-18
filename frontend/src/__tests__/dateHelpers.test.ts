@@ -2,7 +2,7 @@
  * Test cases for date helper utility functions.
  * Tests edge cases and boundary conditions for date calculations.
  */
-import { getDefaultDay, getUpcomingDates, getDayName } from '../utils/dateHelpers';
+import { getDefaultDay, getUpcomingDates, getDayName, getAlsoTonightLabel, getPartyDateLabel } from '../utils/dateHelpers';
 
 describe('dateHelpers', () => {
   describe('getDefaultDay', () => {
@@ -61,6 +61,51 @@ describe('dateHelpers', () => {
     it('should treat Sunday before 6 AM as Saturday', () => {
       mockDate(0, 3);
       expect(getDefaultDay()).toBe('saturday');
+    });
+  });
+
+  describe('getAlsoTonightLabel', () => {
+    const originalDate = global.Date;
+
+    afterEach(() => {
+      global.Date = originalDate;
+    });
+
+    const mockDate = (dayOfWeek: number, hour = 12) => {
+      const date = new Date(2024, 0, 7 + dayOfWeek, hour, 0, 0);
+      jest.spyOn(global, 'Date').mockImplementation(() => date as unknown as Date);
+    };
+
+    it('says TONIGHT when the selected day is today', () => {
+      mockDate(5);
+      expect(getAlsoTonightLabel('friday', 5)).toBe('ALSO TONIGHT · 5');
+    });
+
+    it('says FRIDAY when browsing Friday on a weekday', () => {
+      mockDate(3);
+      expect(getAlsoTonightLabel('friday', 3)).toBe('ALSO FRIDAY · 3');
+    });
+
+    it('says SATURDAY when browsing Saturday before the weekend', () => {
+      mockDate(4);
+      expect(getAlsoTonightLabel('saturday', 2)).toBe('ALSO SATURDAY · 2');
+    });
+
+    it('treats Saturday before 6 AM as Friday night', () => {
+      mockDate(6, 3);
+      expect(getAlsoTonightLabel('friday', 4)).toBe('ALSO TONIGHT · 4');
+    });
+  });
+
+  describe('getPartyDateLabel', () => {
+    it('formats an ISO date as the party-page date line', () => {
+      expect(getPartyDateLabel('2026-10-16')).toBe('FRI OCT 16');
+      expect(getPartyDateLabel('2026-10-17')).toBe('SAT OCT 17');
+    });
+
+    it('parses as a local date (no UTC off-by-one)', () => {
+      // new Date('2026-01-02') would be UTC midnight → Jan 1 in US timezones.
+      expect(getPartyDateLabel('2026-01-02')).toBe('FRI JAN 2');
     });
   });
 

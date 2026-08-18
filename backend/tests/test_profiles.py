@@ -130,6 +130,32 @@ class TestPatchProfileMe:
         assert response.status_code == 400
         assert "school_year" in response.json()["detail"]
 
+    def test_patch_accepts_graduation_year(self, client, mock_supabase, mock_user):
+        """school_year is a grad year since the 2026-08-17 redesign."""
+        _auth(mock_supabase, mock_user)
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([_profile_row(mock_user, school_year="2028")])
+
+        response = client.patch(
+            "/profiles/me",
+            json={"school_year": "2028"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["school_year"] == "2028"
+
+    def test_patch_rejects_out_of_range_year(self, client, mock_supabase, mock_user):
+        _auth(mock_supabase, mock_user)
+
+        response = client.patch(
+            "/profiles/me",
+            json={"school_year": "1999"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 400
+
     def test_patch_rejects_bad_username(self, client, mock_supabase, mock_user):
         _auth(mock_supabase, mock_user)
 

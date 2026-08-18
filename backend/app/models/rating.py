@@ -25,6 +25,8 @@ class PartyRankingResponse(BaseModel):
     ratingCount: int
     goingCount: int
     userRating: Optional[int] = None
+    # Public poster URL — the Ranks page's champion hero renders the flyer.
+    posterImage: Optional[str] = None
 
 
 class HostRankingResponse(BaseModel):

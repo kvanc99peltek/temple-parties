@@ -122,6 +122,8 @@ class TestGetParties:
         assert party["goingCount"] is None
         assert party["ratingCount"] is None
         assert party["likePercentage"] is None
+        assert party["likeCount"] is None
+        assert party["dislikeCount"] is None
         assert party["latitude"] is not None
         assert party["longitude"] is not None
 
@@ -141,6 +143,8 @@ class TestGetParties:
         assert party["address"] == mock_party["address"]
         assert party["goingCount"] == mock_party["going_count"]
         assert party["ratingCount"] == mock_party["rating_count"]
+        assert party["likeCount"] == 0
+        assert party["dislikeCount"] == 0
 
 
 class TestGetParty:
@@ -157,6 +161,116 @@ class TestGetParty:
         assert response.json()["id"] == mock_party["id"]
         # Soft-gate: anon still gets the party but stripped fields
         assert response.json()["address"] is None
+        assert response.json()["likeCount"] is None
+        assert response.json()["dislikeCount"] is None
+
+    def test_get_party_ticket_url_and_promo_public_for_anon(self, client, mock_supabase, mock_party):
+        mock_party["external_ticket_url"] = "https://dice.fm/event/rave"
+        mock_party["promo_code"] = "TUPARTY25"
+        mock_party["promo_label"] = "$2 OFF TICKETS"
+        mock_party["doors_close"] = "2:00 AM"
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["address"] is None
+        assert data["goingCount"] is None
+        assert data["ticketUrl"] == "https://dice.fm/event/rave?ref=tuparty"
+        assert data["promoCode"] == "TUPARTY25"
+        assert data["promoLabel"] == "$2 OFF TICKETS"
+        assert data["doorsClose"] == "2:00 AM"
+
+    def test_get_party_like_dislike_counts_when_authed(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["like_percentage"] = 84
+        mock_party["rating_count"] = 93
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get(
+            f"/parties/{mock_party['id']}",
+            headers={"Authorization": "Bearer valid_token"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["likeCount"] == 78
+        assert data["dislikeCount"] == 15
+        assert data["likePercentage"] == 84.0
+
+    def test_get_party_is_headliner_when_top_of_night(self, client, mock_supabase, mock_party):
+        """isHeadliner: true when this party tops its night's going_count ranking."""
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value \
+            .order.return_value.limit.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_party["id"]}])
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 200
+        assert response.json()["isHeadliner"] is True
+
+    def test_get_party_not_headliner_when_another_party_tops(self, client, mock_supabase, mock_party):
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value \
+            .order.return_value.limit.return_value.execute.return_value = \
+            create_mock_db_response([{"id": str(uuid.uuid4())}])
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 200
+        assert response.json()["isHeadliner"] is False
+
+    def test_get_party_host_stats_from_rankings(self, client, mock_supabase, mock_party):
+        """host_codes linked -> hostStats attached from the leaderboard RPC."""
+        mock_party["host_codes"] = ["asig"]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+        mock_supabase.rpc.return_value.execute.return_value = create_mock_db_response([
+            {
+                "host_code": "asig",
+                "display_name": "Alpha Sigma Phi",
+                "logo_url": None,
+                "parties_hosted": 12,
+                "avg_like_percentage": 76.4,
+            },
+            {"host_code": "other", "display_name": "Other", "parties_hosted": 1},
+        ])
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 200
+        stats = response.json()["hostStats"]
+        assert stats == {
+            "displayName": "Alpha Sigma Phi",
+            "partiesHosted": 12,
+            "avgLikePercentage": 76.4,
+            "logoUrl": None,
+        }
+
+    def test_get_party_host_stats_null_without_host_codes(self, client, mock_supabase, mock_party):
+        """Self-serve listings (empty host_codes) never call the RPC."""
+        mock_party["host_codes"] = []
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 200
+        assert response.json()["hostStats"] is None
+        mock_supabase.rpc.assert_not_called()
+
+    def test_get_party_host_stats_rpc_failure_is_swallowed(self, client, mock_supabase, mock_party):
+        """The cred line is decorative — an RPC blowup must not 500 the page."""
+        mock_party["host_codes"] = ["asig"]
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+        mock_supabase.rpc.return_value.execute.side_effect = Exception("rpc down")
+
+        response = client.get(f"/parties/{mock_party['id']}")
+        assert response.status_code == 200
+        assert response.json()["hostStats"] is None
 
     def test_get_party_pending_hidden_from_public(self, client, mock_supabase, mock_party):
         mock_party["status"] = "pending"
@@ -644,7 +758,7 @@ class TestCreateParty:
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
 
         with patch("app.routers.parties.geocode_address", return_value=None):
             response = client.post(
@@ -663,7 +777,7 @@ class TestCreateParty:
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
         valid_party_data["date"] = "2020-01-03"  # Friday in the past
 
         response = client.post(
@@ -675,6 +789,91 @@ class TestCreateParty:
         assert response.status_code == 422
         assert "future" in response.json()["detail"].lower() or "today" in response.json()["detail"].lower()
 
+    def test_create_party_with_ticket_url_promo_and_end_time(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
+
+        valid_party_data.update({
+            "ticket_price": "$15+",
+            "doors_close": "2:00 AM",
+            "external_ticket_url": "https://dice.fm/event/rave",
+            "promo_code": "tuparty25",
+            "promo_label": "$2 OFF TICKETS",
+            "promo_hint": "Use at checkout",
+        })
+        created_party = {
+            **valid_party_data,
+            "id": str(uuid.uuid4()),
+            "day": "friday",
+            "weekend_of": valid_party_data["date"],
+            "latitude": 39.981,
+            "longitude": -75.155,
+            "going_count": 0,
+            "status": "pending",
+            "like_percentage": 0,
+            "rating_count": 0,
+            "promo_code": "TUPARTY25",
+            "external_ticket_url": "https://dice.fm/event/rave",
+        }
+        mock_supabase.table.return_value.insert.return_value.execute.return_value = \
+            create_mock_db_response([created_party])
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["doorsClose"] == "2:00 AM"
+        assert data["promoCode"] == "TUPARTY25"
+        assert data["promoLabel"] == "$2 OFF TICKETS"
+        assert data["promoHint"] == "Use at checkout"
+        assert data["ticketUrl"] == "https://dice.fm/event/rave?ref=tuparty"
+        insert_payload = mock_supabase.table.return_value.insert.call_args[0][0]
+        assert insert_payload["promo_code"] == "TUPARTY25"
+        assert insert_payload["external_ticket_url"] == "https://dice.fm/event/rave"
+
+    def test_create_party_rejects_promo_code_without_label(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["promo_code"] = "TUPARTY25"
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+        assert "promo_label" in str(response.json()["detail"]).lower()
+
+    def test_create_party_rejects_http_ticket_url(
+        self, client, mock_supabase, mock_user, valid_party_data
+    ):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["external_ticket_url"] = "http://dice.fm/event/rave"
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+        assert "https" in str(response.json()["detail"]).lower()
+
     def test_create_party_with_description_and_ticket_price(
         self, client, mock_supabase, mock_user, valid_party_data
     ):
@@ -682,7 +881,7 @@ class TestCreateParty:
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
 
         valid_party_data["description"] = "BYOB, rooftop vibes"
         valid_party_data["ticket_price"] = "$10 at door"
@@ -736,7 +935,7 @@ class TestCreateParty:
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
         valid_party_data["poster_image"] = f"{uuid.uuid4()}/abc123.jpg"
 
         response = client.post(
@@ -755,7 +954,7 @@ class TestCreateParty:
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
 
         path = f"{mock_user['id']}/abcdef0123456789.jpg"
         valid_party_data["poster_image"] = path
@@ -795,7 +994,7 @@ class TestUploadPoster:
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )
         mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
-            create_mock_db_response([{"id": mock_user["id"], "is_admin": False}])
+            create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
         mock_supabase.storage.from_.return_value.upload.return_value = None
 
         response = client.post(
@@ -903,6 +1102,203 @@ class TestAddressSuggest:
             headers={"Authorization": "Bearer valid_token"},
         )
         assert response.status_code == 422
+
+
+class TestHostOrgIdentity:
+    """Approved application = org identity: locked host name, gated Frat category."""
+
+    def _mock_tables(self, mock_supabase, mock_user, valid_party_data, org):
+        def mock_table(table_name):
+            mock_tbl = MagicMock()
+            if table_name == "user_profiles":
+                mock_tbl.select.return_value.eq.return_value.execute.return_value = \
+                    create_mock_db_response([{"id": mock_user["id"], "is_admin": False, "is_host": True}])
+            elif table_name == "host_applications":
+                mock_tbl.select.return_value.eq.return_value.eq.return_value \
+                    .order.return_value.limit.return_value.execute.return_value = \
+                    create_mock_db_response([org] if org else [])
+            elif table_name == "parties":
+                created = {
+                    **valid_party_data,
+                    "id": str(uuid.uuid4()),
+                    "day": "friday",
+                    "weekend_of": valid_party_data["date"],
+                    "latitude": 39.981,
+                    "longitude": -75.155,
+                    "going_count": 0,
+                    "status": "pending",
+                }
+                mock_tbl.insert.return_value.execute.return_value = create_mock_db_response([created])
+            return mock_tbl
+        mock_supabase.table = mock_table
+
+    def test_host_name_locked_to_org(self, client, mock_supabase, mock_user, valid_party_data):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["host"] = "Impostor Name"
+        self._mock_tables(mock_supabase, mock_user, valid_party_data,
+                          {"org_name": "Alpha Sigma Phi", "org_type": "frat"})
+
+        captured = {}
+        original = mock_supabase.table
+
+        def spy_table(name):
+            tbl = original(name)
+            if name == "parties":
+                real_insert = tbl.insert
+
+                def capture(payload):
+                    captured.update(payload)
+                    return real_insert(payload)
+
+                tbl.insert = capture
+            return tbl
+
+        mock_supabase.table = spy_table
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        assert captured["host"] == "Alpha Sigma Phi"
+
+    def test_non_frat_org_cannot_post_frat_party(self, client, mock_supabase, mock_user, valid_party_data):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["category"] = "Frat Party"
+        self._mock_tables(mock_supabase, mock_user, valid_party_data,
+                          {"org_name": "The Basement", "org_type": "house"})
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 422
+        assert "frat" in response.json()["detail"].lower()
+
+    def test_frat_org_can_post_frat_party(self, client, mock_supabase, mock_user, valid_party_data):
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        valid_party_data["category"] = "Frat Party"
+        self._mock_tables(mock_supabase, mock_user, valid_party_data,
+                          {"org_name": "Alpha Sigma Phi", "org_type": "frat"})
+
+        response = client.post(
+            "/parties",
+            json=valid_party_data,
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+
+
+class TestUpdateParty:
+    """Tests for PATCH /parties/{party_id}."""
+
+    def test_update_party_owner_success(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["created_by"] = mock_user["id"]
+        mock_party["status"] = "pending"
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+        updated = {
+            **mock_party,
+            "doors_close": "2:00 AM",
+            "promo_code": "TUPARTY25",
+            "promo_label": "$2 OFF COVER",
+        }
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([updated])
+
+        response = client.patch(
+            f"/parties/{mock_party['id']}",
+            json={"doors_close": "2:00 AM", "promo_code": "TUPARTY25", "promo_label": "$2 OFF COVER"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["doorsClose"] == "2:00 AM"
+        assert data["promoCode"] == "TUPARTY25"
+        update_payload = mock_supabase.table.return_value.update.call_args[0][0]
+        assert update_payload["promo_code"] == "TUPARTY25"
+        assert "status" not in update_payload
+        assert "going_count" not in update_payload
+
+    def test_update_approved_party_reenters_review(self, client, mock_supabase, mock_user, mock_party):
+        """Re-review rule (spec 11.5): edits to an approved listing go back to pending."""
+        mock_party["created_by"] = mock_user["id"]
+        mock_party["status"] = "approved"
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+        mock_supabase.table.return_value.update.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([{**mock_party, "title": "New Title", "status": "pending"}])
+
+        response = client.patch(
+            f"/parties/{mock_party['id']}",
+            json={"title": "New Title"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 200
+        update_payload = mock_supabase.table.return_value.update.call_args[0][0]
+        assert update_payload["status"] == "pending"
+        assert response.json()["status"] == "pending"
+
+    def test_update_party_not_owner(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["created_by"] = str(uuid.uuid4())
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.patch(
+            f"/parties/{mock_party['id']}",
+            json={"doors_close": "2:00 AM"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 403
+        assert "own" in response.json()["detail"].lower()
+
+    def test_update_party_rejected_forbidden(self, client, mock_supabase, mock_user, mock_party):
+        mock_party["created_by"] = mock_user["id"]
+        mock_party["status"] = "rejected"
+        mock_supabase.auth.get_user = MagicMock(
+            return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
+        )
+        mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.patch(
+            f"/parties/{mock_party['id']}",
+            json={"doors_close": "2:00 AM"},
+            headers={"Authorization": "Bearer valid_token"},
+        )
+
+        assert response.status_code == 403
+        assert "rejected" in response.json()["detail"].lower()
+
+    def test_update_party_unauthenticated(self, client, mock_supabase, mock_party):
+        response = client.patch(
+            f"/parties/{mock_party['id']}",
+            json={"doors_close": "2:00 AM"},
+        )
+        assert response.status_code == 401
 
 
 class TestDeleteParty:

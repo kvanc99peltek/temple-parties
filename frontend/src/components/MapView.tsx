@@ -13,6 +13,8 @@ interface MapViewProps {
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   fridayDate: string;
   saturdayDate: string;
+  /** Deep-link target (/map?party=<id>): pan to this party and open its popup. */
+  focusPartyId?: string | null;
 }
 
 // Loading placeholder

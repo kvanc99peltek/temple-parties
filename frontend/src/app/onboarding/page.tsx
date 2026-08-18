@@ -7,9 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/services/api';
 import {
   ONBOARDING_STEPS,
-  SCHOOL_YEARS,
+  GRAD_YEARS,
   USERNAME_PATTERN,
   firstIncompleteStep,
+  writeOnboardingComplete,
   type OnboardingStep,
 } from '@/lib/onboarding';
 import { resizeAvatarFile } from '@/utils/avatarImage';
@@ -116,6 +117,7 @@ function OnboardingFlow() {
   }, []);
 
   const finishOnboarding = useCallback(async () => {
+    if (user?.id) writeOnboardingComplete(user.id);
     trackEvent('onboarding_completed', {
       has_avatar: !!(pendingBlob || user?.avatarUrl),
       has_greek_life: !!greekLife.trim(),
@@ -124,7 +126,7 @@ function OnboardingFlow() {
     await refreshUser();
     setFlowActive(false);
     router.replace(safeNext);
-  }, [greekLife, instagram, pendingBlob, refreshUser, router, safeNext, user?.avatarUrl]);
+  }, [greekLife, instagram, pendingBlob, refreshUser, router, safeNext, user?.avatarUrl, user?.id]);
 
   const goNext = useCallback(() => {
     const next = ONBOARDING_STEPS[stepIndex + 1];
@@ -283,11 +285,11 @@ function OnboardingFlow() {
         {step === 'school-year' && (
           <form onSubmit={saveSchoolYear} className="space-y-5">
             <div>
-              <h1 className="text-white text-2xl font-montserrat font-semibold">School year</h1>
-              <p className="text-white/60 text-sm font-montserrat mt-1">Required — helps hosts know the crowd.</p>
+              <h1 className="text-white text-2xl font-montserrat font-semibold">Class of</h1>
+              <p className="text-white/60 text-sm font-montserrat mt-1">Required — helps hosts know the crowd. When do you walk?</p>
             </div>
             <div className="grid gap-2">
-              {SCHOOL_YEARS.map((y) => (
+              {GRAD_YEARS.map((y) => (
                 <button
                   key={y.value}
                   type="button"

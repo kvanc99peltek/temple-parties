@@ -7,6 +7,11 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
 import { trackEvent } from '@/utils/analytics';
+import SegmentedTabs from '@/components/ui/SegmentedTabs';
+import NavigateIcon from '@/components/ui/NavigateIcon';
+import VoteRow from '@/components/ui/VoteRow';
+import { voteCounts } from '@/utils/ratingHelpers';
+import { PRIMARY_SPONSOR } from '@/lib/sponsors';
 import type { Party } from '@/lib/types';
 
 interface MapContentProps {
@@ -18,6 +23,8 @@ interface MapContentProps {
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
   fridayDate: string;
   saturdayDate: string;
+  /** Deep-link target (/map?party=<id>): pan to this party and open its popup. */
+  focusPartyId?: string | null;
 }
 
 // Temple University campus center
@@ -91,47 +98,67 @@ function getShortAddress(address: string | null): string {
   return address.split(',')[0];
 }
 
-// // Sponsored marker icon — gold rounded rectangle
-// function createSponsorIcon(label: string): L.DivIcon {
-//   return L.divIcon({
-//     className: 'custom-marker',
-//     html: `<div class="sponsor-marker"><span class="sponsor-marker-label">${label}</span></div>`,
-//     iconSize: [48, 48],
-//     iconAnchor: [24, 24],
-//     popupAnchor: [0, -24],
-//   });
-// }
+// Sponsored marker icon — light-purple rounded square with the sponsor's initials
+function createSponsorIcon(label: string): L.DivIcon {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div class="sponsor-marker"><span class="sponsor-marker-label">${label}</span></div>`,
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
+    popupAnchor: [0, -24],
+  });
+}
 
-// // Pans map to sponsor and opens its popup
-// function SponsorFocusHandler({
-//   focus,
-//   onConsumed,
-//   markerRef,
-// }: {
-//   focus: { lat: number; lng: number } | null;
-//   onConsumed?: () => void;
-//   markerRef: React.RefObject<L.Marker | null>;
-// }) {
-//   const map = useMap();
-//
-//   useEffect(() => {
-//     if (focus && markerRef.current) {
-//       map.setView([focus.lat, focus.lng], 17, { animate: true });
-//       const timer = setTimeout(() => {
-//         markerRef.current?.openPopup();
-//         onConsumed?.();
-//       }, 150);
-//       return () => clearTimeout(timer);
-//     }
-//   }, [focus, map, markerRef, onConsumed]);
-//
-//   return null;
-// }
+/**
+ * Pans the map to one party and pops its popup open — used when the party
+ * page's "open on map" button deep-links here (/map?party=<id>).
+ * One-shot: onConsumed fires after the popup opens so day switches and
+ * pans afterwards behave normally. (Same pattern as the retired
+ * SponsorFocusHandler above.)
+ */
+function PartyFocusHandler({
+  focus,
+  markerRefs,
+  onConsumed,
+}: {
+  focus: { id: string; lat: number; lng: number } | null;
+  markerRefs: React.MutableRefObject<Record<string, L.Marker | null>>;
+  onConsumed: () => void;
+}) {
+  const map = useMap();
 
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, onRateClick, fridayDate, saturdayDate }: MapContentProps) {
+  useEffect(() => {
+    if (!focus) return;
+    map.setView([focus.lat, focus.lng], 17, { animate: true });
+    // Give the markers a beat to mount before opening the popup.
+    const timer = setTimeout(() => {
+      markerRefs.current[focus.id]?.openPopup();
+      onConsumed();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [focus, map, markerRefs, onConsumed]);
+
+  return null;
+}
+
+// onRateClick stays in the props contract (pages still pass it) but the popup
+// votes went read-only with the v2 redesign — rating happens on the party page.
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate, focusPartyId }: MapContentProps) {
   // const sponsorMarkerRef = useRef<L.Marker>(null);
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
   const iconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
+  const markerRefs = useRef<Record<string, L.Marker | null>>({});
+  const [focusConsumed, setFocusConsumed] = useState(false);
+
+  // Deep-link focus (/map?party=<id>): make sure the focused party's DAY tab
+  // is the active one, or its marker wouldn't even be on the map.
+  const focusParty = !focusConsumed && focusPartyId
+    ? parties.find((p) => p.id === focusPartyId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (focusParty) setSelectedDay(focusParty.day);
+  }, [focusParty]);
 
   // Smart default: switch to the other day if the default day has no parties
   const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
@@ -154,32 +181,30 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
     return parties.filter(party => party.day === selectedDay);
   }, [parties, selectedDay]);
 
+  // Local const so TS narrowing (sponsor && ...) survives into the marker's
+  // event-handler closures — imported bindings don't narrow across closures.
+  const sponsor = PRIMARY_SPONSOR;
+
   // Get day numbers for display
   const fridayNum = fridayDate;
   const saturdayNum = saturdayDate;
 
   return (
     <div className="w-full h-full relative" style={{ touchAction: 'none' }}>
-      {/* Day Filter */}
-      <div className="absolute top-4 lg:top-8 left-4 z-[1100] flex flex-col gap-[10px]">
-        <button
-          onClick={() => setSelectedDay('friday')}
-          className={`w-[112px] h-[42px] lg:w-[140px] lg:h-[48px] rounded-[12px] font-montserrat font-semibold text-[16px] lg:text-[19px] leading-[18px] lg:leading-[22px] transition-all duration-200 ${selectedDay === 'friday'
-            ? 'bg-[#b24bf3] text-white'
-            : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
-            }`}
-        >
-          Fri {fridayNum}
-        </button>
-        <button
-          onClick={() => setSelectedDay('saturday')}
-          className={`w-[112px] h-[42px] lg:w-[140px] lg:h-[48px] rounded-[12px] font-montserrat font-semibold text-[16px] lg:text-[19px] leading-[18px] lg:leading-[22px] transition-all duration-200 ${selectedDay === 'saturday'
-            ? 'bg-[#b24bf3] text-white'
-            : 'bg-[#252525] text-white/75 hover:bg-[#303030]'
-            }`}
-        >
-          Sat {saturdayNum}
-        </button>
+      {/* Day filter — the same segmented control the home feed uses,
+          floating over the top of the map. */}
+      <div className="absolute top-4 lg:top-8 inset-x-4 z-[1100] max-w-xl mx-auto">
+        <SegmentedTabs
+          items={[
+            { key: 'friday', label: `FRI ${fridayNum}` },
+            { key: 'saturday', label: `SAT ${saturdayNum}` },
+          ]}
+          activeKey={selectedDay}
+          onChange={(key) => {
+            setSelectedDay(key as 'friday' | 'saturday');
+            trackEvent('day_tab_switched', { day: key, source: 'map' });
+          }}
+        />
       </div>
 
       <MapContainer
@@ -202,8 +227,6 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           const iconCache = iconCacheRef.current;
           return filteredParties.map(party => {
             const goingCount = party.goingCount ?? 0;
-            const likePercentage = party.likePercentage ?? 0;
-            const ratingCount = party.ratingCount ?? 0;
             const isHyped = party.id === topPartyIds[party.day];
             const userIsGoing = userGoingParties.includes(party.id);
             const doorsOpenTime = parseDoorsOpen(party.doorsOpen, party.date);
@@ -220,6 +243,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 key={party.id}
                 position={[party.latitude, party.longitude]}
                 icon={icon}
+                ref={(el) => {
+                  markerRefs.current[party.id] = el;
+                }}
                 eventHandlers={{
                   click: () => {
                     trackEvent('map_marker_clicked', { partyId: party.id, partyTitle: party.title });
@@ -228,10 +254,13 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
               >
                 <Popup className="party-popup-dark" closeButton={false}>
                   <div className="popup-content">
+                    {/* One chip only — the popup is tight on space, so the
+                        headliner badge wins; everyone else shows their type. */}
                     <div className="popup-badges">
-                      <span className="popup-category-badge">{party.category}</span>
-                      {isHyped && (
-                        <span className="popup-hyped-badge">HYPED</span>
+                      {isHyped ? (
+                        <span className="popup-hyped-badge">HEADLINER</span>
+                      ) : (
+                        <span className="popup-category-badge">{party.category}</span>
                       )}
                     </div>
 
@@ -248,40 +277,18 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       )}
                     </p>
 
-                    <div className="popup-details-row">
-                      <div className="popup-time">
-                        <img src="/icons/clock.svg" alt="" className="popup-time-icon" />
-                        <span>{party.doorsOpen}</span>
-                      </div>
+                    {/* Card-style data line: door time + read-only votes (the
+                        pin already IS the location, so no address row). */}
+                    <div className="flex items-center gap-3">
+                      <span className="font-montserrat text-[14px] text-white/70 whitespace-nowrap">{party.doorsOpen}</span>
+                      <VoteRow
+                        likeCount={voteCounts(party.likePercentage, party.ratingCount)?.likeCount ?? null}
+                        dislikeCount={voteCounts(party.likePercentage, party.ratingCount)?.dislikeCount ?? null}
+                        userRating={null}
+                        state={party.ratingLocked ? 'locked' : party.ratingOpen ? 'open' : 'inactive'}
+                        size="md"
+                      />
                     </div>
-                    <div className="popup-details-row">
-                      <div className="popup-time">
-                        <img src="/icons/map-pin.svg" alt="" className="popup-time-icon" />
-                        <span>{getShortAddress(party.address)}</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="popup-ratings"
-                      onClick={() => onRateClick(
-                        party.id,
-                        party.title,
-                        party.host,
-                        party.ratingOpen ?? false,
-                        party.ratingLocked ?? false,
-                      )}
-                    >
-                      <div className="popup-rating-group">
-                        <img src="/icons/thumbs-up.svg" alt="" className="popup-rating-icon" />
-                        <span>{ratingCount > 0 ? Math.round((likePercentage / 100) * ratingCount) : 0}</span>
-                      </div>
-                      <span className="popup-rating-divider">|</span>
-                      <div className="popup-rating-group">
-                        <img src="/icons/thumbs-up.svg" alt="" className="popup-rating-icon popup-rating-flip" />
-                        <span>{ratingCount > 0 ? ratingCount - Math.round((likePercentage / 100) * ratingCount) : 0}</span>
-                      </div>
-                    </button>
                   </div>
 
                   <div className="popup-buttons">
@@ -295,7 +302,8 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
-                      GOING ({goingCount})
+                      {/* Soft-gate rule: no fake zeros — anon sees no count. */}
+                      {party.goingCount === null ? 'GOING' : `GOING (${goingCount})`}
                     </button>
 
                     <button
@@ -306,8 +314,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       }}
                       className="popup-navigate-btn"
                       disabled={!party.address}
+                      aria-label="Navigate"
                     >
-                      <img src="/icons/navigate.svg" alt="Navigate" style={{ width: '20px', height: '20px' }} />
+                      <NavigateIcon className="w-[18px] h-[18px]" />
                     </button>
                   </div>
                 </Popup>
@@ -316,90 +325,84 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
           });
         })()}
 
-        {/* Sponsored Pin — commented out (deal cancelled)
-        <Marker
-          ref={sponsorMarkerRef}
-          position={[PRIMARY_SPONSOR.latitude, PRIMARY_SPONSOR.longitude]}
-          icon={createSponsorIcon(PRIMARY_SPONSOR.pinLabel)}
-          zIndexOffset={-500}
-          eventHandlers={{
-            popupopen: () => {
-              track('sponsor_pin_popup_opened', { sponsor: PRIMARY_SPONSOR.id });
-              posthog.capture('sponsor_pin_popup_opened', { sponsor: PRIMARY_SPONSOR.id });
-            },
-          }}
-        >
-          <Popup className="sponsor-popup-dark" closeButton={false}>
-            <div className="popup-content">
-              <div className="popup-badges">
-                <span className="popup-sponsor-badge">SPONSORED</span>
-              </div>
-              <h3 className="popup-title">{PRIMARY_SPONSOR.name}</h3>
-              <p className="popup-host">
-                {PRIMARY_SPONSOR.popupDescription}
-              </p>
-              {PRIMARY_SPONSOR.tagline && (
-                <p style={{ color: '#e0d4ff', fontSize: '12px', fontWeight: 600, margin: '2px 0 0 0', fontFamily: "'Montserrat', sans-serif" }}>
-                  {PRIMARY_SPONSOR.tagline}
-                </p>
-              )}
-              {PRIMARY_SPONSOR.tagline2 && (
-                <p style={{ color: 'rgba(224, 212, 255, 0.75)', fontSize: '11px', fontWeight: 500, margin: '2px 0 8px 0', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
-                  {PRIMARY_SPONSOR.tagline2}
-                </p>
-              )}
-              <div className="popup-details-row">
-                <div className="popup-time">
-                  <img src="/icons/map-pin.svg" alt="" className="popup-time-icon" />
-                  <span>{getShortAddress(PRIMARY_SPONSOR.address)}</span>
+        {/* Sponsored pin + popup — driven by lib/sponsors.ts (empty array =
+            nothing renders). Same popup design language as the party pins:
+            one square chip, surface-2 card, fused bottom buttons. */}
+        {sponsor && (
+          <Marker
+            position={[sponsor.latitude, sponsor.longitude]}
+            icon={createSponsorIcon(sponsor.pinLabel)}
+            zIndexOffset={-500}
+            eventHandlers={{
+              popupopen: () => {
+                trackEvent('sponsor_pin_popup_opened', { sponsor: sponsor.id });
+              },
+            }}
+          >
+            <Popup className="sponsor-popup-dark" closeButton={false}>
+              <div className="popup-content">
+                <div className="popup-badges">
+                  <span className="popup-sponsor-badge">SPONSORED</span>
+                </div>
+                <h3 className="popup-title">{sponsor.name}</h3>
+                <p className="popup-host">{sponsor.popupDescription}</p>
+                {sponsor.tagline && (
+                  <p className="font-montserrat font-semibold text-[12px] text-temple-purple-light !mt-0.5 !mb-0">
+                    {sponsor.tagline}
+                  </p>
+                )}
+                {sponsor.tagline2 && (
+                  <p className="font-montserrat text-[11px] text-temple-purple-light/75 !mt-0.5 !mb-0">
+                    {sponsor.tagline2}
+                  </p>
+                )}
+                {/* Card-style data lines: plain muted text, no icon clutter. */}
+                <div className="font-montserrat text-[13px] text-white/70 !mt-2 !mb-0">
+                  {getShortAddress(sponsor.address)}
+                  {sponsor.hoursInfo && ` · ${sponsor.hoursInfo}`}
                 </div>
               </div>
-              {PRIMARY_SPONSOR.hoursInfo && (
-                <div className="popup-details-row">
-                  <div className="popup-time">
-                    <img src="/icons/clock.svg" alt="" className="popup-time-icon" />
-                    <span>{PRIMARY_SPONSOR.hoursInfo}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="popup-buttons">
-              {PRIMARY_SPONSOR.orderUrl && (
-                <a
-                  href={PRIMARY_SPONSOR.orderUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="popup-going-btn"
-                  style={{ textDecoration: 'none', color: 'white' }}
+              <div className="popup-buttons">
+                {sponsor.orderUrl && (
+                  <a
+                    href={sponsor.orderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="popup-going-btn"
+                    style={{ textDecoration: 'none', color: 'white' }}
+                    onClick={() => {
+                      trackEvent('sponsor_order_clicked', { sponsor: sponsor.id });
+                    }}
+                  >
+                    ORDER
+                  </a>
+                )}
+                <button
+                  type="button"
+                  aria-label="Navigate"
                   onClick={() => {
-                    track('sponsor_order_clicked', { sponsor: PRIMARY_SPONSOR.id });
-                    posthog.capture('sponsor_order_clicked', { sponsor: PRIMARY_SPONSOR.id });
+                    trackEvent('sponsor_navigate_clicked', { sponsor: sponsor.id });
+                    openMapsDirections(sponsor.address);
                   }}
+                  className="popup-navigate-btn"
+                  style={sponsor.orderUrl ? {} : { borderRadius: '0 0 12px 12px', width: '100%' }}
                 >
-                  ORDER
-                </a>
-              )}
-              <button
-                onClick={() => {
-                  track('sponsor_navigate_clicked', { sponsor: PRIMARY_SPONSOR.id });
-                  posthog.capture('sponsor_navigate_clicked', { sponsor: PRIMARY_SPONSOR.id });
-                  openMapsDirections(PRIMARY_SPONSOR.address);
-                }}
-                className="popup-navigate-btn"
-                style={PRIMARY_SPONSOR.orderUrl ? {} : { borderRadius: '0 0 12px 12px', width: '100%' }}
-              >
-                <img src="/icons/navigate.svg" alt="Navigate" style={{ width: '20px', height: '20px' }} />
-              </button>
-            </div>
-          </Popup>
-        </Marker>
+                  <NavigateIcon className="w-[18px] h-[18px]" />
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        )}
 
-        <SponsorFocusHandler
-          focus={sponsorFocus ?? null}
-          onConsumed={onSponsorFocusConsumed}
-          markerRef={sponsorMarkerRef}
+        <PartyFocusHandler
+          focus={
+            focusParty
+              ? { id: focusParty.id, lat: focusParty.latitude, lng: focusParty.longitude }
+              : null
+          }
+          markerRefs={markerRefs}
+          onConsumed={() => setFocusConsumed(true)}
         />
-        */}
       </MapContainer>
     </div>
   );

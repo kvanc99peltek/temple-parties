@@ -68,7 +68,7 @@ export default function DemoMapPage() {
       <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
         <Header title="Party Map" />
         <DemoBanner weekendOf={demoWeekend} />
-        <div className="flex-1 pb-16 lg:pb-0">
+        <div className="flex-1 pb-20 lg:pb-0">
           {isLoadingParties ? (
             <div className="flex justify-center items-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />

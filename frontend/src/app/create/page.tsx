@@ -2,7 +2,6 @@
 
 import {
   FormEvent,
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -10,13 +9,17 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
+import DashedCard from '@/components/ui/DashedCard';
 import WeekendCalendarPicker, {
   formatWeekendRange,
   type WeekendOption,
 } from '@/components/WeekendCalendarPicker';
 import { useAuth } from '@/contexts/AuthContext';
-import { partiesApi } from '@/services/api';
+import { partiesApi, hostsApi } from '@/services/api';
+import type { HostApplication } from '@/lib/types';
 import { resizePosterFile } from '@/utils/posterImage';
+import { normalizeTicketUrl } from '@/utils/ticketUrl';
 import { trackEvent } from '@/utils/analytics';
 
 const DOOR_TIMES = ['9 PM', '10 PM', '11 PM', '12 AM'];
@@ -25,12 +28,6 @@ const CATEGORIES = ['Frat Party', 'House Party', 'House Show', 'Rooftop Party', 
 type Step = 'basics' | 'poster' | 'description' | 'ticket' | 'done';
 
 const STEPS: Step[] = ['basics', 'poster', 'description', 'ticket', 'done'];
-
-interface AddressSuggestion {
-  display_name: string;
-  lat: string;
-  lon: string;
-}
 
 /**
  * FLOW 8 create-party (Epic 8.3/8.4): multi-step host submission → pending.
@@ -52,6 +49,16 @@ export default function CreatePartyPage() {
   const [selectedWeekendOf, setSelectedWeekendOf] = useState('');
   const [description, setDescription] = useState('');
   const [ticketPrice, setTicketPrice] = useState('');
+  // Raw ticket-link text as typed; cleaned by normalizeTicketUrl on submit.
+  // When it survives, the party page grows a BUY TICKETS bar (WF-D2).
+  const [ticketLink, setTicketLink] = useState('');
+  // Promo lives behind a disclosure so the Tickets step doesn't open as five
+  // bare inputs. Code + label travel together (the party page's coupon only
+  // renders when BOTH exist — the server enforces the same pairing).
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoLabel, setPromoLabel] = useState('');
+  const [promoHint, setPromoHint] = useState('');
   const [posterPath, setPosterPath] = useState<string | null>(null);
   const [posterPreview, setPosterPreview] = useState<string | null>(null);
   const [pendingPosterBlob, setPendingPosterBlob] = useState<Blob | null>(null);
@@ -61,14 +68,14 @@ export default function CreatePartyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [weekendLoading, setWeekendLoading] = useState(true);
 
-  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const addressInputRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hostPrefillRef = useRef(false);
+
+  const [hostChecking, setHostChecking] = useState(true);
+  // The approved application IS the host's org identity: it locks the host
+  // name and gates the Frat category (admins have no application — free rein).
+  const [hostOrg, setHostOrg] = useState<HostApplication | null>(null);
 
   useEffect(() => {
     if (isLoading) return;
@@ -82,10 +89,40 @@ export default function CreatePartyPage() {
   }, [isAuthenticated, isLoading, needsOnboarding, router]);
 
   useEffect(() => {
-    if (!user?.username || hostPrefillRef.current) return;
-    hostPrefillRef.current = true;
-    setHost(user.username.slice(0, 30));
-  }, [user]);
+    if (!isAuthenticated || needsOnboarding || isLoading) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const me = await hostsApi.getMe();
+        if (cancelled) return;
+        if (!me.isHost) {
+          router.replace('/become-host');
+          return;
+        }
+        if (me.application?.status === 'approved') setHostOrg(me.application);
+        setHostChecking(false);
+      } catch {
+        if (!cancelled) router.replace('/become-host');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, needsOnboarding, isLoading, router]);
+
+  useEffect(() => {
+    if (hostPrefillRef.current) return;
+    // Approved hosts post under their org's name — locked, not a suggestion.
+    if (hostOrg) {
+      hostPrefillRef.current = true;
+      setHost(hostOrg.orgName.slice(0, 30));
+      return;
+    }
+    if (user?.isAdmin && user.username) {
+      hostPrefillRef.current = true;
+      setHost(user.username.slice(0, 30));
+    }
+  }, [user, hostOrg]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,52 +158,6 @@ export default function CreatePartyPage() {
       if (posterPreview?.startsWith('blob:')) URL.revokeObjectURL(posterPreview);
     };
   }, [posterPreview]);
-
-  const fetchAddressSuggestions = useCallback(async (query: string) => {
-    if (query.length < 3) {
-      setAddressSuggestions([]);
-      return;
-    }
-    setIsLoadingSuggestions(true);
-    try {
-      // Proxy through our API — browsers get 403 calling Nominatim directly.
-      const data = await partiesApi.suggestAddresses(query);
-      setAddressSuggestions(
-        data.map((row) => ({
-          display_name: row.display_name,
-          lat: String(row.lat),
-          lon: String(row.lon),
-        }))
-      );
-    } catch {
-      setAddressSuggestions([]);
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  }, []);
-
-  const handleAddressChange = (value: string) => {
-    setAddress(value);
-    setCoords(null); // typing invalidates a picked suggestion's lat/lng
-    if (errors.address) setErrors((prev) => ({ ...prev, address: '' }));
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
-      void fetchAddressSuggestions(value);
-      setShowSuggestions(true);
-    }, 300);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (addressInputRef.current && !addressInputRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    if (showSuggestions) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showSuggestions]);
 
   const validateBasics = (): boolean => {
     const next: Record<string, string> = {};
@@ -216,7 +207,13 @@ export default function CreatePartyPage() {
     setPosterPath(null);
   };
 
-  const submitParty = async () => {
+  // `ticketUrl` and `promo` arrive already cleaned/validated by
+  // handleTicketSubmit — this function never sees raw input, so the payload
+  // can trust them as-is.
+  const submitParty = async (
+    ticketUrl?: string,
+    promo?: { code: string; label: string; hint?: string }
+  ) => {
     setSubmitting(true);
     setError('');
     try {
@@ -239,6 +236,10 @@ export default function CreatePartyPage() {
         longitude: coords?.lng,
         description: description.trim() || undefined,
         ticket_price: ticketPrice.trim() || undefined,
+        external_ticket_url: ticketUrl,
+        promo_code: promo?.code,
+        promo_label: promo?.label,
+        promo_hint: promo?.hint,
         poster_image: path || undefined,
       });
 
@@ -247,6 +248,8 @@ export default function CreatePartyPage() {
         has_poster: !!path,
         has_description: !!description.trim(),
         has_ticket_price: !!ticketPrice.trim(),
+        has_ticket_url: !!ticketUrl,
+        has_promo: !!promo,
         day: date === selectedWeekend?.saturdayDate ? 'saturday' : 'friday',
         weekend_of: selectedWeekend?.weekendOf,
       });
@@ -264,10 +267,41 @@ export default function CreatePartyPage() {
     goNext();
   };
 
+  // Final step's submit: clean the ticket link and check the promo pairing
+  // (or stop with field errors), then hand send-ready values to submitParty.
+  const handleTicketSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const nextErrors: Record<string, string> = {};
+
+    const { url, error: linkError } = normalizeTicketUrl(ticketLink);
+    if (linkError) nextErrors.ticketLink = linkError;
+
+    // Promo rule (same as the server's): the code and its label travel
+    // together — a code nobody can read or a label with nothing to copy
+    // would render no coupon at all. Hint alone counts as "started a promo".
+    const code = promoCode.trim();
+    const label = promoLabel.trim();
+    const hint = promoHint.trim();
+    if (code || label || hint) {
+      if (!code) nextErrors.promoCode = 'Add the code itself — that’s what people copy.';
+      else if (code.length < 2) nextErrors.promoCode = 'Codes are 2–24 letters and numbers.';
+      if (!label) nextErrors.promoLabel = 'Add the deal line — what the code gets them.';
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors((p) => ({ ...p, ...nextErrors }));
+      return;
+    }
+
+    const promo =
+      code && label ? { code, label, hint: hint || undefined } : undefined;
+    void submitParty(url, promo);
+  };
+
   const stepIndex = STEPS.indexOf(step);
   const progressSteps = STEPS.filter((s) => s !== 'done');
 
-  if (isLoading || !isAuthenticated || needsOnboarding) {
+  if (isLoading || !isAuthenticated || needsOnboarding || hostChecking) {
     return (
       <AppShell>
         <div className="flex justify-center py-24">
@@ -328,16 +362,25 @@ export default function CreatePartyPage() {
             </Field>
 
             <Field label="Host" required error={errors.host}>
-              <input
-                value={host}
-                onChange={(e) => {
-                  setHost(e.target.value);
-                  if (errors.host) setErrors((p) => ({ ...p, host: '' }));
-                }}
-                maxLength={30}
-                placeholder="e.g., Sigma Chi"
-                className={inputClass}
-              />
+              {hostOrg ? (
+                <>
+                  <input value={host} readOnly disabled className={`${inputClass} opacity-60 cursor-not-allowed`} />
+                  <p className="text-temple-muted text-[11px] font-montserrat mt-1.5">
+                    Locked to your host account — parties post as {hostOrg.orgName}.
+                  </p>
+                </>
+              ) : (
+                <input
+                  value={host}
+                  onChange={(e) => {
+                    setHost(e.target.value);
+                    if (errors.host) setErrors((p) => ({ ...p, host: '' }));
+                  }}
+                  maxLength={30}
+                  placeholder="e.g., Sigma Chi"
+                  className={inputClass}
+                />
+              )}
             </Field>
 
             <Field label="Map pin label" required error={errors.pinLabel} hint="Max 5 characters">
@@ -353,48 +396,22 @@ export default function CreatePartyPage() {
               />
             </Field>
 
-            <div className="relative" ref={addressInputRef}>
-              <Field label="Address" required error={errors.address}>
-                <input
-                  value={address}
-                  onChange={(e) => handleAddressChange(e.target.value)}
-                  onFocus={() => {
-                    if (addressSuggestions.length > 0) setShowSuggestions(true);
-                  }}
-                  placeholder="Start typing address…"
-                  autoComplete="off"
-                  className={inputClass}
-                />
-              </Field>
-              {isLoadingSuggestions && (
-                <div className="absolute right-4 top-11 text-white/40">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                </div>
-              )}
-              {showSuggestions && addressSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl max-h-60 overflow-y-auto">
-                  {addressSuggestions.map((suggestion, index) => (
-                    <button
-                      key={`${suggestion.lat}-${suggestion.lon}-${index}`}
-                      type="button"
-                      onClick={() => {
-                        // Backend already returns Google-style labels — use whole string.
-                        setAddress(suggestion.display_name);
-                        setCoords({
-                          lat: Number(suggestion.lat),
-                          lng: Number(suggestion.lon),
-                        });
-                        setShowSuggestions(false);
-                        setAddressSuggestions([]);
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-zinc-800 text-white text-sm border-b border-zinc-800 last:border-b-0"
-                    >
-                      <div className="font-medium">{suggestion.display_name}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Field label="Address" required error={errors.address}>
+              {/* Shared with the become-host form — one autocomplete, no drift. */}
+              <AddressAutocomplete
+                value={address}
+                onChange={(v) => {
+                  setAddress(v);
+                  setCoords(null); // typing invalidates a picked suggestion's lat/lng
+                  if (errors.address) setErrors((prev) => ({ ...prev, address: '' }));
+                }}
+                onSelect={(addr, picked) => {
+                  setAddress(addr);
+                  setCoords(picked);
+                }}
+                inputClassName={inputClass}
+              />
+            </Field>
 
             <Field label="Night" required error={errors.date}>
               {weekendLoading ? (
@@ -434,7 +451,9 @@ export default function CreatePartyPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 className={inputClass}
               >
-                {CATEGORIES.map((c) => (
+                {CATEGORIES.filter(
+                  (c) => c !== 'Frat Party' || user?.isAdmin || hostOrg?.orgType === 'frat',
+                ).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -459,7 +478,7 @@ export default function CreatePartyPage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={submitting}
-              className="w-full aspect-[3/4] max-h-80 rounded-xl border border-dashed border-zinc-600 bg-zinc-900/60 flex flex-col items-center justify-center overflow-hidden disabled:opacity-60"
+              className="w-full max-w-[260px] mx-auto aspect-[4/5] rounded-xl border border-dashed border-white/20 bg-temple-surface flex flex-col items-center justify-center overflow-hidden disabled:opacity-60"
             >
               {posterPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -542,26 +561,122 @@ export default function CreatePartyPage() {
         )}
 
         {step === 'ticket' && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submitParty();
-            }}
-            className="space-y-5"
-          >
+          <form onSubmit={handleTicketSubmit} className="space-y-5">
             <div>
-              <h1 className="text-white text-2xl font-montserrat font-semibold">Ticket price</h1>
+              <h1 className="text-white text-2xl font-montserrat font-semibold">Tickets</h1>
               <p className="text-white/60 text-sm font-montserrat mt-1">
-                Optional display text — not a payment link.
+                All optional — skip if the door handles it.
               </p>
             </div>
-            <input
-              value={ticketPrice}
-              onChange={(e) => setTicketPrice(e.target.value.slice(0, 50))}
-              placeholder="e.g., Free · $10 at door"
-              className={inputClass}
-              maxLength={50}
-            />
+
+            <Field
+              label="Ticket link"
+              error={errors.ticketLink}
+              hint="Selling online? Paste the page — your listing gets a BUY TICKETS button."
+            >
+              <input
+                value={ticketLink}
+                onChange={(e) => {
+                  setTicketLink(e.target.value.slice(0, 500));
+                  if (errors.ticketLink) setErrors((p) => ({ ...p, ticketLink: '' }));
+                }}
+                // url inputMode + no autocap/autocorrect: phone keyboards love
+                // to "fix" URLs into sentences.
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={500}
+                placeholder="posh.vip/e/your-party"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Price text" hint="Shows on your listing as-is — it's a label, not a checkout.">
+              <input
+                value={ticketPrice}
+                onChange={(e) => setTicketPrice(e.target.value.slice(0, 50))}
+                placeholder="e.g., Free · $10 at door"
+                className={inputClass}
+                maxLength={50}
+              />
+            </Field>
+
+            {/* Promo code — collapsed until wanted. The dashed border is the
+                app's coupon cue, so the disclosure previews exactly what
+                partygoers will see on the party page. */}
+            {!promoOpen ? (
+              <DashedCard onClick={() => setPromoOpen(true)} className="px-4 py-3.5">
+                <p className="text-white font-montserrat font-semibold text-sm">
+                  ＋ Add a promo code
+                </p>
+                <p className="text-white/50 text-xs font-montserrat mt-0.5">
+                  A code people copy from your listing — $5 off, free cover, your call.
+                </p>
+              </DashedCard>
+            ) : (
+              <DashedCard className="px-4 py-4 space-y-4">
+                <Field label="Code" error={errors.promoCode} hint="2–24 letters and numbers — saved in ALL CAPS.">
+                  <input
+                    value={promoCode}
+                    onChange={(e) => {
+                      // Uppercase as they type — this is exactly the string
+                      // partygoers will copy (the server uppercases too).
+                      setPromoCode(
+                        e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 24)
+                      );
+                      if (errors.promoCode) setErrors((p) => ({ ...p, promoCode: '' }));
+                    }}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    maxLength={24}
+                    placeholder="e.g., MONTY10"
+                    className={`${inputClass} font-bold tracking-[2px]`}
+                  />
+                </Field>
+
+                <Field label="Deal" error={errors.promoLabel}>
+                  <input
+                    value={promoLabel}
+                    onChange={(e) => {
+                      setPromoLabel(e.target.value.slice(0, 40));
+                      if (errors.promoLabel) setErrors((p) => ({ ...p, promoLabel: '' }));
+                    }}
+                    maxLength={40}
+                    placeholder="e.g., $5 off before 11"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label="Fine print" hint="Optional — how to actually use it.">
+                  <input
+                    value={promoHint}
+                    onChange={(e) => setPromoHint(e.target.value.slice(0, 200))}
+                    maxLength={200}
+                    placeholder="e.g., Show the code at the door"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Clearing on close means a half-typed promo can't
+                    // resurface in the payload later.
+                    setPromoOpen(false);
+                    setPromoCode('');
+                    setPromoLabel('');
+                    setPromoHint('');
+                    setErrors((p) => ({ ...p, promoCode: '', promoLabel: '' }));
+                  }}
+                  className="text-sm font-montserrat text-white/50 underline"
+                >
+                  Remove promo code
+                </button>
+              </DashedCard>
+            )}
+
             {error && <p className="text-red-400 text-sm font-montserrat">{error}</p>}
             <div className="flex gap-3">
               <SecondaryButton onClick={goBack} disabled={submitting}>

@@ -9,7 +9,9 @@ from slowapi.util import get_remote_address
 from app.config import get_settings
 from app.database import supabase
 from app.models.party import (
+    HostStats,
     PartyCreate,
+    PartyUpdate,
     PartyResponse,
     PartiesListResponse,
     PosterUploadResponse,
@@ -19,6 +21,7 @@ from app.models.party import (
 )
 from app.routers.auth import get_current_user, require_auth
 from app.routers.profiles import ensure_profile
+from app.routers.hosts import require_host_poster
 from app.services.geocoding import geocode_address, suggest_addresses
 from app.services import weekend as weekend_service
 from app.services.admin_check import user_is_admin
@@ -42,6 +45,9 @@ today_eastern = weekend_service.today_eastern
 get_current_weekend = weekend_service.get_current_weekend
 
 
+_TICKET_REF = "tuparty"
+
+
 def _resolve_poster_image(stored: Optional[str]) -> Optional[str]:
     """Turn a storage path into a public URL; leave legacy absolute URLs as-is."""
     if not stored:
@@ -54,11 +60,96 @@ def _resolve_poster_image(stored: Optional[str]) -> Optional[str]:
     )
 
 
-def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
+def _ticket_url_with_ref(stored: Optional[str]) -> Optional[str]:
+    """Return the stored HTTPS ticket URL with ref=tuparty if not already present."""
+    if not stored:
+        return None
+    lower = stored.lower()
+    if "ref=" in lower:
+        return stored
+    sep = "&" if "?" in stored else "?"
+    return f"{stored}{sep}ref={_TICKET_REF}"
+
+
+def _like_dislike_counts(party: dict) -> tuple[int, int]:
+    count = int(party.get("rating_count") or 0)
+    if count <= 0:
+        return 0, 0
+    pct = float(party.get("like_percentage") or 0)
+    likes = int(round(pct / 100.0 * count))
+    likes = max(0, min(count, likes))
+    return likes, count - likes
+
+
+def _day_and_weekend(party_date: date) -> tuple[str, date]:
+    day = "friday" if party_date.weekday() == 4 else "saturday"
+    if party_date.weekday() == 5:  # Saturday
+        weekend = party_date - timedelta(days=1)
+    else:
+        weekend = party_date
+    return day, weekend
+
+
+def _get_host_stats(party: dict) -> Optional[HostStats]:
+    """Host cred for the party page, from the leaderboard RPC.
+
+    Reuses get_host_rankings() (the exact math behind the Ranks tab) and picks
+    the row for the party's primary host (host_codes[0]). host_codes is
+    admin-curated and empty for most self-serve listings, so None is the
+    normal case — the host row on the page simply skips its stats line.
+
+    Best-effort by design: the cred line is decorative, so any failure here
+    logs and returns None instead of ever breaking the party page.
+    """
+    codes = party.get("host_codes") or []
+    if not codes:
+        return None
+    try:
+        result = supabase.rpc("get_host_rankings").execute()
+        for row in result.data or []:
+            if row.get("host_code") == codes[0]:
+                return HostStats(
+                    displayName=row["display_name"],
+                    partiesHosted=row.get("parties_hosted") or 0,
+                    avgLikePercentage=float(row.get("avg_like_percentage") or 0),
+                    logoUrl=row.get("logo_url"),
+                )
+    except Exception:
+        logger.exception("host stats lookup failed for party %s", party.get("id"))
+    return None
+
+
+def _is_headliner(party: dict) -> bool:
+    """Is this party its night's headliner (top going count, same weekend+day)?
+
+    Mirrors the feed's client-side "HYPED" pick: highest going_count among
+    approved parties that night. Best-effort — any failure just means no
+    badge, never an error.
+    """
+    try:
+        result = (
+            supabase.table("parties")
+            .select("id")
+            .eq("weekend_of", party["weekend_of"])
+            .eq("day", party["day"])
+            .eq("status", "approved")
+            .order("going_count", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return bool(result.data) and result.data[0]["id"] == party["id"]
+    except Exception:
+        logger.exception("headliner lookup failed for party %s", party.get("id"))
+        return False
+
+
+def db_to_response(party: dict, *, reveal: bool = True, host_stats: Optional[HostStats] = None, is_headliner: bool = False) -> PartyResponse:
     """Convert database party to API response format.
 
     Soft-gate (Epic 7.3): when reveal is False (anonymous caller), street
     address and engagement counts are null. Lat/lng stay so the map works.
+    Promo and ticketUrl stay public (same as ticketPrice / description).
+    host_stats is attached by the detail endpoint only (list stays lean).
     """
     party_date = weekend_service.resolve_party_date(party)
     rating_open, rating_locked = weekend_service.rating_window(party)
@@ -67,6 +158,7 @@ def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
     going_count = party["going_count"] if reveal else None
     like_pct = float(party.get("like_percentage") or 0) if reveal else None
     rating_count = (party.get("rating_count") or 0) if reveal else None
+    like_count, dislike_count = _like_dislike_counts(party) if reveal else (None, None)
 
     return PartyResponse(
         id=party["id"],
@@ -77,6 +169,7 @@ def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
         day=party["day"],
         date=party_date,
         doorsOpen=party["doors_open"],
+        doorsClose=party.get("doors_close"),
         address=address,
         latitude=float(party["latitude"]),
         longitude=float(party["longitude"]),
@@ -84,12 +177,20 @@ def db_to_response(party: dict, *, reveal: bool = True) -> PartyResponse:
         status=party.get("status"),
         likePercentage=like_pct,
         ratingCount=rating_count,
+        likeCount=like_count,
+        dislikeCount=dislike_count,
         isVerified=party.get("is_verified", False),
         posterImage=_resolve_poster_image(party.get("poster_image")),
         description=party.get("description"),
         ticketPrice=party.get("ticket_price"),
+        ticketUrl=_ticket_url_with_ref(party.get("external_ticket_url")),
+        promoCode=party.get("promo_code"),
+        promoLabel=party.get("promo_label"),
+        promoHint=party.get("promo_hint"),
         ratingOpen=rating_open,
         ratingLocked=rating_locked,
+        hostStats=host_stats,
+        isHeadliner=is_headliner,
     )
 
 
@@ -319,7 +420,7 @@ async def upload_poster(
     object_path = f"{user['id']}/{uuid.uuid4().hex}.{ext}"
 
     try:
-        ensure_profile(user)
+        require_host_poster(user)
         supabase.storage.from_("posters").upload(
             object_path,
             raw,
@@ -352,7 +453,14 @@ async def get_party(
     if not _can_view_party(party, user):
         raise HTTPException(status_code=404, detail="Party not found")
 
-    return db_to_response(party, reveal=user is not None)
+    # Host cred + headliner status are public (same data anyone can derive
+    # from the feed) — the soft gate only covers address + counts.
+    return db_to_response(
+        party,
+        reveal=user is not None,
+        host_stats=_get_host_stats(party),
+        is_headliner=_is_headliner(party),
+    )
 
 
 @router.post("", response_model=PartyResponse)
@@ -362,16 +470,25 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     Create a new party. Status will be 'pending' until admin approves.
     Rate limited to 10 requests per minute per IP.
     Geocode failures surface as 422 (no silent fake pins — Epic 8.2 / §8.14).
+    Hosts only — apply at POST /hosts/applications first.
     """
-    ensure_profile(user)
+    profile = require_host_poster(user)
 
-    if data.poster_image is not None:
-        prefix = f"{user['id']}/"
-        if not data.poster_image.startswith(prefix):
-            raise HTTPException(
-                status_code=422,
-                detail="poster_image must be a path uploaded by this account",
-            )
+    # A host's approved application IS their org identity: parties post under
+    # the org's name (not whatever the request claims), and only frat orgs
+    # may use the Frat Party category. Admins have no application — free rein.
+    host_name = data.host
+    if not profile.get("is_admin"):
+        org = _approved_host_application(user["id"])
+        if org:
+            host_name = org["org_name"][:30]
+            if data.category == "Frat Party" and org.get("org_type") != "frat":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Only frat host accounts can post Frat Party listings",
+                )
+
+    _require_own_poster_path(data.poster_image, user["id"])
 
     lat, lng = data.latitude, data.longitude
     if lat is None or lng is None:
@@ -391,22 +508,18 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
             status_code=422,
             detail="Party date must be a Friday or Saturday today or in the future",
         )
-    day = "friday" if party_date.weekday() == 4 else "saturday"
-    # weekend_of is always the Friday of that weekend
-    if party_date.weekday() == 5:  # Saturday
-        weekend = party_date - timedelta(days=1)
-    else:
-        weekend = party_date
+    day, weekend = _day_and_weekend(party_date)
 
     try:
         party_data = {
             "title": data.title,
-            "host": data.host,
+            "host": host_name,
             "pin_label": data.pin_label,
             "category": data.category,
             "day": day,
             "date": data.date,
             "doors_open": data.doors_open,
+            "doors_close": data.doors_close,
             "address": data.address,
             "latitude": lat,
             "longitude": lng,
@@ -417,6 +530,10 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
             "poster_image": data.poster_image,
             "description": data.description,
             "ticket_price": data.ticket_price,
+            "external_ticket_url": data.external_ticket_url,
+            "promo_code": data.promo_code,
+            "promo_label": data.promo_label,
+            "promo_hint": data.promo_hint,
         }
 
         result = supabase.table("parties").insert(party_data).execute()
@@ -428,6 +545,118 @@ async def create_party(request: Request, data: PartyCreate, user: dict = Depends
     except Exception:
         logger.exception("POST /parties failed")
         raise HTTPException(status_code=400, detail="Failed to create party")
+
+
+def _approved_host_application(user_id: str) -> Optional[dict]:
+    """Latest approved host application — the host's org identity.
+
+    Best-effort: any lookup failure returns None (the caller falls back to
+    the submitted host name), because posting must not break if this table
+    hiccups. Admins and legacy hosts without an application also get None.
+    """
+    try:
+        result = (
+            supabase.table("host_applications")
+            .select("org_name, org_type")
+            .eq("user_id", user_id)
+            .eq("status", "approved")
+            .order("reviewed_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if result.data:
+            return result.data[0]
+    except Exception:
+        logger.exception("approved host application lookup failed for %s", user_id)
+    return None
+
+
+def _require_own_poster_path(poster_image: Optional[str], user_id: str) -> None:
+    if poster_image is None:
+        return
+    prefix = f"{user_id}/"
+    if not poster_image.startswith(prefix):
+        raise HTTPException(
+            status_code=422,
+            detail="poster_image must be a path uploaded by this account",
+        )
+
+
+@router.patch("/{party_id}", response_model=PartyResponse)
+@limiter.limit(RATE_LIMITS["update_party"])
+async def update_party(
+    request: Request,
+    party_id: str,
+    data: PartyUpdate,
+    user: dict = Depends(require_auth),
+):
+    """
+    Owner edit. Pending and approved only — rejected listings stay frozen.
+    Rate limited to 10 requests per minute per IP.
+    """
+    ensure_profile(user)
+
+    result = supabase.table("parties").select("*").eq("id", party_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Party not found")
+
+    party = result.data[0]
+    if party.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="You can only edit your own parties")
+    if (party.get("status") or "") == "rejected":
+        raise HTTPException(status_code=403, detail="Rejected parties cannot be edited")
+
+    updates = data.model_dump(exclude_unset=True)
+
+    if "poster_image" in updates:
+        _require_own_poster_path(updates["poster_image"], user["id"])
+
+    if updates.get("date"):
+        party_date = date.fromisoformat(updates["date"])
+        if not weekend_service.is_creatable_party_date(party_date):
+            raise HTTPException(
+                status_code=422,
+                detail="Party date must be a Friday or Saturday today or in the future",
+            )
+        day, weekend = _day_and_weekend(party_date)
+        updates["day"] = day
+        updates["weekend_of"] = weekend.isoformat()
+
+    address_changed = "address" in updates and updates["address"] is not None
+    lat = updates.get("latitude")
+    lng = updates.get("longitude")
+    coords_provided = lat is not None and lng is not None
+    if address_changed and not coords_provided:
+        geocoded = await asyncio.to_thread(geocode_address, updates["address"])
+        if geocoded is None:
+            raise HTTPException(
+                status_code=422,
+                detail="We couldn't find that address. Check the street and try again.",
+            )
+        updates["latitude"], updates["longitude"] = geocoded
+
+    if not updates:
+        return db_to_response(party, reveal=True)
+
+    # Re-review rule (spec 11.5): editing an APPROVED listing sends it back
+    # to the moderation queue. Without this, a host could get a harmless
+    # party approved and then swap in anything — the approval would be
+    # meaningless. Pending listings just stay pending.
+    if (party.get("status") or "") == "approved":
+        updates["status"] = "pending"
+
+    try:
+        updated = (
+            supabase.table("parties").update(updates).eq("id", party_id).execute()
+        )
+        if not updated.data:
+            raise HTTPException(status_code=400, detail="Failed to update party")
+        return db_to_response(updated.data[0], reveal=True)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("PATCH /parties/%s failed", party_id)
+        raise HTTPException(status_code=400, detail="Failed to update party")
 
 
 @router.delete("/{party_id}")

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Party } from '@/lib/types';
 import { partiesApi } from '@/services/api';
 
@@ -54,22 +54,27 @@ export default function useParties(
     };
   }, [weekendOf]);
 
+  // Overlay the live going count on each party — but ONLY when the server
+  // sent one. Logged-out viewers get null (the soft gate) and it must STAY
+  // null so buttons/tiles show no number instead of a fake 0.
+  const withLiveCount = useCallback(
+    (party: Party): Party => ({
+      ...party,
+      goingCount: party.goingCount === null ? null : getCount(party.id, party.goingCount),
+    }),
+    [getCount],
+  );
+
   const filteredParties = useMemo(() => {
     return parties
       .filter(party => party.day === selectedDay)
-      .map(party => ({
-        ...party,
-        goingCount: getCount(party.id, party.goingCount),
-      }))
+      .map(withLiveCount)
       .sort((a, b) => (b.goingCount ?? 0) - (a.goingCount ?? 0));
-  }, [selectedDay, getCount, parties]);
+  }, [selectedDay, withLiveCount, parties]);
 
   const allParties = useMemo(() => {
-    return parties.map(party => ({
-      ...party,
-      goingCount: getCount(party.id, party.goingCount),
-    }));
-  }, [getCount, parties]);
+    return parties.map(withLiveCount);
+  }, [withLiveCount, parties]);
 
   const topPartyId = filteredParties.length > 0 ? filteredParties[0].id : null;
 

@@ -12,7 +12,7 @@ limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="Temple Parties API",
     description="Backend API for Temple Parties app",
-    version="1.0.2"  # Bump to trigger Railway redeploy
+    version="1.0.3"  # Bump to trigger Railway redeploy
 )
 
 # Add rate limiter to app state
@@ -26,7 +26,9 @@ app.add_middleware(
     allow_origins=[origin.strip() for origin in settings.cors_origins.split(",")],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    # Wildcard so Safari / analytics extra request headers don't fail the
+    # preflight (WebKit reports that as "The operation was aborted").
+    allow_headers=["*"],
 )
 
 # Include routers

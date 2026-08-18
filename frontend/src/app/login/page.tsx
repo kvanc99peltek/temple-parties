@@ -75,7 +75,7 @@ function LoginForm() {
           <br />
           Parties
         </Link>
-        <h1 className="text-white text-2xl font-semibold font-montserrat">Sign in</h1>
+        <h1 className="text-white text-2xl font-semibold font-montserrat">Create an account</h1>
         <p className="text-white/60 font-montserrat text-sm mt-2">
           Use your Temple account. Students only.
         </p>
@@ -94,10 +94,9 @@ function LoginForm() {
         type="button"
         onClick={() => void startMicrosoft()}
         disabled={submitting}
-        className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+        className="w-full flex items-center justify-center py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
-        <MicrosoftLogo />
-        {submitting ? 'Redirecting…' : 'Continue with Microsoft'}
+        {submitting ? 'Redirecting…' : 'Sign In'}
       </button>
 
       {/* Escape hatch for a friend's computer: forces the Microsoft account
@@ -118,18 +117,6 @@ function LoginForm() {
         First time? Microsoft will ask you to allow access.
       </p>
     </div>
-  );
-}
-
-/** Microsoft's four-square mark. Inline so the button never waits on an asset. */
-function MicrosoftLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
-      <rect x="0" y="0" width="8" height="8" fill="#f25022" />
-      <rect x="10" y="0" width="8" height="8" fill="#7fba00" />
-      <rect x="0" y="10" width="8" height="8" fill="#00a4ef" />
-      <rect x="10" y="10" width="8" height="8" fill="#ffb900" />
-    </svg>
   );
 }
 

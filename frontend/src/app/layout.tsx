@@ -4,8 +4,10 @@ import { PostHogProvider } from "@/components/PostHogProvider";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { APP_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: "Temple Parties",
   description: "Discover weekend parties at Temple University",
   keywords: ["Temple University", "parties", "events", "Philadelphia", "college"],
@@ -18,9 +20,11 @@ export const metadata: Metadata = {
     title: "Temple Parties",
     description: "Discover weekend parties at Temple University",
     type: "website",
+    siteName: "Temple Parties",
+    locale: "en_US",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Temple Parties",
     description: "Discover weekend parties at Temple University",
   },

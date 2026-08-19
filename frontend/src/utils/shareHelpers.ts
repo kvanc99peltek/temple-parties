@@ -4,41 +4,50 @@ import { Party } from '@/lib/types';
 import { APP_URL } from '@/lib/constants';
 
 /**
- * Format share text when user has marked a party as going
+ * Caption only — no URL. iOS Messages unfurls `navigator.share({ url })`
+ * AND any URL inside `text`, which was pasting the link twice.
  */
-function formatPartyShareText(party: Party): string {
+export function formatPartyShareCaption(party: Party): string {
   const dayName = getDayName(party.day);
-  const partyUrl = `${APP_URL}/party/${party.id}`;
-  const goingLine =
-    party.goingCount != null ? `${party.goingCount}+ going\n` : '';
-  return `pulling up to ${party.title}! by ${party.host}
-${dayName} @ ${party.doorsOpen}
-${goingLine}
-${partyUrl}`;
+  const lines = [
+    `pulling up to ${party.title}! by ${party.host}`,
+    `${dayName} @ ${party.doorsOpen}`,
+  ];
+  if (party.goingCount != null) {
+    lines.push(`${party.goingCount}+ going`);
+  }
+  return lines.join('\n');
 }
 
-/**
- * Format share text when user hasn't marked any parties
- */
-function formatDefaultShareText(): string {
-  return APP_URL;
+function partyUrl(party: Party): string {
+  return `${APP_URL}/party/${party.id}`;
+}
+
+/** Clipboard / fallback: caption + the link once. */
+export function formatPartyShareText(party: Party): string {
+  return `${formatPartyShareCaption(party)}\n\n${partyUrl(party)}`;
 }
 
 /**
  * Share content using Web Share API or fallback to clipboard
  */
 export async function shareContent(party?: Party): Promise<{ success: boolean; method: 'share' | 'clipboard' }> {
-  const text = party ? formatPartyShareText(party) : formatDefaultShareText();
-  const title = 'Temple Parties';
-  const partyUrl = party ? `${APP_URL}/party/${party.id}` : APP_URL;
+  const url = party ? partyUrl(party) : APP_URL;
 
   if (navigator.share) {
     try {
-      await navigator.share({
-        title,
-        text,
-        url: partyUrl,
-      });
+      if (party) {
+        await navigator.share({
+          title: party.title,
+          text: formatPartyShareCaption(party),
+          url,
+        });
+      } else {
+        await navigator.share({
+          title: 'Temple Parties',
+          url,
+        });
+      }
       return { success: true, method: 'share' };
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
@@ -48,7 +57,7 @@ export async function shareContent(party?: Party): Promise<{ success: boolean; m
   }
 
   try {
-    await navigator.clipboard.writeText(party ? formatPartyShareText(party) : text);
+    await navigator.clipboard.writeText(party ? formatPartyShareText(party) : url);
     return { success: true, method: 'clipboard' };
   } catch (error) {
     console.error('Failed to copy to clipboard:', error);

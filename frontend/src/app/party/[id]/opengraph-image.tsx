@@ -18,6 +18,33 @@ export default async function Image({ params }: Props) {
     });
   }
 
+  const poster = party.posterImage ?? null;
+  if (poster) {
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            display: 'flex',
+            width: '100%',
+            height: '100%',
+            background: '#000',
+          }}
+        >
+          {/* ImageResponse/Satori only supports a raw <img>, not next/image. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={poster}
+            alt=""
+            width={1200}
+            height={630}
+            style={{ objectFit: 'cover', width: 1200, height: 630 }}
+          />
+        </div>
+      ),
+      { ...size },
+    );
+  }
+
   const [bold, semi] = await Promise.all([
     fetch(new URL('../../fonts/Montserrat-Bold.otf', import.meta.url)).then((r) =>
       r.arrayBuffer(),
@@ -28,7 +55,6 @@ export default async function Image({ params }: Props) {
   ]);
 
   const dateLine = `${getPartyDateLabel(party.date)}  ·  ${party.doorsOpen}`;
-  const poster = party.posterImage ?? null;
 
   return new ImageResponse(
     (
@@ -42,26 +68,14 @@ export default async function Image({ params }: Props) {
           fontFamily: 'Montserrat',
         }}
       >
-        {poster ? (
-          // ImageResponse/Satori only supports a raw <img>, not next/image.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={poster}
-            alt=""
-            width={480}
-            height={630}
-            style={{ objectFit: 'cover', width: 480, height: 630 }}
-          />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              width: 16,
-              height: '100%',
-              background: '#b24bf3',
-            }}
-          />
-        )}
+        <div
+          style={{
+            display: 'flex',
+            width: 16,
+            height: '100%',
+            background: '#b24bf3',
+          }}
+        />
 
         <div
           style={{
@@ -69,7 +83,7 @@ export default async function Image({ params }: Props) {
             flexDirection: 'column',
             justifyContent: 'space-between',
             flex: 1,
-            padding: poster ? '56px 64px' : '56px 72px',
+            padding: '56px 72px',
             minWidth: 0,
           }}
         >

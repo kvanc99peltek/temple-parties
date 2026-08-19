@@ -12,20 +12,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const description = `${party.host} · ${getPartyDateLabel(party.date)} · ${party.doorsOpen}`;
+  // Poster URL first so iMessage's compact square isn't the site favicon.
+  // No-poster parties keep the generated 1200×630 card.
+  const images = party.posterImage
+    ? [{ url: party.posterImage, alt: party.title }]
+    : [{ url: `/party/${party.id}/opengraph-image`, width: 1200, height: 630, alt: party.title }];
+
   return {
     title: `${party.title} · Temple Parties`,
     description,
+    icons: party.posterImage
+      ? { icon: '/icon.png', apple: party.posterImage }
+      : undefined,
     openGraph: {
       title: party.title,
       description,
       type: 'website',
       siteName: 'Temple Parties',
       url: `/party/${party.id}`,
+      images,
     },
     twitter: {
       card: 'summary_large_image',
       title: party.title,
       description,
+      images,
     },
   };
 }

@@ -1,23 +1,28 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { isTempleEmail, sanitizeNextPath } from '@/lib/authHelpers';
+import { isTempleEmail } from '@/lib/authHelpers';
+import { resolvePostAuthPath, clearAuthNextPath } from '@/lib/pendingAuthAction';
 
 function AuthCallback() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [message, setMessage] = useState('Signing you in…');
+  const ran = useRef(false);
 
   useEffect(() => {
     // Bounce back to /login with the reason AND the original destination.
     // Losing `next` here would strand a student who came in from "Going" on a
     // party card: they'd fix the error, sign in, and land on the home feed
     // instead of the party they tapped.
+    if (ran.current) return;
+    ran.current = true;
+
     const fail = (code: string) => {
       const params = new URLSearchParams({ error: code });
-      const next = sanitizeNextPath(searchParams.get('next'));
+      const next = resolvePostAuthPath(searchParams.get('next'));
       if (next !== '/') {
         params.set('next', next);
       }
@@ -55,7 +60,8 @@ function AuthCallback() {
         return;
       }
 
-      const next = sanitizeNextPath(searchParams.get('next'));
+      const next = resolvePostAuthPath(searchParams.get('next'));
+      clearAuthNextPath();
       router.replace(next);
     };
 

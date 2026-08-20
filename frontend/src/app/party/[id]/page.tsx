@@ -18,7 +18,7 @@
  * "SIGN IN WITH .EDU" card. Browse stays free; the address is the carrot.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
@@ -53,10 +53,11 @@ export default function PartyPage() {
   const params = useParams();
   const router = useRouter();
   const partyId = typeof params.id === 'string' ? params.id : '';
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, needsOnboarding } = useAuth();
   const { isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
   const toast = useToast();
+  const showToast = toast.show;
   const modals = useModalState(isAuthenticated, toggleGoing);
   const {
     requireAuthForGoing,
@@ -65,6 +66,7 @@ export default function PartyPage() {
     showInviteModal,
     closeInviteModal,
     openInviteModal,
+    replayPendingAuthAction,
   } = modals;
 
   const [party, setParty] = useState<Party | null>(null);
@@ -74,6 +76,18 @@ export default function PartyPage() {
   // ratings submitted THIS session, so without this a reload would show
   // outline thumbs even though you already voted.
   const [serverUserRating, setServerUserRating] = useState<number | null>(null);
+
+  const replayedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || needsOnboarding || replayedRef.current) return;
+    replayedRef.current = true;
+    void (async () => {
+      const action = await replayPendingAuthAction();
+      if (action?.type === 'going') {
+        showToast("You're marked as going!");
+      }
+    })();
+  }, [authLoading, isAuthenticated, needsOnboarding, replayPendingAuthAction, showToast]);
 
   useEffect(() => {
     if (!partyId || !isAuthenticated) {

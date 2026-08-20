@@ -1,7 +1,9 @@
 import {
   isTempleEmail,
   loginErrorFromQuery,
+  loginPitch,
   microsoftCallbackUrl,
+  onboardingPath,
   sanitizeNextPath,
 } from '@/lib/authHelpers';
 
@@ -40,6 +42,38 @@ describe('microsoftCallbackUrl', () => {
     expect(microsoftCallbackUrl('http://localhost:3000', '/')).toBe(
       'http://localhost:3000/auth/callback'
     );
+  });
+});
+
+describe('onboardingPath', () => {
+  it('passes the party through so onboarding does not dump people on home', () => {
+    expect(onboardingPath('/party/abc')).toBe('/onboarding?next=%2Fparty%2Fabc');
+    expect(onboardingPath('/map?party=abc')).toBe('/onboarding?next=%2Fmap%3Fparty%3Dabc');
+  });
+
+  it('does not nest onboarding or send next=/', () => {
+    expect(onboardingPath('/')).toBe('/onboarding');
+    expect(onboardingPath('/onboarding')).toBe('/onboarding');
+    expect(onboardingPath('https://evil.com')).toBe('/onboarding');
+  });
+});
+
+describe('loginPitch', () => {
+  it('explains .edu, time, and GOING/ratings on a cold visit', () => {
+    const pitch = loginPitch('/');
+    expect(pitch.title).toMatch(/GOING/i);
+    expect(pitch.body).toMatch(/\.edu/i);
+    expect(pitch.body).toMatch(/10 seconds/);
+    expect(pitch.body).toMatch(/ratings/i);
+  });
+
+  it('promises a return to the party when they came from GOING', () => {
+    const pitch = loginPitch('/party/abc', 'going');
+    expect(pitch.body).toMatch(/land back on the party/i);
+  });
+
+  it('switches copy for create-party', () => {
+    expect(loginPitch('/create', 'addParty').title).toMatch(/post a party/i);
   });
 });
 

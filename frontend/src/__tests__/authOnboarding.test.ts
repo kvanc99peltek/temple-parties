@@ -1,7 +1,10 @@
 import {
   clearPendingAuthAction,
   peekPendingAuthAction,
+  resolvePostAuthPath,
+  saveAuthNextPath,
   savePendingAuthAction,
+  takeAuthNextPath,
   takePendingAuthAction,
 } from '@/lib/pendingAuthAction';
 import { needsOnboarding, USERNAME_PATTERN, firstIncompleteStep, isOnboardingRequired, writeOnboardingComplete } from '@/lib/onboarding';
@@ -27,6 +30,34 @@ describe('pendingAuthAction', () => {
   it('rejects malformed payloads', () => {
     sessionStorage.setItem('temple_pending_auth_action', '{"type":"going"}');
     expect(peekPendingAuthAction()).toBeNull();
+  });
+});
+
+describe('resolvePostAuthPath', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it('prefers the URL next path', () => {
+    saveAuthNextPath('/create');
+    savePendingAuthAction({ type: 'going', partyId: 'abc' });
+    expect(resolvePostAuthPath('/party/abc')).toBe('/party/abc');
+  });
+
+  it('falls back to sessionStorage when OAuth strips next', () => {
+    saveAuthNextPath('/party/abc');
+    expect(resolvePostAuthPath(null)).toBe('/party/abc');
+    expect(resolvePostAuthPath('/')).toBe('/party/abc');
+  });
+
+  it('infers the party from a pending GOING tap', () => {
+    savePendingAuthAction({ type: 'going', partyId: 'abc' });
+    expect(resolvePostAuthPath(null)).toBe('/party/abc');
+  });
+
+  it('rejects open redirects from storage', () => {
+    sessionStorage.setItem('temple_auth_next', 'https://evil.com');
+    expect(takeAuthNextPath()).toBe('/');
   });
 });
 

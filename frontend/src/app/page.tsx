@@ -28,7 +28,7 @@ import { trackEvent } from '@/utils/analytics';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, needsOnboarding } = useAuth();
   const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
@@ -65,7 +65,7 @@ export default function HomePage() {
 
   const replayedRef = useRef(false);
   useEffect(() => {
-    if (authLoading || !isAuthenticated || replayedRef.current) return;
+    if (authLoading || !isAuthenticated || needsOnboarding || replayedRef.current) return;
     replayedRef.current = true;
     void (async () => {
       const action = await replayPendingAuthAction();
@@ -73,7 +73,7 @@ export default function HomePage() {
         showToast("You're marked as going!");
       }
     })();
-  }, [authLoading, isAuthenticated, replayPendingAuthAction, showToast]);
+  }, [authLoading, isAuthenticated, needsOnboarding, replayPendingAuthAction, showToast]);
 
   useEffect(() => {
     setSelectedDay(getDefaultDay());

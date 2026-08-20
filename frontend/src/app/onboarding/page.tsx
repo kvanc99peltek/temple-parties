@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/services/api';
+import { sanitizeNextPath } from '@/lib/authHelpers';
 import {
   ONBOARDING_STEPS,
   GRAD_YEARS,
@@ -39,7 +40,7 @@ function toProfileUser(user: AuthUser): User {
 function OnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get('next') || '/';
+  const nextPath = sanitizeNextPath(searchParams.get('next'));
   const {
     user,
     isAuthenticated,
@@ -68,13 +69,15 @@ function OnboardingFlow() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stepIndex = ONBOARDING_STEPS.indexOf(step);
-  const safeNext = nextPath.startsWith('/') ? nextPath : '/';
+  const safeNext = nextPath;
 
   useEffect(() => {
     if (isLoading) return;
 
     if (!isAuthenticated) {
-      router.replace('/login?next=/onboarding');
+      router.replace(
+        `/login?next=${encodeURIComponent(safeNext === '/' ? '/onboarding' : safeNext)}`
+      );
       return;
     }
 

@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { partyPath } from '@/lib/authHelpers';
 import {
   clearPendingAuthAction,
+  saveAuthNextPath,
   savePendingAuthAction,
   takePendingAuthAction,
   type PendingAuthAction,
@@ -27,6 +29,7 @@ export default function useModalState(
   const openLogin = useCallback(
     (action?: PendingAuthAction, next = '/') => {
       if (action) savePendingAuthAction(action);
+      saveAuthNextPath(next);
       const params = new URLSearchParams({ next });
       router.push(`/login?${params.toString()}`);
     },
@@ -51,7 +54,7 @@ export default function useModalState(
 
   /** Returns true if the caller should abort (redirected to login). */
   const requireAuthForGoing = useCallback(
-    (partyId: string, next = '/'): boolean => {
+    (partyId: string, next = partyPath(partyId)): boolean => {
       if (!AUTH_GATE_ENABLED) return false;
       if (isAuthenticated) return false;
       openLogin({ type: 'going', partyId }, next);

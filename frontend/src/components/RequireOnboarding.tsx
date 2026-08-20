@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { AUTH_GATE_ENABLED } from '@/hooks/useModalState';
+import { onboardingPath } from '@/lib/authHelpers';
 
 /**
  * Sends authenticated-but-incomplete users to /onboarding.
@@ -18,7 +19,11 @@ export default function RequireOnboarding({ children }: { children: React.ReactN
     if (!AUTH_GATE_ENABLED) return;
     if (isLoading) return;
     if (isAuthenticated && needsOnboarding) {
-      router.replace('/onboarding');
+      const current =
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : pathname;
+      router.replace(onboardingPath(current));
     }
   }, [isAuthenticated, isLoading, needsOnboarding, router, pathname]);
 

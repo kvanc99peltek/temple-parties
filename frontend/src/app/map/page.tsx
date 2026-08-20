@@ -19,7 +19,7 @@ import { trackEvent } from '@/utils/analytics';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function MapPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, needsOnboarding } = useAuth();
   const [selectedDay] = useState<'friday' | 'saturday'>(() => getDefaultDay());
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
@@ -38,10 +38,10 @@ export default function MapPage() {
 
   const replayedRef = useRef(false);
   useEffect(() => {
-    if (authLoading || !isAuthenticated || replayedRef.current) return;
+    if (authLoading || !isAuthenticated || needsOnboarding || replayedRef.current) return;
     replayedRef.current = true;
     void replayPendingAuthAction();
-  }, [authLoading, isAuthenticated, replayPendingAuthAction]);
+  }, [authLoading, isAuthenticated, needsOnboarding, replayPendingAuthAction]);
 
   useEffect(() => {
     setFocusPartyId(new URLSearchParams(window.location.search).get('party'));
@@ -49,7 +49,7 @@ export default function MapPage() {
   }, []);
 
   const handleGoingClick = useCallback(async (partyId: string) => {
-    if (requireAuthForGoing(partyId, '/map')) return;
+    if (requireAuthForGoing(partyId)) return;
     revealAddress(partyId);
     const wasGoing = isGoing(partyId);
     await toggleGoing(partyId);
@@ -57,7 +57,7 @@ export default function MapPage() {
   }, [toggleGoing, isGoing, revealAddress, requireAuthForGoing]);
 
   const handleNavigateClick = useCallback((partyId: string) => {
-    if (requireAuthForGoing(partyId, '/map')) return;
+    if (requireAuthForGoing(partyId)) return;
     revealAddress(partyId);
     void ensureGoing(partyId);
     trackEvent('navigate_clicked', { partyId, source: 'map' });

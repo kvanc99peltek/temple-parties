@@ -22,6 +22,47 @@ export function microsoftCallbackUrl(origin: string, nextPath: string): string {
   return url.toString();
 }
 
+/** Keep `?next=` through the onboarding gate so SSO doesn't dump people on home. */
+export function onboardingPath(nextPath: string): string {
+  const next = sanitizeNextPath(nextPath);
+  if (next === '/' || next.startsWith('/onboarding')) {
+    return '/onboarding';
+  }
+  return `/onboarding?next=${encodeURIComponent(next)}`;
+}
+
+export function partyPath(partyId: string): string {
+  return `/party/${partyId}`;
+}
+
+export type LoginPitch = { title: string; body: string };
+
+/**
+ * Login headline + subcopy. One screen, Microsoft button visible immediately —
+ * the two-step Continue gate hid SSO and bounced half of /login visitors.
+ */
+export function loginPitch(
+  nextPath: string,
+  pendingType: 'going' | 'addParty' | null = null
+): LoginPitch {
+  if (pendingType === 'addParty' || nextPath.startsWith('/create')) {
+    return {
+      title: 'Sign in to post a party',
+      body: 'Temple .edu only · about 10 seconds.',
+    };
+  }
+  if (pendingType === 'going' || nextPath.startsWith('/party/')) {
+    return {
+      title: 'Sign in to tap GOING',
+      body: 'Temple .edu only · about 10 seconds. You’ll land back on the party.',
+    };
+  }
+  return {
+    title: 'Sign in to tap GOING',
+    body: 'Temple .edu only · about 10 seconds. You need an account for GOING and ratings.',
+  };
+}
+
 export function loginErrorFromQuery(params: URLSearchParams): string {
   const code = params.get('error');
   const description = (params.get('error_description') || params.get('error') || '').toLowerCase();

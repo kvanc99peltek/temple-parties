@@ -8,9 +8,8 @@
  *  - accent:  solid purple. Category tags ("FRAT PARTY") and anything that
  *             should read as a brand-colored label.
  *  - neutral: grey outline. Secondary tags that shouldn't compete for attention.
- *  - overlay: translucent black. For pills that sit ON TOP of imagery (the
- *             SHARE pill over the party-page poster) and need their own
- *             backdrop to stay readable.
+ *  - overlay: translucent black. For pills that sit ON TOP of imagery
+ *             and need their own backdrop to stay readable.
  *
  * Renders a real <button> only when onClick is passed — otherwise a <span>,
  * so we never put an interactive element in the DOM that does nothing.
@@ -23,7 +22,7 @@ export type PillTone = 'hyped' | 'accent' | 'neutral' | 'overlay';
 interface PillProps {
   children: ReactNode;
   tone: PillTone;
-  /** xs = card badges (tiny), sm = party-page tags and the SHARE pill. */
+  /** xs = card badges (tiny), sm = party-page tags. */
   size?: 'xs' | 'sm';
   /** round = full pill (party page), square = subtle 4px corners (feed badge). */
   shape?: 'round' | 'square';

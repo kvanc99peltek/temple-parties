@@ -2,6 +2,9 @@
  * PartyHero — the full-bleed top of the party page: the poster on its
  * cinema stage with the back arrow and SHARE pill floating on top.
  *
+ * SHARE is solid purple (not a ghost overlay) so it stays readable on a
+ * busy flyer — the overlay pill was disappearing into dark posters.
+ *
  * The party page is a "pushed" route (you drilled in from a feed), so it
  * trades the tab bar for a back arrow. That arrow always goes to the home
  * feed. router.back() is wrong here: after login or Safari restore,
@@ -11,7 +14,7 @@
 
 import { useRouter } from 'next/navigation';
 import StagePoster from '@/components/ui/StagePoster';
-import Pill from '@/components/ui/Pill';
+import ShareIcon from '@/components/ui/ShareIcon';
 
 interface PartyHeroProps {
   posterImage?: string;
@@ -33,9 +36,16 @@ export default function PartyHero({ posterImage, title, onShare }: PartyHeroProp
         >
           ←
         </button>
-        <Pill tone="overlay" size="sm" onClick={onShare} title="Share this party">
+        <button
+          type="button"
+          onClick={onShare}
+          aria-label="Share this party"
+          title="Share this party"
+          className="inline-flex items-center gap-1.5 rounded-full bg-temple-purple text-white font-montserrat font-bold text-[11px] tracking-[0.8px] uppercase px-3.5 py-2 hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+        >
+          <ShareIcon className="w-3.5 h-3.5" />
           SHARE
-        </Pill>
+        </button>
       </div>
     </StagePoster>
   );

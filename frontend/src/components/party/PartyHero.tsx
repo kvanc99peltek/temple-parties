@@ -3,9 +3,10 @@
  * cinema stage with the back arrow and SHARE pill floating on top.
  *
  * The party page is a "pushed" route (you drilled in from a feed), so it
- * trades the tab bar for a back arrow. Back uses router.back() when there's
- * history and falls back to the home feed when the page was opened directly
- * from a shared link — otherwise back would exit the site.
+ * trades the tab bar for a back arrow. That arrow always goes to the home
+ * feed. router.back() is wrong here: after login or Safari restore,
+ * history.length is still > 1 but the previous entry is this same party
+ * URL, so back() remounts the detail page and the user is stuck.
  */
 
 import { useRouter } from 'next/navigation';
@@ -21,21 +22,12 @@ interface PartyHeroProps {
 export default function PartyHero({ posterImage, title, onShare }: PartyHeroProps) {
   const router = useRouter();
 
-  const handleBack = () => {
-    // window.history.length > 1 means we navigated here from inside the app.
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/');
-    }
-  };
-
   return (
     <StagePoster src={posterImage} title={title} heightClass="h-[320px]" priority>
       <div className="flex items-center justify-between px-4 h-14">
         <button
           type="button"
-          onClick={handleBack}
+          onClick={() => router.push('/')}
           aria-label="Go back"
           className="size-9 flex items-center justify-center rounded-full bg-black/60 text-white text-[18px] hover:bg-black/80 transition-colors"
         >

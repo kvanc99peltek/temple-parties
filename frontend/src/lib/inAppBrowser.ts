@@ -8,10 +8,16 @@
  * UA matching is conservative: named social apps + Android `; wv)`. We do
  * not treat "AppleWebKit without Safari" as in-app — that false-positives
  * Chrome iOS.
+ *
+ * Instagram/Threads patched `x-safari-https://` in mid-2025. Inside Meta
+ * apps the tap must fire `instagram://extbrowser` (or `barcelona://`) in
+ * the same user-gesture tick. If that is swallowed, the ••• menu is the
+ * path that still works.
  */
 
 export type InAppApp =
   | 'instagram'
+  | 'threads'
   | 'facebook'
   | 'tiktok'
   | 'snapchat'
@@ -42,6 +48,11 @@ export function detectInAppBrowser(userAgent: string): InAppBrowser {
   const ua = userAgent || '';
   const platform = platformFromUa(ua);
 
+  // Threads UA is "Barcelona" and often also contains "Instagram".
+  if (/Barcelona/i.test(ua)) {
+    return { inApp: true, app: 'threads', platform };
+  }
+
   for (const { app, pattern } of APP_PATTERNS) {
     if (pattern.test(ua)) {
       return { inApp: true, app, platform };
@@ -61,6 +72,8 @@ export function appDisplayName(app: InAppApp): string {
   switch (app) {
     case 'instagram':
       return 'Instagram';
+    case 'threads':
+      return 'Threads';
     case 'facebook':
       return 'Facebook';
     case 'tiktok':
@@ -80,27 +93,37 @@ export function openBrowserLabel(platform: InAppPlatform): string {
   return 'Open in browser';
 }
 
-export function menuHint(app: InAppApp): string {
-  if (app === 'instagram') return 'Or tap ••• then Open in Browser';
-  if (app === 'facebook') return 'Or tap ••• then Open in Safari';
-  return 'Or open this page from the browser menu';
+export function escapeSteps(app: InAppApp, platform: InAppPlatform): string[] {
+  const browser = platform === 'android' ? 'Chrome' : 'Safari';
+  if (app === 'instagram' || app === 'threads') {
+    return [`Tap ••• at the top right`, `Tap Open in Browser — that opens ${browser}`];
+  }
+  if (app === 'facebook') {
+    return [`Tap ••• at the top right`, `Tap Open in Safari / Open in external browser`];
+  }
+  if (app === 'tiktok') {
+    return [`Tap ⋯ on this screen`, `Tap Open in browser`];
+  }
+  return [`Copy the link`, `Paste it in ${browser}`];
+}
+
+function httpsPageUrl(pageUrl: string): URL | null {
+  try {
+    const parsed = new URL(pageUrl);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Custom-scheme URL that hands the current page to the system browser.
- * iOS: undocumented `x-safari-https://` (still the reliable Instagram punch-out).
- * Android: Chrome intent. Returns null when we can't build a safe URL.
+ * Non-Meta iOS: `x-safari-https://`. Android: Chrome intent.
  */
 export function systemBrowserUrl(pageUrl: string, platform: InAppPlatform): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(pageUrl);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    return null;
-  }
+  const parsed = httpsPageUrl(pageUrl);
+  if (!parsed) return null;
 
   const rest = `${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`;
 
@@ -113,4 +136,26 @@ export function systemBrowserUrl(pageUrl: string, platform: InAppPlatform): stri
     return `intent://${rest}#Intent;scheme=${scheme};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
   }
   return null;
+}
+
+/**
+ * Scheme to assign on a real tap (`window.location.href`, same tick).
+ * Instagram/Threads block x-safari-https; they still honor extbrowser when
+ * the call is tied to a user gesture.
+ */
+export function escapeUrl(
+  pageUrl: string,
+  gate: Extract<InAppBrowser, { inApp: true }>
+): string | null {
+  const parsed = httpsPageUrl(pageUrl);
+  if (!parsed) return null;
+
+  if (gate.platform === 'ios' && gate.app === 'instagram') {
+    return `instagram://extbrowser/?url=${encodeURIComponent(parsed.toString())}`;
+  }
+  if (gate.platform === 'ios' && gate.app === 'threads') {
+    return `barcelona://extbrowser/?url=${encodeURIComponent(parsed.toString())}`;
+  }
+
+  return systemBrowserUrl(pageUrl, gate.platform);
 }

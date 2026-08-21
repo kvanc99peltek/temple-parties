@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,9 +9,9 @@ import { peekPendingAuthAction, saveAuthNextPath } from '@/lib/pendingAuthAction
 import {
   appDisplayName,
   detectInAppBrowser,
-  menuHint,
+  escapeSteps,
+  escapeUrl,
   openBrowserLabel,
-  systemBrowserUrl,
   type InAppBrowser,
 } from '@/lib/inAppBrowser';
 import { trackEvent } from '@/utils/analytics';
@@ -29,9 +29,10 @@ import { trackEvent } from '@/utils/analytics';
  * to this page.
  *
  * Instagram / Facebook in-app browsers never complete Azure OAuth (the
- * redirect dies in the WebView). Those students get an Open in Safari
- * screen instead of the Microsoft button. `?next=` stays on the URL so
- * Safari still returns them to the party they came from (TUP-5).
+ * redirect dies in the WebView). Microsoft is hidden; we try the app's
+ * escape scheme on tap and show the ••• menu path that still works when
+ * Instagram swallows the scheme. `?next=` stays on the URL so Safari
+ * still returns them to the party they came from (TUP-5).
  */
 function LoginForm() {
   const router = useRouter();
@@ -174,91 +175,101 @@ type InAppGate = Extract<InAppBrowser, { inApp: true }>;
 /** Heading when Microsoft OAuth cannot run inside this WebView. */
 function InAppEscape({ gate }: { gate: InAppGate }) {
   const browser = gate.platform === 'android' ? 'Chrome' : 'Safari';
+  const steps = escapeSteps(gate.app, gate.platform);
   return (
     <>
-      <h1 className="text-white text-2xl font-semibold font-montserrat">Open in {browser}</h1>
+      <h1 className="text-white text-2xl font-semibold font-montserrat">
+        {appDisplayName(gate.app)} can&apos;t sign you in
+      </h1>
       <p className="text-white/60 font-montserrat text-sm mt-2 leading-relaxed">
-        {appDisplayName(gate.app)} can&apos;t finish Microsoft sign-in. Open this
-        page in {browser} — we keep the party you came from.
+        Microsoft login has to happen in {browser}. Do this:
       </p>
+      <ol className="mt-4 text-left text-white font-montserrat text-sm leading-relaxed space-y-2">
+        {steps.map((step, i) => (
+          <li key={step} className="flex gap-3">
+            <span className="text-[#b24bf3] font-semibold tabular-nums">{i + 1}.</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
     </>
   );
 }
 
 async function copyPageUrl(): Promise<boolean> {
   const url = window.location.href;
+  // execCommand first — Instagram's WebView often denies clipboard.writeText.
+  try {
+    const el = document.createElement('textarea');
+    el.value = url;
+    el.setAttribute('readonly', '');
+    el.style.position = 'fixed';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(el);
+    if (ok) return true;
+  } catch {
+    // fall through
+  }
   try {
     await navigator.clipboard.writeText(url);
     return true;
   } catch {
-    try {
-      const el = document.createElement('textarea');
-      el.value = url;
-      el.setAttribute('readonly', '');
-      el.style.position = 'fixed';
-      el.style.left = '-9999px';
-      document.body.appendChild(el);
-      el.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(el);
-      return ok;
-    } catch {
-      return false;
-    }
+    return false;
   }
 }
 
 function InAppEscapeActions({ gate }: { gate: InAppGate }) {
   const [copied, setCopied] = useState(false);
-  const pageUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const escapeHref = systemBrowserUrl(pageUrl, gate.platform);
   const label = openBrowserLabel(gate.platform);
+  const browser = gate.platform === 'android' ? 'Chrome' : 'Safari';
 
-  const onCopy = async () => {
-    const ok = await copyPageUrl();
-    trackEvent('in_app_browser_copy_link', {
-      app: gate.app,
-      platform: gate.platform,
-      success: ok,
+  const copyNow = () => {
+    void copyPageUrl().then((ok) => {
+      trackEvent('in_app_browser_copy_link', {
+        app: gate.app,
+        platform: gate.platform,
+        success: ok,
+      });
+      if (ok) {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2500);
+      }
     });
-    if (ok) {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Instagram swallows <a href="x-safari-https://"> — nothing happens, user
+  // stuck. Fire the escape scheme synchronously on the tap (user gesture),
+  // and always copy so they have a way out if the scheme is a no-op.
+  const onTryEscape = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const scheme = escapeUrl(window.location.href, gate);
+    // Scheme first — Instagram only honors extbrowser in this same tap tick.
+    if (scheme) {
+      window.location.href = scheme;
     }
+    trackEvent('in_app_browser_open_safari', { app: gate.app, platform: gate.platform });
+    copyNow();
   };
 
   const primaryClass =
     'w-full flex items-center justify-center py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors active:scale-[0.98]';
+  const secondaryClass =
+    'w-full flex items-center justify-center py-3.5 rounded-xl font-montserrat font-semibold text-white border border-white/20 hover:border-white/40 transition-colors active:scale-[0.98]';
 
   return (
     <>
-      {escapeHref ? (
-        <a
-          href={escapeHref}
-          onClick={() =>
-            trackEvent('in_app_browser_open_safari', { app: gate.app, platform: gate.platform })
-          }
-          className={primaryClass}
-        >
-          {label}
-        </a>
-      ) : (
-        <button type="button" onClick={() => void onCopy()} className={primaryClass}>
-          {copied ? 'Copied' : 'Copy link'}
-        </button>
-      )}
-
-      <p className="mt-4 text-center text-white/40 font-montserrat text-xs">{menuHint(gate.app)}</p>
-
-      {escapeHref ? (
-        <button
-          type="button"
-          onClick={() => void onCopy()}
-          className="mt-4 w-full text-center text-sm font-montserrat text-white/60 hover:text-white underline"
-        >
-          {copied ? 'Copied' : 'Copy link'}
-        </button>
-      ) : null}
+      <button type="button" onClick={copyNow} className={primaryClass}>
+        {copied ? `Copied — paste in ${browser}` : 'Copy link'}
+      </button>
+      <button type="button" onClick={onTryEscape} className={`mt-3 ${secondaryClass}`}>
+        {label}
+      </button>
+      <p className="mt-4 text-center text-white/40 font-montserrat text-xs leading-relaxed">
+        Copy is the reliable one. {label} is a shortcut some phones still allow.
+      </p>
     </>
   );
 }

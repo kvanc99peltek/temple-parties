@@ -16,6 +16,7 @@ import type { User as ProfileUser } from '@/lib/types';
 import { isOnboardingRequired, writeOnboardingComplete } from '@/lib/onboarding';
 import { trackEvent } from '@/utils/analytics';
 import { isTempleEmail, microsoftCallbackUrl, sanitizeNextPath } from '@/lib/authHelpers';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
 
 export type AuthUser = {
   id: string;
@@ -336,6 +337,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options?: { selectAccount?: boolean }
     ): Promise<{ success: boolean; error?: string }> => {
       try {
+        // Instagram's WebView swallows the Azure redirect. Starting OAuth
+        // here is what produced 2.4 Sign In taps per person on relaunch day.
+        const inApp = detectInAppBrowser(navigator.userAgent);
+        if (inApp.inApp) {
+          const browser = inApp.platform === 'android' ? 'Chrome' : 'Safari';
+          return {
+            success: false,
+            error: `Open this page in ${browser} to finish Microsoft sign-in.`,
+          };
+        }
         trackEvent('signup_started', { method: 'azure' });
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'azure',

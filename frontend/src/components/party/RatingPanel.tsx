@@ -74,7 +74,6 @@ export default function RatingPanel({
         <p className="flex items-center gap-1 font-bold text-white">
           <VoteArrow direction="up" className="w-[14px] h-[14px]" />
           {likeCount ?? '–'}
-          {hasCounts && total > 0 && ` (${Math.round(likePercentage)}%)`}
         </p>
         <p className="flex items-center gap-1 font-medium text-temple-muted">
           <VoteArrow direction="down" className="w-[14px] h-[14px]" />

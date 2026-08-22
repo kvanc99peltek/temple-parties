@@ -5,13 +5,14 @@
  * back arrow instead of the tab bar, and a sticky action bar pinned to the
  * bottom so GOING / navigate stay one thumb away at any scroll depth.
  *
- * Top to bottom: stage hero (poster + back/share) → category tag → title →
- * host credibility row → date/time → cover & going stat tiles → promo code
- * (the attribution coupon) → address + navigate (or the sign-in gate) →
- * host's description → the "WAS IT GOOD?" rating module → invite → sticky
- * actions. The sticky bar is always primary-action + navigate: ticketed
- * parties (WF-D2) put BUY TICKETS in the primary slot (GOING lives on the
- * feed card for those), everyone else gets GOING there.
+ * Top to bottom: stage hero (poster + back) → category tag → title →
+ * host credibility row → date/time → cover / going / SHARE tiles → promo
+ * code (the attribution coupon) → address + navigate (or the sign-in gate)
+ * → host's description → the "WAS IT GOOD?" rating module → sticky
+ * actions. The sticky
+ * bar is primary-action + navigate: ticketed parties (WF-D2) put
+ * BUY TICKETS in the primary slot (GOING lives on the feed card for those),
+ * everyone else gets GOING there.
  *
  * Soft gate: logged-out visitors see everything EXCEPT the address (the
  * server nulls it, plus the counts) — the address module becomes the
@@ -36,6 +37,7 @@ import StatTile from '@/components/ui/StatTile';
 import SectionLabel from '@/components/ui/SectionLabel';
 import StickyActionBar from '@/components/ui/StickyActionBar';
 import NavigateIcon from '@/components/ui/NavigateIcon';
+import ShareIcon from '@/components/ui/ShareIcon';
 import { ratingWindowState } from '@/components/PartyCard';
 import { partiesApi, ratingsApi } from '@/services/api';
 import type { Party } from '@/lib/types';
@@ -183,10 +185,10 @@ export default function PartyPage() {
     trackEvent('party_rated', { partyId: party.id, rating, source: 'party_page' });
   }, [party, requireAuthForRating, isGoing, submitRating, toast]);
 
-  const handleShare = useCallback(async () => {
+  const handleShare = useCallback(async (surface: string) => {
     if (!party) return;
     const result = await shareContent(party);
-    trackEvent('party_shared', { method: result.method, success: result.success, partyId: party.id });
+    trackEvent('party_shared', { method: result.method, success: result.success, partyId: party.id, surface });
     if (result.success && result.method === 'clipboard') {
       toast.show('Link copied to clipboard!');
     }
@@ -263,9 +265,9 @@ export default function PartyPage() {
   return (
     <AppShell hideBottomNav>
       <RequireOnboarding>
-        {/* pb-32 clears the sticky action bar so the invite button never hides under it. */}
+        {/* pb-32 clears the sticky action bar so the last module isn't hidden under it. */}
         <div className="pb-32 lg:pb-32 max-w-xl mx-auto">
-          <PartyHero posterImage={party.posterImage} title={party.title} onShare={handleShare} />
+          <PartyHero posterImage={party.posterImage} title={party.title} />
 
           <div className="flex flex-col gap-3.5 px-4 pt-4 sm:px-6">
             {/* Tag row. The announcements bell from the design lands with the
@@ -309,6 +311,17 @@ export default function PartyPage() {
                 label={ticketed ? 'TICKETS' : 'COVER'}
               />
               <StatTile value={goingCount === null ? '—' : String(goingCount)} label="GOING" />
+              <button
+                type="button"
+                onClick={() => handleShare('cta')}
+                aria-label="Share this party"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-[3px] py-3 rounded-[12px] bg-temple-purple-light text-black hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+              >
+                <ShareIcon className="w-4 h-4" />
+                <span className="font-montserrat font-bold text-[9px] tracking-[0.9px] uppercase">
+                  SHARE
+                </span>
+              </button>
             </div>
 
             {/* Renders on the label alone: for logged-out viewers the server
@@ -342,24 +355,15 @@ export default function PartyPage() {
               lockCopy={ratingLockCopy}
               onRate={handleRate}
             />
-
-            <button
-              type="button"
-              onClick={openInviteModal}
-              className="w-full border border-white/15 rounded-[10px] py-[11px] font-montserrat font-bold text-[10.5px] tracking-[0.63px] uppercase text-white hover:border-white/30 transition-colors"
-            >
-              INVITE YOUR FRIENDS
-            </button>
           </div>
         </div>
 
         {/* Sticky actions — one anatomy for every party: a 70/30 split where
             both actions fill the bar's full height. The primary (purple) slot
             is the party's ONE main action: BUY TICKETS when the party sells
-            tickets (it deep-links out; the backend already appended
-            ref=tuparty so redemptions prove we drove the sale), GOING
-            otherwise. Navigate always keeps its light-purple seat on the
-            right. Ticketed parties still take GOING taps from the feed card. */}
+            tickets, GOING otherwise. Navigate keeps its light-purple seat
+            on the right. Ticketed parties still take GOING taps from the
+            feed card. */}
         <StickyActionBar>
           <div className="flex-[7] min-w-0 flex">
             {ticketed ? (
@@ -392,7 +396,7 @@ export default function PartyPage() {
           </button>
         </StickyActionBar>
 
-        <InviteModal isOpen={showInviteModal} onClose={closeInviteModal} onShare={handleShare} />
+        <InviteModal isOpen={showInviteModal} onClose={closeInviteModal} onShare={() => handleShare('invite_modal')} />
 
         <Toast message={toast.message} isVisible={toast.isVisible} onClose={toast.hide} />
       </RequireOnboarding>

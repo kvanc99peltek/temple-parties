@@ -1,6 +1,6 @@
 /**
  * PartyHero — the full-bleed top of the party page: the poster on its
- * cinema stage with the back arrow and SHARE pill floating on top.
+ * cinema stage with the back arrow floating on top.
  *
  * The party page is a "pushed" route (you drilled in from a feed), so it
  * trades the tab bar for a back arrow. That arrow always goes to the home
@@ -11,20 +11,18 @@
 
 import { useRouter } from 'next/navigation';
 import StagePoster from '@/components/ui/StagePoster';
-import Pill from '@/components/ui/Pill';
 
 interface PartyHeroProps {
   posterImage?: string;
   title: string;
-  onShare: () => void;
 }
 
-export default function PartyHero({ posterImage, title, onShare }: PartyHeroProps) {
+export default function PartyHero({ posterImage, title }: PartyHeroProps) {
   const router = useRouter();
 
   return (
     <StagePoster src={posterImage} title={title} heightClass="h-[320px]" priority>
-      <div className="flex items-center justify-between px-4 h-14">
+      <div className="flex items-center px-4 h-14">
         <button
           type="button"
           onClick={() => router.push('/')}
@@ -33,9 +31,6 @@ export default function PartyHero({ posterImage, title, onShare }: PartyHeroProp
         >
           ←
         </button>
-        <Pill tone="overlay" size="sm" onClick={onShare} title="Share this party">
-          SHARE
-        </Pill>
       </div>
     </StagePoster>
   );

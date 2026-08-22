@@ -3,6 +3,9 @@ import { getDayName } from './dateHelpers';
 import { Party } from '@/lib/types';
 import { APP_URL } from '@/lib/constants';
 
+export type ShareMethod = 'share' | 'clipboard';
+export type ShareResult = { success: boolean; method: ShareMethod };
+
 /**
  * Caption only — no URL. iOS Messages unfurls `navigator.share({ url })`
  * AND any URL inside `text`, which was pasting the link twice.
@@ -29,40 +32,88 @@ export function formatPartyShareText(party: Party): string {
 }
 
 /**
- * Share content using Web Share API or fallback to clipboard
+ * Copy via execCommand first. iOS Safari and Instagram's WebView often
+ * deny `clipboard.writeText` (and the async API also loses the user
+ * gesture after `await navigator.share()`). Same order as the login-page
+ * in-app escape hatch.
  */
-export async function shareContent(party?: Party): Promise<{ success: boolean; method: 'share' | 'clipboard' }> {
+export function copyTextSync(text: string): boolean {
+  try {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'fixed';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.select();
+    el.setSelectionRange(0, text.length);
+    const ok = typeof document.execCommand === 'function' && document.execCommand('copy');
+    document.body.removeChild(el);
+    return !!ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function copyText(text: string): Promise<boolean> {
+  if (copyTextSync(text)) return true;
+  if (!navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type WebShareData = { title?: string; text?: string; url: string };
+
+function isAppleTouchDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+/**
+ * Payload for the system share sheet. Picked synchronously so the first
+ * navigator.share() still counts as the tap — a retry after await loses
+ * the user gesture on iOS and Safari copies instead of opening the sheet.
+ *
+ * iPhone/iPad: title+text+url throws TypeError. title+url opens the
+ * native drawer (Messages, Instagram, etc.) and iMessage unfurls the URL.
+ */
+export function webShareData(party?: Party): WebShareData {
+  const url = party ? partyUrl(party) : APP_URL;
+  if (!party) return { title: 'Temple Parties', url };
+  if (isAppleTouchDevice()) return { title: party.title, url };
+  return { title: party.title, text: formatPartyShareCaption(party), url };
+}
+
+/**
+ * Native share sheet when the browser has one (iOS / Android / Safari).
+ * Desktop Chrome has no sheet — copy the caption + link instead.
+ */
+export async function shareContent(party?: Party): Promise<ShareResult> {
   const url = party ? partyUrl(party) : APP_URL;
 
-  if (navigator.share) {
-    try {
-      if (party) {
-        await navigator.share({
-          title: party.title,
-          text: formatPartyShareCaption(party),
-          url,
-        });
-      } else {
-        await navigator.share({
-          title: 'Temple Parties',
-          url,
-        });
-      }
-      return { success: true, method: 'share' };
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
-        return { success: false, method: 'share' };
+  if (typeof navigator.share === 'function') {
+    const data = webShareData(party);
+    if (!navigator.canShare || navigator.canShare(data)) {
+      try {
+        await navigator.share(data);
+        return { success: true, method: 'share' };
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          return { success: false, method: 'share' };
+        }
       }
     }
   }
 
-  try {
-    await navigator.clipboard.writeText(party ? formatPartyShareText(party) : url);
-    return { success: true, method: 'clipboard' };
-  } catch (error) {
-    console.error('Failed to copy to clipboard:', error);
-    return { success: false, method: 'clipboard' };
-  }
+  const ok = await copyText(party ? formatPartyShareText(party) : url);
+  return { success: ok, method: 'clipboard' };
 }
 
 /**

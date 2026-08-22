@@ -49,7 +49,7 @@ page), `VoteArrow` (reddit-style, fills when cast), `VoteRow`, `AddressGate`,
 `VerifiedMark`, `NavigateIcon` (solid paper plane), `ShareIcon`, `Wordmark`.
 
 Party-page pieces in `components/party/`: `PartyHero`, `HostRow`,
-`WhenWhereCard`, `PromoCard`, `RatingPanel`, `ShareActions`. Also in the kit:
+`WhenWhereCard`, `PromoCard`, `RatingPanel`. Also in the kit:
 `AddressAutocomplete` (shared by create-party + become-host) and the
 rankings pieces `RankChampionCard` / `RankingRow` / `HostRankingRow`.
 
@@ -73,15 +73,13 @@ detail page. Never nest a `<button>` inside a `<Link>` (§8.9).
 
 ## Party detail page (WF-D)
 
-Pushed route: back arrow + solid purple SHARE over the hero, no mobile tab bar
-(`AppShell hideBottomNav`), sticky action bar (GOING ~50% / SHARE labeled /
-navigate icon; ticketed = GOING outline + BUY TICKETS primary). Order: hero → tags
+Pushed route: back arrow over the hero, no mobile tab bar
+(`AppShell hideBottomNav`), sticky action bar (GOING 70% / navigate 30%;
+ticketed = GOING outline + BUY TICKETS primary). Order: hero → tags
 (`HEADLINER` when `isHeadliner`, category) → title → HostRow (cred line from
-the leaderboard RPC when host_codes are linked) → ShareActions (headliner gets
-a full-width SHARE THIS PARTY button plus Copy link · Instagram Story; other
-parties get the three text actions) → WhenWhereCard (date · time
+the leaderboard RPC when host_codes are linked) → WhenWhereCard (date · time
 · address stacked; map button deep-links `/map?party=<id>`; logged-out sees
-"Log in to view address") → StatTiles (COVER/TICKETS · GOING) → PromoCard →
+"Log in to view address") → StatTiles (COVER/TICKETS · GOING · SHARE) → PromoCard →
 FROM THE HOST → RatingPanel (inline vote buttons; going-only enforced
 server-side, surfaced as toast, never preached in copy) → INVITE → sticky bar.
 
@@ -130,4 +128,4 @@ server-side, surfaced as toast, never preached in copy) → INVITE → sticky ba
 | 2026-08-17 | Create form's last step = "Tickets": ticket link + price text + promo, all optional. Link validated client-side (`utils/ticketUrl.ts` mirrors the server's https-only rule; bare `posh.vip/…` gets https:// glued on; explicit http:// errors instead of rewriting) — a saved link is what flips the party page to WF-D2 BUY TICKETS |
 | 2026-08-17 | Promo entry hides behind a DashedCard disclosure — the dashed coupon cue previews the party-page PromoCard. Code uppercases as typed (it IS the string people copy); code+deal are required together (server pairing rule, checked in the form first); closing the disclosure clears all three fields |
 | 2026-08-17 | Ticketed party with no price text reads `ONLINE / TICKETS` on the stat tile — `FREE / TICKETS` next to a BUY TICKETS bar would lie |
-| 2026-08-21 | Party-page SHARE is the loudest secondary (TUP-9): solid purple pill on the hero (not a ghost overlay), labeled SHARE in the sticky bar, full-width SHARE THIS PARTY on the headliner, plus Copy link · Instagram Story. Copy uses execCommand first so Mobile Safari / Instagram WebView actually get the URL. |
+| 2026-08-21 | Party-page SHARE is the loudest secondary (TUP-9): a SHARE tile in the COVER / GOING row (iOS tray icon). Native share falls back to execCommand copy so Mobile Safari / Instagram WebView actually get the URL. |

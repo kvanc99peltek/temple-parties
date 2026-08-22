@@ -3,18 +3,16 @@
 /**
  * Party detail page (WF-D) — the full story of one party, on a pushed route:
  * back arrow instead of the tab bar, and a sticky action bar pinned to the
- * bottom so GOING / share / navigate stay one thumb away at any scroll depth.
+ * bottom so GOING / navigate stay one thumb away at any scroll depth.
  *
- * Top to bottom: stage hero (poster + back/share) → category tag → title →
- * host credibility row → share actions (headliner gets the full-width SHARE
- * button; copy-link and Instagram Story sit under it) → date/time → cover
- * & going stat tiles → promo code (the attribution coupon) → address +
- * navigate (or the sign-in gate) → host's description → the "WAS IT GOOD?"
- * rating module → invite → sticky actions. The sticky bar is primary-action
- * + SHARE + navigate: ticketed parties (WF-D2) put BUY TICKETS in the
- * primary slot (GOING lives on the feed card for those), everyone else
- * gets GOING there. SHARE is the loudest secondary — it was a ghost pill
- * on the poster and almost nobody found it.
+ * Top to bottom: stage hero (poster + back) → category tag → title →
+ * host credibility row → date/time → cover / going / SHARE tiles → promo
+ * code (the attribution coupon) → address + navigate (or the sign-in gate)
+ * → host's description → the "WAS IT GOOD?" rating module → invite →
+ * sticky actions. The sticky
+ * bar is primary-action + navigate: ticketed parties (WF-D2) put
+ * BUY TICKETS in the primary slot (GOING lives on the feed card for those),
+ * everyone else gets GOING there.
  *
  * Soft gate: logged-out visitors see everything EXCEPT the address (the
  * server nulls it, plus the counts) — the address module becomes the
@@ -34,7 +32,6 @@ import HostRow from '@/components/party/HostRow';
 import WhenWhereCard from '@/components/party/WhenWhereCard';
 import PromoCard from '@/components/party/PromoCard';
 import RatingPanel from '@/components/party/RatingPanel';
-import ShareActions from '@/components/party/ShareActions';
 import Pill from '@/components/ui/Pill';
 import StatTile from '@/components/ui/StatTile';
 import SectionLabel from '@/components/ui/SectionLabel';
@@ -49,7 +46,7 @@ import useRatingStatus from '@/hooks/useRatingStatus';
 import useModalState from '@/hooks/useModalState';
 import useToast from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
-import { copyPartyLink, openMapsDirections, shareContent, sharePartyToInstagramStory } from '@/utils/shareHelpers';
+import { openMapsDirections, shareContent } from '@/utils/shareHelpers';
 import { getPartyDateLabel } from '@/utils/dateHelpers';
 import { voteCounts } from '@/utils/ratingHelpers';
 import { trackEvent } from '@/utils/analytics';
@@ -197,20 +194,6 @@ export default function PartyPage() {
     }
   }, [party, toast]);
 
-  const handleCopyLink = useCallback(async () => {
-    if (!party) return;
-    const result = await copyPartyLink(party);
-    trackEvent('party_shared', { method: result.method, success: result.success, partyId: party.id, surface: 'copy_link' });
-    toast.show(result.success ? 'Link copied. Paste it anywhere' : "Couldn't copy the link");
-  }, [party, toast]);
-
-  const handleInstagramStory = useCallback(async () => {
-    if (!party) return;
-    const result = await sharePartyToInstagramStory(party);
-    trackEvent('party_shared', { method: result.method, success: result.success, partyId: party.id, surface: 'instagram_story' });
-    toast.show(result.success ? 'Link copied. Paste it on your story' : "Couldn't copy the link");
-  }, [party, toast]);
-
   const handlePromoCopied = useCallback((code: string) => {
     toast.show('Promo code copied');
     trackEvent('promo_code_copied', { partyId: party?.id, code });
@@ -284,7 +267,7 @@ export default function PartyPage() {
       <RequireOnboarding>
         {/* pb-32 clears the sticky action bar so the invite button never hides under it. */}
         <div className="pb-32 lg:pb-32 max-w-xl mx-auto">
-          <PartyHero posterImage={party.posterImage} title={party.title} onShare={() => handleShare('hero')} />
+          <PartyHero posterImage={party.posterImage} title={party.title} />
 
           <div className="flex flex-col gap-3.5 px-4 pt-4 sm:px-6">
             {/* Tag row. The announcements bell from the design lands with the
@@ -310,13 +293,6 @@ export default function PartyPage() {
               onShowToast={toast.show}
             />
 
-            <ShareActions
-              isHeadliner={!!party.isHeadliner}
-              onShare={() => handleShare('cta')}
-              onCopyLink={handleCopyLink}
-              onInstagramStory={handleInstagramStory}
-            />
-
             <WhenWhereCard
               dateLabel={getPartyDateLabel(party.date)}
               doorsOpen={party.doorsOpen}
@@ -335,6 +311,17 @@ export default function PartyPage() {
                 label={ticketed ? 'TICKETS' : 'COVER'}
               />
               <StatTile value={goingCount === null ? '—' : String(goingCount)} label="GOING" />
+              <button
+                type="button"
+                onClick={() => handleShare('cta')}
+                aria-label="Share this party"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-[3px] py-3 rounded-[12px] bg-temple-surface hover:bg-temple-surface-2 active:scale-[0.98] transition-all duration-150"
+              >
+                <ShareIcon className="w-4 h-4 text-temple-purple-light" />
+                <span className="font-montserrat font-bold text-[9px] tracking-[0.9px] uppercase text-temple-muted">
+                  SHARE
+                </span>
+              </button>
             </div>
 
             {/* Renders on the label alone: for logged-out viewers the server
@@ -379,12 +366,14 @@ export default function PartyPage() {
           </div>
         </div>
 
-        {/* Sticky actions — primary (GOING / BUY TICKETS) stays purple.
-            SHARE is the labeled secondary so it isn't a hunt. Navigate
-            keeps the plane, just narrower. Ticketed parties still take
-            GOING taps from the feed card. */}
+        {/* Sticky actions — one anatomy for every party: a 70/30 split where
+            both actions fill the bar's full height. The primary (purple) slot
+            is the party's ONE main action: BUY TICKETS when the party sells
+            tickets, GOING otherwise. Navigate keeps its light-purple seat
+            on the right. Ticketed parties still take GOING taps from the
+            feed card. */}
         <StickyActionBar>
-          <div className="flex-[5] min-w-0 flex">
+          <div className="flex-[7] min-w-0 flex">
             {ticketed ? (
               <a
                 href={party.ticketUrl!}
@@ -406,19 +395,10 @@ export default function PartyPage() {
           </div>
           <button
             type="button"
-            onClick={() => handleShare('sticky')}
-            aria-label="Share this party"
-            className="flex-[3] py-3 px-2 rounded-[10px] bg-temple-purple-light text-temple-purple flex items-center justify-center gap-1.5 font-montserrat font-bold text-[11px] tracking-[0.6px] uppercase hover:opacity-90 active:scale-[0.98] transition-all duration-150"
-          >
-            <ShareIcon className="w-4 h-4 shrink-0" />
-            SHARE
-          </button>
-          <button
-            type="button"
             onClick={handleNavigate}
             aria-label="Navigate"
             title="Opens walking directions"
-            className="flex-[2] py-3 rounded-[10px] border border-white/15 text-temple-purple-light flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
+            className="flex-[3] py-3 rounded-[10px] bg-temple-purple-light text-temple-purple flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all duration-150"
           >
             <NavigateIcon className="w-[18px] h-[18px]" />
           </button>

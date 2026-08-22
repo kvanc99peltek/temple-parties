@@ -81,7 +81,7 @@ the leaderboard RPC when host_codes are linked) → WhenWhereCard (date · time
 · address stacked; map button deep-links `/map?party=<id>`; logged-out sees
 "Log in to view address") → StatTiles (COVER/TICKETS · GOING · SHARE) → PromoCard →
 FROM THE HOST → RatingPanel (inline vote buttons; going-only enforced
-server-side, surfaced as toast, never preached in copy) → INVITE → sticky bar.
+server-side, surfaced as toast, never preached in copy) → sticky bar.
 
 ## System rules
 

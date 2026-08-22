@@ -8,8 +8,8 @@
  * Top to bottom: stage hero (poster + back) → category tag → title →
  * host credibility row → date/time → cover / going / SHARE tiles → promo
  * code (the attribution coupon) → address + navigate (or the sign-in gate)
- * → host's description → the "WAS IT GOOD?" rating module → invite →
- * sticky actions. The sticky
+ * → host's description → the "WAS IT GOOD?" rating module → sticky
+ * actions. The sticky
  * bar is primary-action + navigate: ticketed parties (WF-D2) put
  * BUY TICKETS in the primary slot (GOING lives on the feed card for those),
  * everyone else gets GOING there.
@@ -265,7 +265,7 @@ export default function PartyPage() {
   return (
     <AppShell hideBottomNav>
       <RequireOnboarding>
-        {/* pb-32 clears the sticky action bar so the invite button never hides under it. */}
+        {/* pb-32 clears the sticky action bar so the last module isn't hidden under it. */}
         <div className="pb-32 lg:pb-32 max-w-xl mx-auto">
           <PartyHero posterImage={party.posterImage} title={party.title} />
 
@@ -315,10 +315,10 @@ export default function PartyPage() {
                 type="button"
                 onClick={() => handleShare('cta')}
                 aria-label="Share this party"
-                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-[3px] py-3 rounded-[12px] bg-temple-surface hover:bg-temple-surface-2 active:scale-[0.98] transition-all duration-150"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-[3px] py-3 rounded-[12px] bg-temple-purple-light text-black hover:opacity-90 active:scale-[0.98] transition-all duration-150"
               >
-                <ShareIcon className="w-4 h-4 text-temple-purple-light" />
-                <span className="font-montserrat font-bold text-[9px] tracking-[0.9px] uppercase text-temple-muted">
+                <ShareIcon className="w-4 h-4" />
+                <span className="font-montserrat font-bold text-[9px] tracking-[0.9px] uppercase">
                   SHARE
                 </span>
               </button>
@@ -355,14 +355,6 @@ export default function PartyPage() {
               lockCopy={ratingLockCopy}
               onRate={handleRate}
             />
-
-            <button
-              type="button"
-              onClick={openInviteModal}
-              className="w-full border border-white/15 rounded-[10px] py-[11px] font-montserrat font-bold text-[10.5px] tracking-[0.63px] uppercase text-white hover:border-white/30 transition-colors"
-            >
-              INVITE YOUR FRIENDS
-            </button>
           </div>
         </div>
 

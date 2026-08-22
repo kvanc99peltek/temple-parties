@@ -17,7 +17,7 @@
  */
 
 import Link from 'next/link';
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback } from 'react';
 import GoingButton from './GoingButton';
 import type { FeedCardProps } from './PartyCard';
 import { ratingWindowState } from './PartyCard';
@@ -28,6 +28,8 @@ import NavigateIcon from '@/components/ui/NavigateIcon';
 import VerifiedMark from '@/components/ui/VerifiedMark';
 import VoteRow from '@/components/ui/VoteRow';
 import AddressGate from '@/components/ui/AddressGate';
+import LastSemesterChampBadge from './LastSemesterChampBadge';
+import { isLastSemesterChampion } from '@/lib/lastSemesterChampions';
 import { voteCounts } from '@/utils/ratingHelpers';
 import { openMapsDirections } from '../utils/shareHelpers';
 
@@ -43,7 +45,6 @@ function HeadlinerCard({
   userIsGoing,
   onGoingClick,
   onNavigateClick,
-  isAddressVisible,
   onViewAddressClick,
   likePercentage,
   ratingCount,
@@ -54,21 +55,6 @@ function HeadlinerCard({
   posterImage,
   onShowToast,
 }: FeedCardProps) {
-  // Fade the address in the moment it flips to visible, so the
-  // "View address" → street swap reads as a reveal, not a glitch.
-  const prevVisibleRef = useRef(isAddressVisible);
-  const [animateReveal, setAnimateReveal] = useState(false);
-
-  useEffect(() => {
-    const wasVisible = prevVisibleRef.current;
-    prevVisibleRef.current = isAddressVisible;
-    if (!wasVisible && isAddressVisible) {
-      setAnimateReveal(true);
-      const t = window.setTimeout(() => setAnimateReveal(false), 450);
-      return () => window.clearTimeout(t);
-    }
-  }, [isAddressVisible]);
-
   const handleNavigate = () => {
     if (onNavigateClick) {
       void onNavigateClick(id);
@@ -115,11 +101,17 @@ function HeadlinerCard({
           {title}
         </h2>
 
-        <div className="flex items-center text-[15px] text-temple-purple-light">
+        {/* Host line: name, then the verified seal and the #1 crown as a
+            matched 15px pair. The row's gap-1 is the only spacing — the
+            marks carry no margins of their own. */}
+        <div className="flex items-center gap-1 min-w-0 text-[15px] text-temple-purple-light">
           <p className="font-montserrat font-medium whitespace-nowrap overflow-hidden text-ellipsis">
             by {host}
           </p>
           {isVerified && <VerifiedMark onShowToast={onShowToast} />}
+          {/* Static on the feed: the card is one tap target, so the crown
+              just shows — tap-to-explain lives on the party page. */}
+          {isLastSemesterChampion(host) && <LastSemesterChampBadge />}
         </div>
 
         <div className="flex items-center justify-between gap-2 font-montserrat text-[12px]">
@@ -128,8 +120,6 @@ function HeadlinerCard({
             {' · '}
             <AddressGate
               address={address}
-              isRevealed={isAddressVisible}
-              animateReveal={animateReveal}
               onViewAddress={handleViewAddress}
             />
           </p>

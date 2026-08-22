@@ -28,6 +28,8 @@ import NavigateIcon from '@/components/ui/NavigateIcon';
 import Pill from '@/components/ui/Pill';
 import VerifiedMark from '@/components/ui/VerifiedMark';
 import VoteRow, { type RatingWindowState } from '@/components/ui/VoteRow';
+import LastSemesterChampBadge from './LastSemesterChampBadge';
+import { isLastSemesterChampion } from '@/lib/lastSemesterChampions';
 import { voteCounts } from '@/utils/ratingHelpers';
 import { openMapsDirections } from '../utils/shareHelpers';
 
@@ -156,11 +158,17 @@ function PartyCard({
             {title}
           </h2>
 
-          <div className="flex items-center text-[14px] text-temple-purple-light">
+          {/* Host line: name, then the verified seal and the #1 crown as a
+              matched 15px pair. The row's gap-1 is the only spacing — the
+              marks carry no margins of their own. */}
+          <div className="flex items-center gap-1 min-w-0 text-[14px] text-temple-purple-light">
             <p className="font-montserrat whitespace-nowrap overflow-hidden text-ellipsis">
               by {host}
             </p>
             {isVerified && <VerifiedMark onShowToast={onShowToast} />}
+            {/* Static on the feed: the card is one tap target, so the crown
+                just shows — tap-to-explain lives on the party page. */}
+            {isLastSemesterChampion(host) && <LastSemesterChampBadge />}
           </div>
 
           {/* Door time + votes share one row, sitting together on the left.

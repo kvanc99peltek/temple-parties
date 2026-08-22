@@ -46,7 +46,17 @@ chips are `shape="square"` — 4px corners — everywhere), `SegmentedTabs`,
 `DashedCard`, `StickyActionBar` (z-9000, safe-area padded), `StagePoster`
 (cinema blur-wings, CSS blur on a static img — never backdrop-filter; one per
 page), `VoteArrow` (reddit-style, fills when cast), `VoteRow`, `AddressGate`,
-`VerifiedMark`, `NavigateIcon` (solid paper plane), `ShareIcon`, `Wordmark`.
+`VerifiedMark` (one inline-SVG scalloped seal, light purple + black check, 15px;
+exports `VerifiedSealIcon` for the map popup), `CrownIcon` (flat 16px gold crown,
+`currentColor`) + `CrownIllustration` (its jewelled 64px+ sibling: gradient
+gold, faceted peaks, pearl tips, brand-purple gems — hero use only),
+`NavigateIcon` (solid paper plane), `ShareIcon`, `Wordmark`.
+Beside the seal, `LastSemesterChampBadge` is the bare 16px `CrownIcon` (no box,
+no fill, no glow) for last semester's top host — the two are sized as a pair,
+and host rows space them with `gap-1` only. The crown is static on feed cards
+(the card is the tap target) and tappable only on the party-page HostRow, where
+it opens `LastSemesterChampModal`: `CrownIllustration` on a surface disc,
+section label, the host's name, one explainer sentence, Ranks CTA, and a ✕.
 
 Party-page pieces in `components/party/`: `PartyHero`, `HostRow`,
 `WhenWhereCard`, `PromoCard`, `RatingPanel`. Also in the kit:
@@ -128,4 +138,5 @@ server-side, surfaced as toast, never preached in copy) → sticky bar.
 | 2026-08-17 | Create form's last step = "Tickets": ticket link + price text + promo, all optional. Link validated client-side (`utils/ticketUrl.ts` mirrors the server's https-only rule; bare `posh.vip/…` gets https:// glued on; explicit http:// errors instead of rewriting) — a saved link is what flips the party page to WF-D2 BUY TICKETS |
 | 2026-08-17 | Promo entry hides behind a DashedCard disclosure — the dashed coupon cue previews the party-page PromoCard. Code uppercases as typed (it IS the string people copy); code+deal are required together (server pairing rule, checked in the form first); closing the disclosure clears all three fields |
 | 2026-08-17 | Ticketed party with no price text reads `ONLINE / TICKETS` on the stat tile — `FREE / TICKETS` next to a BUY TICKETS bar would lie |
+| 2026-08-22 | Host-line marks redrawn (owner: old pair "sucks"): VerifiedMark is one inline SVG seal (12 scallops, secondary fill, black check, 15px) replacing two pixel-nudged `<img>`s; last-semester `#1` is a bare 16px gold crown glyph after the seal (a filled gold chip was tried and rejected by the owner as too button-like); cards/HostRow/map popup all use 4px gaps, marks carry no margin |
 | 2026-08-21 | Party-page SHARE is the loudest secondary (TUP-9): a SHARE tile in the COVER / GOING row (iOS tray icon). Native share falls back to execCommand copy so Mobile Safari / Instagram WebView actually get the URL. |

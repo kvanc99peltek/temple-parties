@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * HostRow — the host credibility chip on the party page: avatar, name with
  * the verified mark, and (when we have the data) a track-record line like
@@ -12,6 +14,8 @@
  */
 
 import VerifiedMark from '@/components/ui/VerifiedMark';
+import LastSemesterChampBadge from '@/components/LastSemesterChampBadge';
+import { isLastSemesterChampion } from '@/lib/lastSemesterChampions';
 
 interface HostRowProps {
   name: string;
@@ -38,9 +42,12 @@ export default function HostRow({ name, isVerified, subtitle, avatarUrl, onShowT
       )}
 
       <div className="min-w-0 flex flex-col gap-[2px]">
-        <div className="flex items-center gap-1">
+        {/* Name, then the verified seal and the #1 crown as a matched 15px
+            pair; gap-1 is the only spacing (the marks carry no margins). */}
+        <div className="flex items-center gap-1 min-w-0">
           <p className="font-montserrat font-bold text-[14px] text-white truncate">{name}</p>
           {isVerified && <VerifiedMark onShowToast={onShowToast} />}
+          {isLastSemesterChampion(name) && <LastSemesterChampBadge interactive hostName={name} />}
         </div>
         {subtitle && (
           <p className="font-montserrat text-[11px] text-temple-muted truncate">{subtitle}</p>

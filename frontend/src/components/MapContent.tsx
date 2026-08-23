@@ -10,6 +10,7 @@ import { trackEvent } from '@/utils/analytics';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import NavigateIcon from '@/components/ui/NavigateIcon';
 import VoteRow from '@/components/ui/VoteRow';
+import { VerifiedSealIcon } from '@/components/ui/VerifiedMark';
 import { voteCounts } from '@/utils/ratingHelpers';
 import { PRIMARY_SPONSOR } from '@/lib/sponsors';
 import type { Party } from '@/lib/types';
@@ -270,10 +271,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                       <span className="popup-host-by">by&nbsp;</span>
                       <span className="popup-host-name">{party.host}</span>
                       {party.isVerified && (
-                        <span className="popup-verified-icon">
-                          <img src="/icons/verified-star.svg" alt="" style={{ position: 'absolute', left: '2px', top: '2px', width: '10px', height: '10px' }} />
-                          <img src="/icons/verified-check.svg" alt="" style={{ position: 'absolute', left: '4.5px', top: '5px', width: '5px', height: '4px' }} />
-                        </span>
+                        <VerifiedSealIcon size={14} className="popup-verified-icon" />
                       )}
                     </p>
 

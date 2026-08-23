@@ -38,11 +38,13 @@ interface RankingsViewProps {
   // When set, RankingsView pins the parties leaderboard to this single
   // weekend on load. Used by /demo for a frozen snapshot.
   weekendOverride?: string;
+  /** Deep-link from /leaderboards?filter=by-hosts (TUP-12 hotfix). */
+  initialFilter?: RankingsFilter;
 }
 
-export default function RankingsView({ weekendOverride }: RankingsViewProps = {}) {
+export default function RankingsView({ weekendOverride, initialFilter }: RankingsViewProps = {}) {
   const [selectedFilter, setSelectedFilter] = useState<RankingsFilter>(
-    weekendOverride ? 'last-week' : 'this-semester',
+    weekendOverride ? 'last-week' : (initialFilter ?? 'this-semester'),
   );
   const [partyRankings, setPartyRankings] = useState<PartyRanking[]>([]);
   const [hostRankings, setHostRankings] = useState<HostRanking[]>([]);

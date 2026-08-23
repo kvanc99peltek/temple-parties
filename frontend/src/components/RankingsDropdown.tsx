@@ -11,7 +11,13 @@ const FILTER_LABELS: Record<RankingsFilter, string> = {
   'by-hosts': 'By Hosts',
 };
 
-const FILTER_OPTIONS: RankingsFilter[] = ['last-week', 'this-month', 'this-semester', 'by-hosts'];
+export const FILTER_OPTIONS: RankingsFilter[] = ['last-week', 'this-month', 'this-semester', 'by-hosts'];
+
+/** Parse ?filter= from /leaderboards. Unknown values return null. */
+export function parseRankingsFilter(raw: string | null | undefined): RankingsFilter | null {
+  if (!raw) return null;
+  return (FILTER_OPTIONS as readonly string[]).includes(raw) ? (raw as RankingsFilter) : null;
+}
 
 interface RankingsDropdownProps {
   selectedFilter: RankingsFilter;

@@ -348,13 +348,10 @@ html {
   font-weight: 600;
 }
 
+/* The verified seal (ui/VerifiedMark's VerifiedSealIcon) after the host
+   name. 4px of air, same as the card host rows' gap-1. */
 .popup-verified-icon {
-  position: relative;
-  width: 14px;
-  height: 14px;
-  margin-left: 2px;
-  display: inline-block;
-  vertical-align: middle;
+  margin-left: 4px;
   flex-shrink: 0;
 }
 

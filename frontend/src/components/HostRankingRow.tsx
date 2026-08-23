@@ -11,7 +11,8 @@
 import { memo } from 'react';
 import { HostRanking } from '@/lib/types';
 import VoteArrow from '@/components/ui/VoteArrow';
-import { rankColor, GoingStat } from './RankingRow';
+import { rankColor } from './RankingRow';
+// GoingStat — restore with attendance below when last-sem going data is real.
 
 interface HostRankingRowProps {
   rank: number;
@@ -45,7 +46,10 @@ function HostRankingRow({ rank, host, isBelowThreshold }: HostRankingRowProps) {
           {isBelowThreshold ? '—' : `${Math.round(host.avgLikePercentage)}%`}
           <span className="font-medium text-[12px] text-temple-muted">({host.totalRatingCount})</span>
         </span>
+        {/* Attendance hidden: last-sem going_count was zeroed when RSVPs
+            became party_going-only. Restore GoingStat when that data is real.
         <GoingStat count={host.totalGoingCount} />
+        */}
       </div>
     </article>
   );

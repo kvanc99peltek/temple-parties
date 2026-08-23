@@ -59,27 +59,19 @@ describe('onboardingPath', () => {
 });
 
 describe('loginPitch', () => {
-  it('explains .edu, time, and GOING/ratings on a cold visit', () => {
-    const pitch = loginPitch('/');
-    expect(pitch.title).toMatch(/GOING/i);
-    expect(pitch.body).toMatch(/\.edu/i);
-    expect(pitch.body).toMatch(/10 seconds/);
-    expect(pitch.body).toMatch(/ratings/i);
-  });
-
-  it('promises a return to the party when they came from GOING', () => {
-    const pitch = loginPitch('/party/abc', 'going');
-    expect(pitch.body).toMatch(/land back on the party/i);
-  });
-
-  it('switches copy for create-party', () => {
-    expect(loginPitch('/create', 'addParty').title).toMatch(/post a party/i);
+  it('always says sign up and explains the temple.edu requirement', () => {
+    const pitch = loginPitch();
+    expect(pitch.title).toBe('Sign up');
+    expect(pitch.body).toMatch(/Sign up with your temple\.edu/i);
+    expect(pitch.body).toMatch(/stays campus/i);
+    expect(pitch.body).not.toMatch(/microsoft/i);
   });
 });
 
 describe('loginErrorFromQuery', () => {
   it('explains temple-only and admin-consent failures', () => {
-    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).toMatch(/Temple Microsoft/);
+    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).toMatch(/@temple\.edu/);
+    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).not.toMatch(/microsoft/i);
     expect(
       loginErrorFromQuery(new URLSearchParams('error_description=AADSTS65001+admin+consent'))
     ).toMatch(/approve this app/);
@@ -94,7 +86,7 @@ describe('loginErrorFromQuery', () => {
 
   it('falls back to a generic message for unrecognized provider errors', () => {
     expect(loginErrorFromQuery(new URLSearchParams('error=access_denied'))).toMatch(
-      /Microsoft sign-in failed/
+      /Sign up failed/
     );
   });
 
@@ -102,7 +94,7 @@ describe('loginErrorFromQuery', () => {
   // destination must not change which message we show.
   it('ignores next when deciding the message', () => {
     expect(loginErrorFromQuery(new URLSearchParams('error=temple&next=%2Fparty%2Fabc'))).toMatch(
-      /Temple Microsoft/
+      /@temple\.edu/
     );
   });
 });

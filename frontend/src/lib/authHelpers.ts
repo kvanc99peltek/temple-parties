@@ -37,29 +37,16 @@ export function partyPath(partyId: string): string {
 
 export type LoginPitch = { title: string; body: string };
 
+export const SIGNUP_FAILED_MESSAGE = 'Sign up failed. Try again.';
+
 /**
- * Login headline + subcopy. One screen, Microsoft button visible immediately —
- * the two-step Continue gate hid SSO and bounced half of /login visitors.
+ * Login headline + subcopy. Always "Sign up" — no provider name or logo on
+ * this screen. Students hit Temple SSO after they tap the button.
  */
-export function loginPitch(
-  nextPath: string,
-  pendingType: 'going' | 'addParty' | null = null
-): LoginPitch {
-  if (pendingType === 'addParty' || nextPath.startsWith('/create')) {
-    return {
-      title: 'Sign in to post a party',
-      body: 'Temple .edu only · about 10 seconds.',
-    };
-  }
-  if (pendingType === 'going' || nextPath.startsWith('/party/')) {
-    return {
-      title: 'Sign in to tap GOING',
-      body: 'Temple .edu only · about 10 seconds. You’ll land back on the party.',
-    };
-  }
+export function loginPitch(): LoginPitch {
   return {
-    title: 'Sign in to tap GOING',
-    body: 'Temple .edu only · about 10 seconds. You need an account for GOING and ratings.',
+    title: 'Sign up',
+    body: 'Sign up with your school email. This helps us ensure parties are only accessible to students',
   };
 }
 
@@ -68,17 +55,17 @@ export function loginErrorFromQuery(params: URLSearchParams): string {
   const description = (params.get('error_description') || params.get('error') || '').toLowerCase();
 
   if (code === 'temple' || description.includes('temple.edu')) {
-    return 'Use your Temple Microsoft account (@temple.edu)';
+    return 'Use your @temple.edu email';
   }
   if (
     description.includes('admin') ||
     description.includes('aadsts65001') ||
     description.includes('aadsts90094')
   ) {
-    return 'Temple has to approve this app before students can sign in. Ask IT, or try again after admin consent.';
+    return 'Temple has to approve this app before students can sign up. Ask IT, or try again after admin consent.';
   }
   if (code || params.get('error_description')) {
-    return 'Microsoft sign-in failed. Try again.';
+    return SIGNUP_FAILED_MESSAGE;
   }
   return '';
 }

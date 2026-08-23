@@ -15,7 +15,12 @@ import type { Session } from '@supabase/supabase-js';
 import type { User as ProfileUser } from '@/lib/types';
 import { isOnboardingRequired, writeOnboardingComplete } from '@/lib/onboarding';
 import { trackEvent } from '@/utils/analytics';
-import { isTempleEmail, microsoftCallbackUrl, sanitizeNextPath } from '@/lib/authHelpers';
+import {
+  isTempleEmail,
+  microsoftCallbackUrl,
+  sanitizeNextPath,
+  SIGNUP_FAILED_MESSAGE,
+} from '@/lib/authHelpers';
 import { detectInAppBrowser } from '@/lib/inAppBrowser';
 
 export type AuthUser = {
@@ -344,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const browser = inApp.platform === 'android' ? 'Chrome' : 'Safari';
           return {
             success: false,
-            error: `Open this page in ${browser} to finish Microsoft sign-in.`,
+            error: `Open this page in ${browser} to finish signing up.`,
           };
         }
         trackEvent('signup_started', { method: 'azure' });
@@ -368,7 +373,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         return { success: true };
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Microsoft sign-in failed';
+        const message = error instanceof Error ? error.message : SIGNUP_FAILED_MESSAGE;
         return { success: false, error: message };
       }
     },

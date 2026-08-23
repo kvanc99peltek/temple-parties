@@ -1,11 +1,17 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { Suspense, useEffect, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { loginErrorFromQuery, loginPitch, onboardingPath, sanitizeNextPath } from '@/lib/authHelpers';
-import { peekPendingAuthAction, saveAuthNextPath } from '@/lib/pendingAuthAction';
+import {
+  loginErrorFromQuery,
+  loginPitch,
+  onboardingPath,
+  sanitizeNextPath,
+  SIGNUP_FAILED_MESSAGE,
+} from '@/lib/authHelpers';
+import { saveAuthNextPath } from '@/lib/pendingAuthAction';
 import {
   appDisplayName,
   detectInAppBrowser,
@@ -49,16 +55,14 @@ function LoginForm() {
   // redirect. Seed from the URL so a bounced student sees why.
   const [error, setError] = useState(() => loginErrorFromQuery(searchParams));
   const [submitting, setSubmitting] = useState(false);
-  const [pendingType, setPendingType] = useState<'going' | 'addParty' | null>(null);
   // null until client UA is read — SSR and hydration must match, so we
-  // spinner rather than flash the Microsoft button inside Instagram.
+  // spinner rather than flash the sign-up button inside Instagram.
   const [inApp, setInApp] = useState<InAppBrowser | null>(null);
 
-  const pitch = useMemo(() => loginPitch(nextPath, pendingType), [nextPath, pendingType]);
+  const pitch = loginPitch();
 
   useEffect(() => {
     saveAuthNextPath(nextPath);
-    setPendingType(peekPendingAuthAction()?.type ?? null);
   }, [nextPath]);
 
   useEffect(() => {
@@ -92,7 +96,7 @@ function LoginForm() {
     // click during the redirect. Only a failure returns us to an idle screen.
     if (!result.success) {
       setSubmitting(false);
-      setError(result.error || 'Microsoft sign-in failed. Try again.');
+      setError(result.error || SIGNUP_FAILED_MESSAGE);
     }
   };
 
@@ -144,7 +148,7 @@ function LoginForm() {
             disabled={submitting}
             className="w-full flex items-center justify-center py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
           >
-            {submitting ? 'Redirecting…' : 'Sign in with Microsoft'}
+            {submitting ? 'Redirecting…' : 'Sign up'}
           </button>
 
           {/* Escape hatch for a friend's computer: forces the Microsoft account
@@ -160,9 +164,9 @@ function LoginForm() {
           </button>
 
           <p className="mt-6 text-center text-white/40 font-montserrat text-xs leading-relaxed">
-            You sign in on Microsoft&apos;s page — we never see your password.
+            We never see your password.
             <br />
-            First time? Microsoft will ask you to allow access.
+            First time? You&apos;ll be asked to allow access.
           </p>
         </>
       )}
@@ -172,17 +176,17 @@ function LoginForm() {
 
 type InAppGate = Extract<InAppBrowser, { inApp: true }>;
 
-/** Heading when Microsoft OAuth cannot run inside this WebView. */
+/** Heading when OAuth cannot run inside this WebView. */
 function InAppEscape({ gate }: { gate: InAppGate }) {
   const browser = gate.platform === 'android' ? 'Chrome' : 'Safari';
   const steps = escapeSteps(gate.app, gate.platform);
   return (
     <>
       <h1 className="text-white text-2xl font-semibold font-montserrat">
-        {appDisplayName(gate.app)} can&apos;t sign you in
+        {appDisplayName(gate.app)} can&apos;t sign you up
       </h1>
       <p className="text-white/60 font-montserrat text-sm mt-2 leading-relaxed">
-        Microsoft login has to happen in {browser}. Do this:
+        Sign up has to happen in {browser}. Do this:
       </p>
       <ol className="mt-4 text-left text-white font-montserrat text-sm leading-relaxed space-y-2">
         {steps.map((step, i) => (

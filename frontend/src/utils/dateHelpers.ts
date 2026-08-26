@@ -1,10 +1,11 @@
+import { PartyDay, PARTY_DAYS } from '@/lib/types';
+
 /**
- * Get the default day to display based on current day of week
- * - Monday through Friday → Show Friday parties
- * - Saturday → Show Saturday parties
- * - Sunday → Show Friday parties (this weekend)
+ * Get the default day to display based on current day of week.
+ * On a party night (Thu/Fri/Sat, with 6 AM rollover) show that night;
+ * otherwise show Thursday — the first night of the weekend.
  */
-export function getDefaultDay(): 'friday' | 'saturday' {
+export function getDefaultDay(): PartyDay {
   const now = new Date();
   let dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
 
@@ -13,18 +14,30 @@ export function getDefaultDay(): 'friday' | 'saturday' {
     dayOfWeek = (dayOfWeek - 1 + 7) % 7;
   }
 
-  if (dayOfWeek === 6) {
-    return 'saturday';
-  }
-  return 'friday';
+  if (dayOfWeek === 4) return 'thursday';
+  if (dayOfWeek === 5) return 'friday';
+  if (dayOfWeek === 6) return 'saturday';
+  return 'thursday';
 }
+
+const DAY_WEEKDAY: Record<PartyDay, number> = {
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+const DAY_WORD: Record<PartyDay, string> = {
+  thursday: 'THURSDAY',
+  friday: 'FRIDAY',
+  saturday: 'SATURDAY',
+};
 
 /**
  * Feed section label under the headliner ("ALSO TONIGHT · 5").
  * Uses the same 6 AM rollover as getDefaultDay so a 2 AM Saturday still reads as Friday night.
  */
 export function getAlsoTonightLabel(
-  selectedDay: 'friday' | 'saturday',
+  selectedDay: PartyDay,
   count: number,
   now: Date = new Date(),
 ): string {
@@ -32,10 +45,8 @@ export function getAlsoTonightLabel(
   if (now.getHours() < 6) {
     dayOfWeek = (dayOfWeek - 1 + 7) % 7;
   }
-  const isTonight =
-    (selectedDay === 'friday' && dayOfWeek === 5) ||
-    (selectedDay === 'saturday' && dayOfWeek === 6);
-  const word = isTonight ? 'TONIGHT' : selectedDay === 'friday' ? 'FRIDAY' : 'SATURDAY';
+  const isTonight = DAY_WEEKDAY[selectedDay] === dayOfWeek;
+  const word = isTonight ? 'TONIGHT' : DAY_WORD[selectedDay];
   return `ALSO ${word} · ${count}`;
 }
 
@@ -54,30 +65,36 @@ export function getPartyDateLabel(dateISO: string): string {
 }
 
 /**
- * Get the upcoming weekend's Friday and Saturday dates for display in home page tabs.
+ * Get the upcoming weekend's Thursday, Friday, and Saturday dates for display in home page tabs.
  * On Saturday-Monday, shows this weekend. On Tuesday-Friday, shows next weekend.
  */
-export function getUpcomingDates(): { friday: string; saturday: string } {
+export function getUpcomingDates(): { thursday: string; friday: string; saturday: string } {
   const friday = getUpcomingFriday();
+  const thursday = new Date(friday);
+  thursday.setDate(friday.getDate() - 1);
   const saturday = new Date(friday);
   saturday.setDate(friday.getDate() + 1);
 
   return {
+    thursday: `${thursday.getDate()}`,
     friday: `${friday.getDate()}`,
     saturday: `${saturday.getDate()}`
   };
 }
 
 /**
- * Get the past/current weekend's Friday and Saturday dates for display in rankings tabs.
+ * Get the past/current weekend's Thursday, Friday, and Saturday dates for display in rankings tabs.
  * Fri-Sat: current weekend. Sun-Thu: past weekend.
  */
-export function getRankingsDates(): { friday: string; saturday: string } {
+export function getRankingsDates(): { thursday: string; friday: string; saturday: string } {
   const friday = getRankingsFriday();
+  const thursday = new Date(friday);
+  thursday.setDate(friday.getDate() - 1);
   const saturday = new Date(friday);
   saturday.setDate(friday.getDate() + 1);
 
   return {
+    thursday: `${thursday.getDate()}`,
     friday: `${friday.getDate()}`,
     saturday: `${saturday.getDate()}`
   };
@@ -143,11 +160,38 @@ export function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+const DAY_NAMES: Record<PartyDay, string> = {
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+};
+
+const DAY_SHORT: Record<PartyDay, string> = {
+  thursday: 'Thu',
+  friday: 'Fri',
+  saturday: 'Sat',
+};
+
+/** Full day name for share text and empty states. */
+export function getDayName(day: PartyDay): string {
+  return DAY_NAMES[day];
+}
+
+/** Short weekday label (Thu / Fri / Sat). */
+export function getDayShort(day: PartyDay): string {
+  return DAY_SHORT[day];
+}
+
 /**
- * Get day name for share text
+ * If the default night has no parties, land on the first night that does
+ * (Thursday → Friday → Saturday). Same rule the feed and map both use.
  */
-export function getDayName(day: 'friday' | 'saturday'): string {
-  return day === 'friday' ? 'Friday' : 'Saturday';
+export function pickSmartDefaultDay(
+  defaultDay: PartyDay,
+  counts: Record<PartyDay, number>,
+): PartyDay {
+  if ((counts[defaultDay] ?? 0) > 0) return defaultDay;
+  return PARTY_DAYS.find((d) => (counts[d] ?? 0) > 0) ?? defaultDay;
 }
 
 /**
@@ -270,12 +314,12 @@ export function formatShortDate(dateStr: string): string {
 /**
  * Check if rating period has ended.
  * Locked after Monday 11:59:59 PM of the party weekend.
- * dateStr is the party date (YYYY-MM-DD), Friday or Saturday.
+ * dateStr is the party date (YYYY-MM-DD), Thursday, Friday, or Saturday.
  */
 export function isRatingLocked(dateStr: string): boolean {
   const partyDate = new Date(dateStr + 'T00:00:00');
-  const dayOfWeek = partyDate.getDay(); // 5=Friday, 6=Saturday
-  const daysToMonday = dayOfWeek === 6 ? 2 : 3;
+  const dayOfWeek = partyDate.getDay(); // 0=Sun … 6=Sat
+  const daysToMonday = (1 - dayOfWeek + 7) % 7;
   const mondayCutoff = new Date(partyDate);
   mondayCutoff.setDate(partyDate.getDate() + daysToMonday);
   mondayCutoff.setHours(23, 59, 59, 999);

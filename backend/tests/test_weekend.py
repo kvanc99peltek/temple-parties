@@ -1,7 +1,7 @@
 """
 Tests for the authoritative weekend service (US/Eastern).
 """
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -55,21 +55,28 @@ class TestWeekendMetaAndDateDerivation:
         meta = weekend_service.weekend_meta(date(2025, 8, 8))
         assert meta.as_api_dict() == {
             "weekendOf": "2025-08-08",
+            "thursdayDate": "2025-08-07",
             "fridayDate": "2025-08-08",
             "saturdayDate": "2025-08-09",
         }
 
     def test_party_date_from_weekend(self):
+        assert weekend_service.party_date_from_weekend("2025-08-08", "thursday") == "2025-08-07"
         assert weekend_service.party_date_from_weekend("2025-08-08", "friday") == "2025-08-08"
         assert weekend_service.party_date_from_weekend("2025-08-08", "saturday") == "2025-08-09"
+
+    def test_day_and_weekend(self):
+        assert weekend_service.day_and_weekend(date(2025, 8, 7)) == ("thursday", date(2025, 8, 8))
+        assert weekend_service.day_and_weekend(date(2025, 8, 8)) == ("friday", date(2025, 8, 8))
+        assert weekend_service.day_and_weekend(date(2025, 8, 9)) == ("saturday", date(2025, 8, 8))
 
     def test_resolve_party_date_prefers_stored(self):
         party = {"date": "2025-08-09", "weekend_of": "2025-08-08", "day": "friday"}
         assert weekend_service.resolve_party_date(party) == "2025-08-09"
 
     def test_resolve_party_date_computes_when_missing(self):
-        party = {"date": None, "weekend_of": "2025-08-08", "day": "saturday"}
-        assert weekend_service.resolve_party_date(party) == "2025-08-09"
+        party = {"date": None, "weekend_of": "2025-08-08", "day": "thursday"}
+        assert weekend_service.resolve_party_date(party) == "2025-08-07"
 
 
 class TestCreatableWeekends:
@@ -92,10 +99,18 @@ class TestCreatableWeekends:
         assert weekend_service.is_creatable_party_date(date(2025, 8, 9), saturday) is True
         assert weekend_service.is_creatable_party_date(date(2025, 8, 8), saturday) is False
 
+    def test_thursday_starts_in_progress_weekend(self):
+        thursday = date(2025, 8, 7)
+        assert weekend_service.first_creatable_friday(thursday) == date(2025, 8, 8)
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 7), thursday) is True
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 8), thursday) is True
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 9), thursday) is True
+
     def test_rejects_past_and_non_weekend(self):
         today = date(2025, 8, 12)  # Tuesday
         assert weekend_service.is_creatable_party_date(date(2025, 8, 8), today) is False
         assert weekend_service.is_creatable_party_date(date(2025, 8, 13), today) is False  # Wed
+        assert weekend_service.is_creatable_party_date(date(2025, 8, 14), today) is True  # Thu
         assert weekend_service.is_creatable_party_date(date(2025, 8, 15), today) is True
 
 
@@ -114,11 +129,18 @@ class TestParseWeekendOf:
 
 class TestRatingWindow:
     def _party(self, doors="10 PM", day="friday", weekend="2025-08-08"):
+        friday = date.fromisoformat(weekend)
+        if day == "thursday":
+            party_date = (friday - timedelta(days=1)).isoformat()
+        elif day == "saturday":
+            party_date = (friday + timedelta(days=1)).isoformat()
+        else:
+            party_date = weekend
         return {
             "doors_open": doors,
             "day": day,
             "weekend_of": weekend,
-            "date": weekend if day == "friday" else "2025-08-09",
+            "date": party_date,
         }
 
     def test_rating_closed_before_doors(self):
@@ -149,3 +171,12 @@ class TestRatingWindow:
         open_, locked = weekend_service.rating_window(party, now)
         assert locked is False
         assert open_ is True
+
+    def test_thursday_rating_opens_thursday_night(self):
+        party = self._party(day="thursday")
+        before = datetime(2025, 8, 7, 21, 0, tzinfo=EASTERN)
+        after = datetime(2025, 8, 7, 22, 30, tzinfo=EASTERN)
+        monday_eve = datetime(2025, 8, 11, 23, 0, tzinfo=EASTERN)
+        assert weekend_service.rating_window(party, before) == (False, False)
+        assert weekend_service.rating_window(party, after) == (True, False)
+        assert weekend_service.rating_window(party, monday_eve)[1] is False

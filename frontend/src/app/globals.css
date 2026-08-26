@@ -278,11 +278,43 @@ html {
   padding: 16px 16px 12px 16px;
 }
 
+/* TUP-10: popup body is the party-page tap target. Leaflet's own
+   `.leaflet-container a` paints links blue — override with enough
+   specificity that it still wins after leaflet.css loads. */
+.party-popup-dark a.popup-party-link,
+.party-popup-dark a.popup-party-link:visited,
+.party-popup-dark a.popup-party-link:hover,
+.party-popup-dark a.popup-party-link:active {
+  display: block;
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  /* One-tap on iOS Safari — skip the 300ms click delay. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(178, 75, 243, 0.25);
+}
+
+.party-popup-dark a.popup-party-link:active {
+  opacity: 0.88;
+}
+
+.popup-buttons button,
+.popup-buttons a {
+  touch-action: manipulation;
+}
+
 .popup-badges {
   display: flex;
   align-items: center;
   gap: 3px;
   margin-bottom: 6px !important;
+}
+
+.popup-chevron {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  flex-shrink: 0;
 }
 
 /* Chips match the card chips: square-ish 4px corners, Montserrat, tracked. */

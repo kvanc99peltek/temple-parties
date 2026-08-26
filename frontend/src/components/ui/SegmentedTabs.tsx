@@ -3,8 +3,7 @@
  *
  * A dark pill container where the active segment is filled purple and the
  * inactive ones are just muted text. Segments share the width equally
- * (flex-1), so two tabs each take half the row — this is the "day tabs
- * expanded to fill the screen" change from the redesign.
+ * (flex-1), so two or three tabs each take an equal slice of the row.
  *
  * Generic on purpose: DayTabs wraps it for the home feed, and future filter
  * rows (e.g. leaderboards) can reuse it without re-styling anything.

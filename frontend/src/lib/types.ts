@@ -1,10 +1,14 @@
+export type PartyDay = 'thursday' | 'friday' | 'saturday';
+
+export const PARTY_DAYS: PartyDay[] = ['thursday', 'friday', 'saturday'];
+
 export interface Party {
   id: string;
   title: string;
   host: string;
   pinLabel: string;
   category: string;
-  day: 'friday' | 'saturday';
+  day: PartyDay;
   date: string;
   doorsOpen: string;
   doorsClose?: string | null;
@@ -49,6 +53,7 @@ export interface Party {
 /** GET /parties envelope — weekend dates are authoritative (US/Eastern). */
 export interface PartiesListResponse {
   weekendOf: string;
+  thursdayDate: string;
   fridayDate: string;
   saturdayDate: string;
   parties: Party[];
@@ -74,7 +79,7 @@ export interface PartyRanking {
   title: string;
   host: string;
   category: string;
-  day: 'friday' | 'saturday';
+  day: PartyDay;
   date: string;
   doorsOpen: string;
   likePercentage: number;

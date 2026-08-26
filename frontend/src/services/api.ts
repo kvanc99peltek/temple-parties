@@ -213,6 +213,7 @@ export const partiesApi = {
     if (Array.isArray(payload)) {
       return {
         weekendOf: weekendOf ?? '',
+        thursdayDate: '',
         fridayDate: '',
         saturdayDate: '',
         parties: payload,
@@ -220,6 +221,7 @@ export const partiesApi = {
     }
     return {
       weekendOf: payload.weekendOf ?? '',
+      thursdayDate: payload.thursdayDate ?? '',
       fridayDate: payload.fridayDate ?? '',
       saturdayDate: payload.saturdayDate ?? '',
       parties: payload.parties ?? [],
@@ -322,7 +324,7 @@ export const partiesApi = {
   /** Future weekends for create-party (never the past browse weekend). */
   async getCreateOptions(): Promise<{
     today: string;
-    weekends: Array<{ weekendOf: string; fridayDate: string; saturdayDate: string }>;
+    weekends: Array<{ weekendOf: string; thursdayDate: string; fridayDate: string; saturdayDate: string }>;
   }> {
     const response = await fetchWithAuth(`${API_URL}/parties/create-options`);
 

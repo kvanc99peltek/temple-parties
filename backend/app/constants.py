@@ -31,4 +31,4 @@ RATE_LIMITS = {
 }
 
 # Valid day values
-VALID_DAYS = ["friday", "saturday"]
+VALID_DAYS = ["thursday", "friday", "saturday"]

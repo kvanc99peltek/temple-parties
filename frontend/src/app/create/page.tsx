@@ -154,9 +154,11 @@ export default function CreatePartyPage() {
         const first = data.weekends[0];
         if (first) {
           setSelectedWeekendOf(first.weekendOf);
-          // Prefer first day that is today or later (Sat-only when Friday already passed).
+          // Prefer first night that is today or later (Fri/Sat-only once Thursday has passed).
           const firstDay =
-            first.fridayDate >= data.today ? first.fridayDate : first.saturdayDate;
+            [first.thursdayDate, first.fridayDate, first.saturdayDate].find(
+              (d) => d && d >= data.today,
+            ) ?? first.saturdayDate;
           setDate((prev) => prev || firstDay);
         }
       } catch {
@@ -187,7 +189,7 @@ export default function CreatePartyPage() {
     if (!pinLabel.trim()) next.pinLabel = 'Pin label is required';
     else if (pinLabel.length > 5) next.pinLabel = 'Pin label must be 5 characters or less';
     if (!address.trim()) next.address = 'Address is required';
-    if (!date) next.date = 'Pick Friday or Saturday';
+    if (!date) next.date = 'Pick Thursday, Friday, or Saturday';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -273,7 +275,12 @@ export default function CreatePartyPage() {
         has_ticket_price: !!ticketPrice.trim(),
         has_ticket_url: !!ticketUrl,
         has_promo: !!promo,
-        day: date === selectedWeekend?.saturdayDate ? 'saturday' : 'friday',
+        day:
+          date === selectedWeekend?.thursdayDate
+            ? 'thursday'
+            : date === selectedWeekend?.saturdayDate
+              ? 'saturday'
+              : 'friday',
         weekend_of: selectedWeekend?.weekendOf,
       });
       setStep('done');
@@ -736,7 +743,7 @@ export default function CreatePartyPage() {
                     Your party won&apos;t appear on the feed until an admin approves it
                     {selectedWeekend
                       ? `, and it stays scheduled until the ${formatWeekendRange(
-                          selectedWeekend.fridayDate,
+                          selectedWeekend.thursdayDate,
                           selectedWeekend.saturdayDate
                         )} weekend goes live`
                       : ''}

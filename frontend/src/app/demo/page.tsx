@@ -12,7 +12,7 @@ import EmptyState from '@/components/EmptyState';
 import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import DemoBanner from '@/components/DemoBanner';
-import { getAlsoTonightLabel, getDefaultDay, isRatingActive, isRatingLocked } from '@/utils/dateHelpers';
+import { getAlsoTonightLabel, getDefaultDay, isRatingActive, isRatingLocked, pickSmartDefaultDay } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
@@ -21,10 +21,11 @@ import useToast from '@/hooks/useToast';
 import useAddressVisibility from '@/hooks/useAddressVisibility';
 import { useDemoWeekend } from '@/hooks/useDemoWeekend';
 import { trackEvent } from '@/utils/analytics';
+import type { PartyDay } from '@/lib/types';
 
 export default function DemoHomePage() {
   const demoWeekend = useDemoWeekend();
-  const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
+  const [selectedDay, setSelectedDay] = useState<PartyDay>(() => getDefaultDay());
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
   const [lastGoingPartyId, setLastGoingPartyId] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -40,8 +41,8 @@ export default function DemoHomePage() {
     allParties,
     topPartyId,
     isLoadingParties,
-    fridayCount,
-    saturdayCount,
+    dayCounts,
+    thursdayDate,
     fridayDate,
     saturdayDate,
   } = useParties(selectedDay, getCount, demoWeekend);
@@ -54,12 +55,8 @@ export default function DemoHomePage() {
   useEffect(() => {
     if (isLoadingParties || hasAppliedSmartDefault.current) return;
     hasAppliedSmartDefault.current = true;
-    if (selectedDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
-      setSelectedDay('saturday');
-    } else if (selectedDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
-      setSelectedDay('friday');
-    }
-  }, [isLoadingParties, fridayCount, saturdayCount, selectedDay]);
+    setSelectedDay(pickSmartDefaultDay(getDefaultDay(), dayCounts));
+  }, [isLoadingParties, dayCounts]);
 
   const topGoingParty = useMemo(() => {
     if (goingParties.length === 0) return null;
@@ -153,6 +150,7 @@ export default function DemoHomePage() {
         <DayTabs
           selectedDay={selectedDay}
           onDayChange={setSelectedDay}
+          thursdayDate={thursdayDate}
           fridayDate={fridayDate}
           saturdayDate={saturdayDate}
         />

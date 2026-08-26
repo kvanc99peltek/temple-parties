@@ -9,6 +9,7 @@ import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
 import RequireOnboarding from '@/components/RequireOnboarding';
 import { getDefaultDay } from '@/utils/dateHelpers';
+import type { PartyDay } from '@/lib/types';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
 import useParties from '@/hooks/useParties';
@@ -20,7 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function MapPage() {
   const { isAuthenticated, isLoading: authLoading, needsOnboarding } = useAuth();
-  const [selectedDay] = useState<'friday' | 'saturday'>(() => getDefaultDay());
+  const [selectedDay] = useState<PartyDay>(() => getDefaultDay());
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
   // Deep-link focus from the party page's map button (/map?party=<id>).
@@ -31,7 +32,7 @@ export default function MapPage() {
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
   const { revealAddress } = useAddressVisibility();
-  const { allParties, topPartyIds, fridayDate, saturdayDate, isLoadingParties } = useParties(selectedDay, getCount);
+  const { allParties, topPartyIds, thursdayDate, fridayDate, saturdayDate, isLoadingParties } = useParties(selectedDay, getCount);
   const toast = useToast();
   const showToast = toast.show;
   const { requireAuthForGoing, requireAuthForRating, replayPendingAuthAction } = useModalState(isAuthenticated, toggleGoing);
@@ -108,6 +109,7 @@ export default function MapPage() {
               onGoingClick={handleGoingClick}
               onNavigateClick={handleNavigateClick}
               onRateClick={handleStarClick}
+              thursdayDate={thursdayDate}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
               focusPartyId={focusPartyId}

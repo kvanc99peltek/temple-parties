@@ -15,7 +15,7 @@ import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
 import RequireOnboarding from '@/components/RequireOnboarding';
-import { getAlsoTonightLabel, getDefaultDay } from '@/utils/dateHelpers';
+import { getAlsoTonightLabel, getDefaultDay, pickSmartDefaultDay } from '@/utils/dateHelpers';
 import { shareContent } from '@/utils/shareHelpers';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
@@ -26,10 +26,11 @@ import useAddressVisibility from '@/hooks/useAddressVisibility';
 import useRatingReminder from '@/hooks/useRatingReminder';
 import { trackEvent } from '@/utils/analytics';
 import { useAuth } from '@/contexts/AuthContext';
+import type { PartyDay } from '@/lib/types';
 
 export default function HomePage() {
   const { isAuthenticated, isLoading: authLoading, needsOnboarding } = useAuth();
-  const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>('friday');
+  const [selectedDay, setSelectedDay] = useState<PartyDay>(() => getDefaultDay());
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
   const [lastGoingPartyId, setLastGoingPartyId] = useState<string | null>(null);
@@ -42,8 +43,8 @@ export default function HomePage() {
     allParties,
     topPartyId,
     isLoadingParties,
-    fridayCount,
-    saturdayCount,
+    dayCounts,
+    thursdayDate,
     fridayDate,
     saturdayDate,
   } = useParties(selectedDay, getCount);
@@ -84,15 +85,10 @@ export default function HomePage() {
   useEffect(() => {
     if (isLoadingParties || hasAppliedSmartDefault.current) return;
     hasAppliedSmartDefault.current = true;
+    setSelectedDay(pickSmartDefaultDay(getDefaultDay(), dayCounts));
+  }, [isLoadingParties, dayCounts]);
 
-    if (selectedDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
-      setSelectedDay('saturday');
-    } else if (selectedDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
-      setSelectedDay('friday');
-    }
-  }, [isLoadingParties, fridayCount, saturdayCount, selectedDay]);
-
-  const handleDayChange = useCallback((day: 'friday' | 'saturday') => {
+  const handleDayChange = useCallback((day: PartyDay) => {
     setSelectedDay(day);
     trackEvent('day_tab_switched', { day });
   }, []);
@@ -219,6 +215,7 @@ export default function HomePage() {
         <DayTabs
           selectedDay={selectedDay}
           onDayChange={handleDayChange}
+          thursdayDate={thursdayDate}
           fridayDate={fridayDate}
           saturdayDate={saturdayDate}
         />

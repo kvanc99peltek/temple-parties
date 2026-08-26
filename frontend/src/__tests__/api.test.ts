@@ -203,6 +203,7 @@ describe('API Service', () => {
           ok: true,
           json: () => Promise.resolve({
             weekendOf: '2025-08-08',
+            thursdayDate: '2025-08-07',
             fridayDate: '2025-08-08',
             saturdayDate: '2025-08-09',
             parties: mockParties,
@@ -224,6 +225,7 @@ describe('API Service', () => {
           ok: true,
           json: () => Promise.resolve({
             weekendOf: '2025-08-08',
+            thursdayDate: '2025-08-07',
             fridayDate: '2025-08-08',
             saturdayDate: '2025-08-09',
             parties: [{ id: '1', title: 'Meta Party' }],
@@ -232,6 +234,7 @@ describe('API Service', () => {
 
         const result = await partiesApi.getParties();
         expect(result.parties).toEqual([{ id: '1', title: 'Meta Party' }]);
+        expect(result.thursdayDate).toBe('2025-08-07');
         expect(result.fridayDate).toBe('2025-08-08');
         expect(result.saturdayDate).toBe('2025-08-09');
       });

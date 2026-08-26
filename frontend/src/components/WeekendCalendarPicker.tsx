@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type WeekendOption = {
   weekendOf: string;
+  thursdayDate: string;
   fridayDate: string;
   saturdayDate: string;
 };
@@ -49,8 +50,8 @@ function formatTriggerLabel(iso: string): string {
 }
 
 /**
- * Mini calendar dropdown for create-party: only creatable Fri/Sat nights.
- * Weekend pairs get a shared highlight; Mon–Thu / past days stay muted.
+ * Mini calendar dropdown for create-party: only creatable Thu/Fri/Sat nights.
+ * Weekend nights get a shared highlight; other weekdays / past days stay muted.
  */
 export default function WeekendCalendarPicker({
   weekends,
@@ -66,6 +67,7 @@ export default function WeekendCalendarPicker({
   const selectable = useMemo(() => {
     const map = new Map<string, string>(); // dateIso → weekendOf
     for (const w of weekends) {
+      if (!todayIso || w.thursdayDate >= todayIso) map.set(w.thursdayDate, w.weekendOf);
       if (!todayIso || w.fridayDate >= todayIso) map.set(w.fridayDate, w.weekendOf);
       if (!todayIso || w.saturdayDate >= todayIso) map.set(w.saturdayDate, w.weekendOf);
     }
@@ -73,10 +75,12 @@ export default function WeekendCalendarPicker({
   }, [weekends, todayIso]);
 
   const weekendPair = useMemo(() => {
-    const pairs = new Map<string, { fri: string; sat: string }>();
+    const pairs = new Map<string, { thu: string; fri: string; sat: string }>();
     for (const w of weekends) {
-      pairs.set(w.fridayDate, { fri: w.fridayDate, sat: w.saturdayDate });
-      pairs.set(w.saturdayDate, { fri: w.fridayDate, sat: w.saturdayDate });
+      const pair = { thu: w.thursdayDate, fri: w.fridayDate, sat: w.saturdayDate };
+      pairs.set(w.thursdayDate, pair);
+      pairs.set(w.fridayDate, pair);
+      pairs.set(w.saturdayDate, pair);
     }
     return pairs;
   }, [weekends]);
@@ -223,7 +227,7 @@ export default function WeekendCalendarPicker({
               <div
                 key={d}
                 className={`text-center text-[10px] font-montserrat font-semibold tracking-wide py-1 ${
-                  d === 'Fr' || d === 'Sa' ? 'text-[#b24bf3]/80' : 'text-white/30'
+                  d === 'Th' || d === 'Fr' || d === 'Sa' ? 'text-[#b24bf3]/80' : 'text-white/30'
                 }`}
               >
                 {d}
@@ -243,7 +247,10 @@ export default function WeekendCalendarPicker({
               const pair = weekendPair.get(cell.iso);
               const inSelectedWeekend =
                 !!selectedPair &&
-                (cell.iso === selectedPair.fri || cell.iso === selectedPair.sat);
+                (cell.iso === selectedPair.thu ||
+                  cell.iso === selectedPair.fri ||
+                  cell.iso === selectedPair.sat);
+              const isThu = pair && cell.iso === pair.thu;
               const isFri = pair && cell.iso === pair.fri;
               const isSat = pair && cell.iso === pair.sat;
               const isToday = cell.iso === todayIso;
@@ -261,8 +268,8 @@ export default function WeekendCalendarPicker({
                   className={[
                     'relative h-9 w-full flex items-center justify-center text-sm font-montserrat transition-colors',
                     isSelectable ? 'cursor-pointer' : 'cursor-default',
-                    // Soft weekend-pair rail behind Fri/Sat of the selected weekend
-                    inSelectedWeekend && isFri ? 'rounded-l-full bg-[#b24bf3]/15' : '',
+                    inSelectedWeekend && isThu ? 'rounded-l-full bg-[#b24bf3]/15' : '',
+                    inSelectedWeekend && isFri ? 'bg-[#b24bf3]/15' : '',
                     inSelectedWeekend && isSat ? 'rounded-r-full bg-[#b24bf3]/15' : '',
                     isSelectable && !isSelected
                       ? 'text-white hover:bg-[#b24bf3]/20 rounded-full'
@@ -283,7 +290,7 @@ export default function WeekendCalendarPicker({
           </div>
 
           <p className="mt-3 px-1 text-[11px] text-white/35 font-montserrat leading-snug">
-            Fri &amp; Sat only · future weekends stay hidden until that weekend goes live
+            Thu, Fri &amp; Sat only · future weekends stay hidden until that weekend goes live
           </p>
         </div>
       )}
@@ -292,13 +299,13 @@ export default function WeekendCalendarPicker({
 }
 
 /** Exported for create success copy */
-export function formatWeekendRange(fridayIso: string, saturdayIso: string): string {
-  const fri = parseISODate(fridayIso);
+export function formatWeekendRange(thursdayIso: string, saturdayIso: string): string {
+  const thu = parseISODate(thursdayIso);
   const sat = parseISODate(saturdayIso);
-  if (Number.isNaN(fri.getTime()) || Number.isNaN(sat.getTime())) {
-    return `${fridayIso} – ${saturdayIso}`;
+  if (Number.isNaN(thu.getTime()) || Number.isNaN(sat.getTime())) {
+    return `${thursdayIso} – ${saturdayIso}`;
   }
-  const friLabel = fri.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const thuLabel = thu.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const satLabel = sat.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return `${friLabel} – ${satLabel}`;
+  return `${thuLabel} – ${satLabel}`;
 }

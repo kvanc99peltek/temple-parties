@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { getDefaultDay, parseDoorsOpen } from '@/utils/dateHelpers';
+import { pickFeaturedParty } from '@/utils/mapHelpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { openMapsDirections } from '@/utils/shareHelpers';
 import { trackEvent } from '@/utils/analytics';
+import { partyPath } from '@/lib/authHelpers';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import NavigateIcon from '@/components/ui/NavigateIcon';
 import VoteRow from '@/components/ui/VoteRow';
@@ -111,33 +114,64 @@ function createSponsorIcon(label: string): L.DivIcon {
 }
 
 /**
- * Pans the map to one party and pops its popup open — used when the party
- * page's "open on map" button deep-links here (/map?party=<id>).
- * One-shot: onConsumed fires after the popup opens so day switches and
- * pans afterwards behave normally. (Same pattern as the retired
- * SponsorFocusHandler above.)
+ * Opens one party's popup. Deep-links from the party page (/map?party=<id>)
+ * zoom in; the featured first-pin (TUP-10) just opens the popup and lets
+ * Leaflet auto-pan so the rest of the night stays in view.
+ *
+ * Callback is stored on a ref so realtime re-renders don't reset the
+ * open timer — that used to make deep-link popups miss on a busy map.
  */
 function PartyFocusHandler({
   focus,
   markerRefs,
   onConsumed,
 }: {
-  focus: { id: string; lat: number; lng: number } | null;
+  focus: { id: string; lat: number; lng: number; zoom?: number } | null;
   markerRefs: React.MutableRefObject<Record<string, L.Marker | null>>;
   onConsumed: () => void;
 }) {
   const map = useMap();
+  const onConsumedRef = useRef(onConsumed);
+  onConsumedRef.current = onConsumed;
+
+  const focusId = focus?.id;
+  const lat = focus?.lat;
+  const lng = focus?.lng;
+  const zoom = focus?.zoom;
 
   useEffect(() => {
-    if (!focus) return;
-    map.setView([focus.lat, focus.lng], 17, { animate: true });
-    // Give the markers a beat to mount before opening the popup.
-    const timer = setTimeout(() => {
-      markerRefs.current[focus.id]?.openPopup();
-      onConsumed();
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [focus, map, markerRefs, onConsumed]);
+    if (!focusId || lat == null || lng == null) return;
+    if (zoom != null) {
+      map.setView([lat, lng], zoom, { animate: true });
+    }
+
+    // Day-tab remounts can land after the first tick — retry until the
+    // marker exists instead of consuming a miss and never opening.
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const deadline = Date.now() + 2000;
+
+    const tryOpen = () => {
+      if (cancelled) return;
+      const marker = markerRefs.current[focusId];
+      if (marker) {
+        marker.openPopup();
+        onConsumedRef.current();
+        return;
+      }
+      if (Date.now() < deadline) {
+        timer = setTimeout(tryOpen, 100);
+      } else {
+        onConsumedRef.current();
+      }
+    };
+
+    timer = setTimeout(tryOpen, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [focusId, lat, lng, zoom, map, markerRefs]);
 
   return null;
 }
@@ -150,18 +184,24 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
   const iconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
   const markerRefs = useRef<Record<string, L.Marker | null>>({});
   const [focusConsumed, setFocusConsumed] = useState(false);
+  // One auto-open per night so a realtime going-count flip doesn't steal
+  // the popup the user is already reading.
+  const [featuredOpenedForDay, setFeaturedOpenedForDay] = useState<'friday' | 'saturday' | null>(null);
+  const [daySettled, setDaySettled] = useState(false);
 
   // Deep-link focus (/map?party=<id>): make sure the focused party's DAY tab
   // is the active one, or its marker wouldn't even be on the map.
-  const focusParty = !focusConsumed && focusPartyId
+  const deepLinkParty = !focusConsumed && focusPartyId
     ? parties.find((p) => p.id === focusPartyId) ?? null
     : null;
 
   useEffect(() => {
-    if (focusParty) setSelectedDay(focusParty.day);
-  }, [focusParty]);
+    if (deepLinkParty) setSelectedDay(deepLinkParty.day);
+  }, [deepLinkParty]);
 
-  // Smart default: switch to the other day if the default day has no parties
+  // Smart default: switch to the other day if the default day has no parties.
+  // Wait to auto-open the featured pin until this has run, or we'd pop Friday
+  // then flip the tab to Saturday.
   const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
   const saturdayCount = useMemo(() => parties.filter(p => p.day === 'saturday').length, [parties]);
   const hasAppliedSmartDefault = useRef(false);
@@ -169,13 +209,46 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
     if (parties.length === 0 || hasAppliedSmartDefault.current) return;
     hasAppliedSmartDefault.current = true;
 
-    const defaultDay = getDefaultDay();
-    if (defaultDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
-      setSelectedDay('saturday');
-    } else if (defaultDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
-      setSelectedDay('friday');
+    const hasDeepLink = Boolean(focusPartyId && parties.some((p) => p.id === focusPartyId));
+    if (!hasDeepLink) {
+      const defaultDay = getDefaultDay();
+      if (defaultDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
+        setSelectedDay('saturday');
+      } else if (defaultDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
+        setSelectedDay('friday');
+      }
     }
-  }, [parties, fridayCount, saturdayCount]);
+    setDaySettled(true);
+  }, [parties, fridayCount, saturdayCount, focusPartyId]);
+
+  const featuredParty = useMemo(
+    () => pickFeaturedParty(parties, topPartyIds, selectedDay),
+    [parties, topPartyIds, selectedDay],
+  );
+
+  const focus = useMemo(() => {
+    if (deepLinkParty) {
+      return {
+        id: deepLinkParty.id,
+        lat: deepLinkParty.latitude,
+        lng: deepLinkParty.longitude,
+        zoom: 17,
+      };
+    }
+    if (!daySettled || !featuredParty || featuredOpenedForDay === selectedDay) {
+      return null;
+    }
+    return {
+      id: featuredParty.id,
+      lat: featuredParty.latitude,
+      lng: featuredParty.longitude,
+    };
+  }, [deepLinkParty, daySettled, featuredParty, featuredOpenedForDay, selectedDay]);
+
+  const handleFocusConsumed = useCallback(() => {
+    if (deepLinkParty) setFocusConsumed(true);
+    setFeaturedOpenedForDay(selectedDay);
+  }, [deepLinkParty, selectedDay]);
 
   // Filter parties based on selected day
   const filteredParties = useMemo(() => {
@@ -244,6 +317,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                 key={party.id}
                 position={[party.latitude, party.longitude]}
                 icon={icon}
+                zIndexOffset={isHyped ? 1000 : 0}
                 ref={(el) => {
                   markerRefs.current[party.id] = el;
                 }}
@@ -253,41 +327,68 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
                   },
                 }}
               >
-                <Popup className="party-popup-dark" closeButton={false}>
-                  <div className="popup-content">
-                    {/* One chip only — the popup is tight on space, so the
-                        headliner badge wins; everyone else shows their type. */}
-                    <div className="popup-badges">
-                      {isHyped ? (
-                        <span className="popup-hyped-badge">HEADLINER</span>
-                      ) : (
-                        <span className="popup-category-badge">{party.category}</span>
-                      )}
+                {/* autoPanPadding keeps the popup out from under the day tabs
+                    and the iOS tab bar so the tap-through actually lands. */}
+                <Popup className="party-popup-dark" closeButton={false} autoPanPadding={[28, 100]}>
+                  {/* Whole body is the party-page tap target (same contract as
+                      feed cards). Native <a> via Link so iOS Safari follows
+                      href even if React's click interceptor misses. GOING /
+                      navigate sit outside the link — never nest buttons. */}
+                  <Link
+                    href={partyPath(party.id)}
+                    prefetch={false}
+                    className="popup-party-link"
+                    aria-label={`View ${party.title}`}
+                    onClick={(e) => {
+                      // Leaflet listens on the popup wrapper; stop so iOS
+                      // Safari actually follows the href on the first tap.
+                      e.stopPropagation();
+                      trackEvent('map_popup_tapped', { partyId: party.id, partyTitle: party.title });
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <div className="popup-content">
+                      {/* One chip only — the popup is tight on space, so the
+                          headliner badge wins; everyone else shows their type. */}
+                      <div className="popup-badges">
+                        {isHyped ? (
+                          <span className="popup-hyped-badge">HEADLINER</span>
+                        ) : (
+                          <span className="popup-category-badge">{party.category}</span>
+                        )}
+                        <span className="popup-chevron" aria-hidden>
+                          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                            <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </div>
+
+                      <h3 className="popup-title">{party.title}</h3>
+
+                      <p className="popup-host">
+                        <span className="popup-host-by">by&nbsp;</span>
+                        <span className="popup-host-name">{party.host}</span>
+                        {party.isVerified && (
+                          <VerifiedSealIcon size={14} className="popup-verified-icon" />
+                        )}
+                      </p>
+
+                      {/* Card-style data line: door time + read-only votes (the
+                          pin already IS the location, so no address row). */}
+                      <div className="flex items-center gap-3">
+                        <span className="font-montserrat text-[14px] text-white/70 whitespace-nowrap">{party.doorsOpen}</span>
+                        <VoteRow
+                          likeCount={voteCounts(party.likePercentage, party.ratingCount)?.likeCount ?? null}
+                          dislikeCount={voteCounts(party.likePercentage, party.ratingCount)?.dislikeCount ?? null}
+                          userRating={null}
+                          state={party.ratingLocked ? 'locked' : party.ratingOpen ? 'open' : 'inactive'}
+                          size="md"
+                        />
+                      </div>
                     </div>
-
-                    <h3 className="popup-title">{party.title}</h3>
-
-                    <p className="popup-host">
-                      <span className="popup-host-by">by&nbsp;</span>
-                      <span className="popup-host-name">{party.host}</span>
-                      {party.isVerified && (
-                        <VerifiedSealIcon size={14} className="popup-verified-icon" />
-                      )}
-                    </p>
-
-                    {/* Card-style data line: door time + read-only votes (the
-                        pin already IS the location, so no address row). */}
-                    <div className="flex items-center gap-3">
-                      <span className="font-montserrat text-[14px] text-white/70 whitespace-nowrap">{party.doorsOpen}</span>
-                      <VoteRow
-                        likeCount={voteCounts(party.likePercentage, party.ratingCount)?.likeCount ?? null}
-                        dislikeCount={voteCounts(party.likePercentage, party.ratingCount)?.dislikeCount ?? null}
-                        userRating={null}
-                        state={party.ratingLocked ? 'locked' : party.ratingOpen ? 'open' : 'inactive'}
-                        size="md"
-                      />
-                    </div>
-                  </div>
+                  </Link>
 
                   <div className="popup-buttons">
                     <button
@@ -393,13 +494,9 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         )}
 
         <PartyFocusHandler
-          focus={
-            focusParty
-              ? { id: focusParty.id, lat: focusParty.latitude, lng: focusParty.longitude }
-              : null
-          }
+          focus={focus}
           markerRefs={markerRefs}
-          onConsumed={() => setFocusConsumed(true)}
+          onConsumed={handleFocusConsumed}
         />
       </MapContainer>
     </div>

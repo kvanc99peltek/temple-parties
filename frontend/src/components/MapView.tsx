@@ -2,15 +2,16 @@
 
 import dynamic from 'next/dynamic';
 
-import { Party } from '@/lib/types';
+import { Party, PartyDay } from '@/lib/types';
 
 interface MapViewProps {
   parties: Party[];
-  topPartyIds: { friday: string | null; saturday: string | null };
+  topPartyIds: Record<PartyDay, string | null>;
   userGoingParties: string[];
   onGoingClick: (partyId: string) => void;
   onNavigateClick: (partyId: string) => void;
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
+  thursdayDate: string;
   fridayDate: string;
   saturdayDate: string;
   /** Deep-link target (/map?party=<id>): pan to this party and open its popup. */

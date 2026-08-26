@@ -8,6 +8,7 @@ import Toast from '@/components/Toast';
 import AppShell from '@/components/AppShell';
 import DemoBanner from '@/components/DemoBanner';
 import { getDefaultDay } from '@/utils/dateHelpers';
+import type { PartyDay } from '@/lib/types';
 import useGoingStatus from '@/hooks/useGoingStatus';
 import useRatingStatus from '@/hooks/useRatingStatus';
 import useParties from '@/hooks/useParties';
@@ -18,13 +19,13 @@ import { trackEvent } from '@/utils/analytics';
 
 export default function DemoMapPage() {
   const demoWeekend = useDemoWeekend();
-  const [selectedDay] = useState<'friday' | 'saturday'>(() => getDefaultDay());
+  const [selectedDay] = useState<PartyDay>(() => getDefaultDay());
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus({ readOnly: true });
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus({ readOnly: true });
   const { revealAddress } = useAddressVisibility();
-  const { allParties, topPartyIds, fridayDate, saturdayDate, isLoadingParties } = useParties(
+  const { allParties, topPartyIds, thursdayDate, fridayDate, saturdayDate, isLoadingParties } = useParties(
     selectedDay,
     getCount,
     demoWeekend,
@@ -81,6 +82,7 @@ export default function DemoMapPage() {
               onGoingClick={handleGoingClick}
               onNavigateClick={handleNavigateClick}
               onRateClick={handleStarClick}
+              thursdayDate={thursdayDate}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
             />

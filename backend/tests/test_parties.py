@@ -26,6 +26,7 @@ class TestGetParties:
         data = response.json()
         assert "parties" in data
         assert "weekendOf" in data
+        assert "thursdayDate" in data
         assert "fridayDate" in data
         assert "saturdayDate" in data
         assert len(data["parties"]) == 1
@@ -50,6 +51,16 @@ class TestGetParties:
             create_mock_db_response([mock_party])
 
         response = client.get("/parties?day=saturday")
+
+        assert response.status_code == 200
+
+    def test_get_parties_filter_by_day_thursday(self, client, mock_supabase, mock_party):
+        """Should filter parties by thursday."""
+        mock_party["day"] = "thursday"
+        mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.order.return_value.execute.return_value = \
+            create_mock_db_response([mock_party])
+
+        response = client.get("/parties?day=thursday")
 
         assert response.status_code == 200
 
@@ -546,7 +557,7 @@ class TestCreateParty:
         assert response.status_code == 422
 
     def test_create_party_invalid_day(self, client, mock_supabase, mock_user, valid_party_data):
-        """Should reject dates that aren't Friday or Saturday."""
+        """Should reject dates that aren't Thursday, Friday, or Saturday."""
         mock_supabase.auth.get_user = MagicMock(
             return_value=create_mock_auth_response(mock_user["id"], mock_user["email"])
         )

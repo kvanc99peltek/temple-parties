@@ -14,18 +14,25 @@ from zoneinfo import ZoneInfo
 
 EASTERN = ZoneInfo("America/New_York")
 
+# Party nights of a weekend, keyed by Python weekday (Mon=0).
+PARTY_WEEKDAYS = {3: "thursday", 4: "friday", 5: "saturday"}
+# Days from the Friday key to the party night.
+DAY_OFFSETS = {"thursday": -1, "friday": 0, "saturday": 1}
+
 
 @dataclass(frozen=True)
 class WeekendMeta:
     """Authoritative weekend metadata for API consumers."""
 
     weekend_of: date  # Friday key
+    thursday_date: date
     friday_date: date
     saturday_date: date
 
     def as_api_dict(self) -> dict:
         return {
             "weekendOf": self.weekend_of.isoformat(),
+            "thursdayDate": self.thursday_date.isoformat(),
             "fridayDate": self.friday_date.isoformat(),
             "saturdayDate": self.saturday_date.isoformat(),
         }
@@ -61,6 +68,7 @@ def weekend_meta(weekend_of: date | None = None) -> WeekendMeta:
     friday = weekend_of or get_current_weekend()
     return WeekendMeta(
         weekend_of=friday,
+        thursday_date=friday - timedelta(days=1),
         friday_date=friday,
         saturday_date=friday + timedelta(days=1),
     )
@@ -69,17 +77,20 @@ def weekend_meta(weekend_of: date | None = None) -> WeekendMeta:
 def first_creatable_friday(today: date | None = None) -> date:
     """Friday of the earliest weekend hosts may still schedule for.
 
+    - Thursday → this weekend's Friday (Thursday night still creatable)
     - Friday → that Friday
     - Saturday → this weekend's Friday (Saturday night still creatable)
-    - Sun–Thu → upcoming Friday (never a past weekend — Mon no longer offers last Fri)
+    - Sun–Wed → upcoming Friday (never a past weekend — Mon no longer offers last Fri)
     """
     today = today or today_eastern()
     weekday = today.weekday()  # Mon=0 … Sun=6
+    if weekday == 3:  # Thursday — weekend starting tonight
+        return today + timedelta(days=1)
     if weekday == 4:  # Friday
         return today
     if weekday == 5:  # Saturday — weekend still in progress
         return today - timedelta(days=1)
-    # Sun–Thu → next Friday
+    # Sun–Wed → next Friday
     days_until = (4 - weekday) % 7
     if days_until == 0:
         days_until = 7
@@ -95,9 +106,9 @@ def creatable_weekends(count: int = 12, today: date | None = None) -> list[Weeke
 
 
 def is_creatable_party_date(party_date: date, today: date | None = None) -> bool:
-    """Fri/Sat on or after today (Eastern), within ~1 year."""
+    """Thu/Fri/Sat on or after today (Eastern), within ~1 year."""
     today = today or today_eastern()
-    if party_date.weekday() not in (4, 5):
+    if party_date.weekday() not in PARTY_WEEKDAYS:
         return False
     if party_date < today:
         return False
@@ -117,9 +128,17 @@ def parse_weekend_of(value: str) -> date:
 def party_date_from_weekend(weekend_of: str | date, day: str) -> str:
     """Derive ISO party date from weekend_of (Friday) + day."""
     friday = weekend_of if isinstance(weekend_of, date) else date.fromisoformat(weekend_of)
-    if day == "saturday":
-        return (friday + timedelta(days=1)).isoformat()
-    return friday.isoformat()
+    offset = DAY_OFFSETS.get(day, 0)
+    return (friday + timedelta(days=offset)).isoformat()
+
+
+def day_and_weekend(party_date: date) -> tuple[str, date]:
+    """Map a Thu/Fri/Sat calendar date to (day, weekend_of Friday)."""
+    day = PARTY_WEEKDAYS.get(party_date.weekday())
+    if day is None:
+        raise ValueError("Party date must be a Thursday, Friday, or Saturday")
+    friday = party_date - timedelta(days=DAY_OFFSETS[day])
+    return day, friday
 
 
 def resolve_party_date(party: dict) -> str:

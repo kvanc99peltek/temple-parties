@@ -6,18 +6,20 @@
  * gated dash as a fake zero.
  */
 
+import type { PartyDay } from '@/lib/types';
+
 export type FeaturedPartyInput = {
   id: string;
-  day: 'friday' | 'saturday';
+  day: PartyDay;
   goingCount: number | null;
 };
 
-export type TopPartyIds = { friday: string | null; saturday: string | null };
+export type TopPartyIds = Record<PartyDay, string | null>;
 
 export function pickFeaturedParty<T extends FeaturedPartyInput>(
   parties: T[],
   topPartyIds: TopPartyIds,
-  day: 'friday' | 'saturday',
+  day: PartyDay,
 ): T | null {
   const ofDay = parties.filter((p) => p.day === day);
   if (ofDay.length === 0) return null;

@@ -82,12 +82,7 @@ def _like_dislike_counts(party: dict) -> tuple[int, int]:
 
 
 def _day_and_weekend(party_date: date) -> tuple[str, date]:
-    day = "friday" if party_date.weekday() == 4 else "saturday"
-    if party_date.weekday() == 5:  # Saturday
-        weekend = party_date - timedelta(days=1)
-    else:
-        weekend = party_date
-    return day, weekend
+    return weekend_service.day_and_weekend(party_date)
 
 
 def _get_host_stats(party: dict) -> Optional[HostStats]:
@@ -231,7 +226,7 @@ def _can_view_party(party: dict, user: Optional[dict]) -> bool:
 
 @router.get("", response_model=PartiesListResponse)
 async def get_parties(
-    day: Optional[str] = Query(None, description="Filter by day (friday/saturday)"),
+    day: Optional[str] = Query(None, description="Filter by day (thursday/friday/saturday)"),
     weekend_of: Optional[str] = Query(None, description="Friday date (YYYY-MM-DD) of the weekend to query"),
     user: Optional[dict] = Depends(get_current_user)
 ):
@@ -275,6 +270,7 @@ async def get_parties(
 
     return PartiesListResponse(
         weekendOf=meta.weekend_of.isoformat(),
+        thursdayDate=meta.thursday_date.isoformat(),
         fridayDate=meta.friday_date.isoformat(),
         saturdayDate=meta.saturday_date.isoformat(),
         parties=parties,
@@ -372,6 +368,7 @@ async def get_create_options(user: dict = Depends(require_auth)):
         weekends=[
             WeekendOption(
                 weekendOf=w.weekend_of.isoformat(),
+                thursdayDate=w.thursday_date.isoformat(),
                 fridayDate=w.friday_date.isoformat(),
                 saturdayDate=w.saturday_date.isoformat(),
             )
@@ -552,7 +549,7 @@ async def insert_party(
     if not weekend_service.is_creatable_party_date(party_date):
         raise HTTPException(
             status_code=422,
-            detail="Party date must be a Friday or Saturday today or in the future",
+            detail="Party date must be a Thursday, Friday, or Saturday today or in the future",
         )
     day, weekend = _day_and_weekend(party_date)
 
@@ -679,7 +676,7 @@ async def update_party(
         if not weekend_service.is_creatable_party_date(party_date):
             raise HTTPException(
                 status_code=422,
-                detail="Party date must be a Friday or Saturday today or in the future",
+                detail="Party date must be a Thursday, Friday, or Saturday today or in the future",
             )
         day, weekend = _day_and_weekend(party_date)
         updates["day"] = day

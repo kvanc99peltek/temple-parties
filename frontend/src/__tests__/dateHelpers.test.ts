@@ -2,7 +2,7 @@
  * Test cases for date helper utility functions.
  * Tests edge cases and boundary conditions for date calculations.
  */
-import { getDefaultDay, getUpcomingDates, getDayName, getAlsoTonightLabel, getPartyDateLabel } from '../utils/dateHelpers';
+import { getDefaultDay, getUpcomingDates, getDayName, getAlsoTonightLabel, getPartyDateLabel, pickSmartDefaultDay } from '../utils/dateHelpers';
 
 describe('dateHelpers', () => {
   describe('getDefaultDay', () => {
@@ -18,24 +18,24 @@ describe('dateHelpers', () => {
       jest.spyOn(global, 'Date').mockImplementation(() => date as unknown as Date);
     };
 
-    it('should return friday on Monday', () => {
-      mockDate(1); // Monday
-      expect(getDefaultDay()).toBe('friday');
+    it('should return thursday on Monday', () => {
+      mockDate(1);
+      expect(getDefaultDay()).toBe('thursday');
     });
 
-    it('should return friday on Tuesday', () => {
+    it('should return thursday on Tuesday', () => {
       mockDate(2);
-      expect(getDefaultDay()).toBe('friday');
+      expect(getDefaultDay()).toBe('thursday');
     });
 
-    it('should return friday on Wednesday', () => {
+    it('should return thursday on Wednesday', () => {
       mockDate(3);
-      expect(getDefaultDay()).toBe('friday');
+      expect(getDefaultDay()).toBe('thursday');
     });
 
-    it('should return friday on Thursday', () => {
+    it('should return thursday on Thursday', () => {
       mockDate(4);
-      expect(getDefaultDay()).toBe('friday');
+      expect(getDefaultDay()).toBe('thursday');
     });
 
     it('should return friday on Friday', () => {
@@ -48,9 +48,14 @@ describe('dateHelpers', () => {
       expect(getDefaultDay()).toBe('saturday');
     });
 
-    it('should return friday on Sunday', () => {
+    it('should return thursday on Sunday', () => {
       mockDate(0);
-      expect(getDefaultDay()).toBe('friday');
+      expect(getDefaultDay()).toBe('thursday');
+    });
+
+    it('should treat Friday before 6 AM as Thursday', () => {
+      mockDate(5, 3);
+      expect(getDefaultDay()).toBe('thursday');
     });
 
     it('should treat Saturday before 6 AM as Friday', () => {
@@ -81,6 +86,16 @@ describe('dateHelpers', () => {
       expect(getAlsoTonightLabel('friday', 5)).toBe('ALSO TONIGHT · 5');
     });
 
+    it('says THURSDAY when browsing Thursday on a weekday', () => {
+      mockDate(3);
+      expect(getAlsoTonightLabel('thursday', 3)).toBe('ALSO THURSDAY · 3');
+    });
+
+    it('says TONIGHT for Thursday on Thursday', () => {
+      mockDate(4);
+      expect(getAlsoTonightLabel('thursday', 2)).toBe('ALSO TONIGHT · 2');
+    });
+
     it('says FRIDAY when browsing Friday on a weekday', () => {
       mockDate(3);
       expect(getAlsoTonightLabel('friday', 3)).toBe('ALSO FRIDAY · 3');
@@ -97,8 +112,24 @@ describe('dateHelpers', () => {
     });
   });
 
+  describe('pickSmartDefaultDay', () => {
+    it('keeps the default night when it has parties', () => {
+      expect(pickSmartDefaultDay('thursday', { thursday: 2, friday: 1, saturday: 0 })).toBe('thursday');
+    });
+
+    it('falls forward to the first night that has parties', () => {
+      expect(pickSmartDefaultDay('thursday', { thursday: 0, friday: 3, saturday: 1 })).toBe('friday');
+      expect(pickSmartDefaultDay('friday', { thursday: 2, friday: 0, saturday: 1 })).toBe('thursday');
+    });
+
+    it('stays on the default when every night is empty', () => {
+      expect(pickSmartDefaultDay('saturday', { thursday: 0, friday: 0, saturday: 0 })).toBe('saturday');
+    });
+  });
+
   describe('getPartyDateLabel', () => {
     it('formats an ISO date as the party-page date line', () => {
+      expect(getPartyDateLabel('2026-10-15')).toBe('THU OCT 15');
       expect(getPartyDateLabel('2026-10-16')).toBe('FRI OCT 16');
       expect(getPartyDateLabel('2026-10-17')).toBe('SAT OCT 17');
     });
@@ -118,6 +149,7 @@ describe('dateHelpers', () => {
 
     it('should return valid date strings', () => {
       const result = getUpcomingDates();
+      expect(result.thursday).toBeDefined();
       expect(result.friday).toBeDefined();
       expect(result.saturday).toBeDefined();
       expect(typeof result.friday).toBe('string');
@@ -126,43 +158,40 @@ describe('dateHelpers', () => {
 
     it('should return consecutive days', () => {
       const result = getUpcomingDates();
+      const thursdayNum = parseInt(result.thursday);
       const fridayNum = parseInt(result.friday);
       const saturdayNum = parseInt(result.saturday);
-      // Saturday should be 1 day after Friday (or wrap around at month end)
-      const diff = saturdayNum - fridayNum;
-      expect(diff === 1 || diff < -20).toBe(true); // Either +1 or month wrap
+      const friDiff = fridayNum - thursdayNum;
+      const satDiff = saturdayNum - fridayNum;
+      expect(friDiff === 1 || friDiff < -20).toBe(true);
+      expect(satDiff === 1 || satDiff < -20).toBe(true);
     });
 
     it('should handle month boundaries', () => {
-      // Test that it doesnt crash at month boundaries
       const result = getUpcomingDates();
       expect(parseInt(result.friday)).toBeGreaterThan(0);
       expect(parseInt(result.friday)).toBeLessThanOrEqual(31);
     });
 
     it('should handle year boundaries', () => {
-      // Mock December 31st
       const date = new Date(2024, 11, 31);
       jest.spyOn(global, 'Date').mockImplementation(() => date as unknown as Date);
 
-      // Should not throw
       expect(() => getUpcomingDates()).not.toThrow();
     });
   });
 
   describe('getDayName', () => {
+    it('should return Thursday for thursday', () => {
+      expect(getDayName('thursday')).toBe('Thursday');
+    });
+
     it('should return Friday for friday', () => {
       expect(getDayName('friday')).toBe('Friday');
     });
 
     it('should return Saturday for saturday', () => {
       expect(getDayName('saturday')).toBe('Saturday');
-    });
-
-    it('should handle case sensitivity correctly', () => {
-      // These should work as expected since input is typed
-      expect(getDayName('friday' as 'friday' | 'saturday')).toBe('Friday');
-      expect(getDayName('saturday' as 'friday' | 'saturday')).toBe('Saturday');
     });
   });
 });

@@ -13,18 +13,16 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-function getNextFridayOrSaturday(): string {
+function getNextPartyNight(): string {
   const today = new Date();
-  const day = today.getDay(); // 0=Sun, 5=Fri, 6=Sat
+  const day = today.getDay(); // 0=Sun, 4=Thu, 5=Fri, 6=Sat
   let daysToAdd: number;
 
-  if (day === 5) {
-    daysToAdd = 0; // Today is Friday
-  } else if (day === 6) {
-    daysToAdd = 0; // Today is Saturday
+  if (day === 4 || day === 5 || day === 6) {
+    daysToAdd = 0;
   } else {
-    // Go forward to Friday
-    daysToAdd = (5 - day + 7) % 7;
+    // Go forward to Thursday
+    daysToAdd = (4 - day + 7) % 7;
   }
 
   const target = new Date(today);
@@ -42,15 +40,15 @@ function formatDateISO(d: Date): string {
 function formatDisplayDate(iso: string): string {
   const [year, month, day] = iso.split('-').map(Number);
   const d = new Date(year, month - 1, day);
-  const dayName = d.getDay() === 5 ? 'Friday' : 'Saturday';
+  const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()];
   const monthName = MONTH_NAMES[d.getMonth()];
   return `${dayName}, ${monthName} ${d.getDate()}`;
 }
 
-export { getNextFridayOrSaturday };
+export { getNextPartyNight as getNextFridayOrSaturday };
 
 export default function DatePicker({ value, onChange }: DatePickerProps) {
-  const selected = value || getNextFridayOrSaturday();
+  const selected = value || getNextPartyNight();
 
   // Parse selected to get initial month view
   const [selectedYear, selectedMonth] = selected.split('-').map(Number);
@@ -63,11 +61,11 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
     const startDayOfWeek = firstDay.getDay();
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-    const days: Array<{ date: number; iso: string; isFriOrSat: boolean; isCurrentMonth: boolean }> = [];
+    const days: Array<{ date: number; iso: string; isPartyNight: boolean; isCurrentMonth: boolean }> = [];
 
     // Empty slots before first day
     for (let i = 0; i < startDayOfWeek; i++) {
-      days.push({ date: 0, iso: '', isFriOrSat: false, isCurrentMonth: false });
+      days.push({ date: 0, iso: '', isPartyNight: false, isCurrentMonth: false });
     }
 
     for (let d = 1; d <= daysInMonth; d++) {
@@ -76,7 +74,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
       days.push({
         date: d,
         iso: formatDateISO(dateObj),
-        isFriOrSat: dayOfWeek === 5 || dayOfWeek === 6,
+        isPartyNight: dayOfWeek === 4 || dayOfWeek === 5 || dayOfWeek === 6,
         isCurrentMonth: true,
       });
     }
@@ -130,7 +128,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <p className="text-gray-500 text-xs mt-1">Only Fridays and Saturdays can be selected</p>
+      <p className="text-gray-500 text-xs mt-1">Only Thursday, Friday, and Saturday can be selected</p>
 
       {/* Calendar dropdown */}
       {isOpen && (
@@ -166,7 +164,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
               <div
                 key={d}
                 className={`text-center text-xs font-medium py-1 ${
-                  d === 'Fri' || d === 'Sat' ? 'text-[#08CA66]/70' : 'text-gray-500'
+                  d === 'Thu' || d === 'Fri' || d === 'Sat' ? 'text-[#08CA66]/70' : 'text-gray-500'
                 }`}
               >
                 {d}
@@ -183,7 +181,7 @@ export default function DatePicker({ value, onChange }: DatePickerProps) {
 
               const isSelected = day.iso === selected;
 
-              if (!day.isFriOrSat) {
+              if (!day.isPartyNight) {
                 return (
                   <div
                     key={i}

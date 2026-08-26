@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import type { PartyDay } from '@/lib/types';
+import { getDayName } from '@/utils/dateHelpers';
 
 interface EmptyStateProps {
-  selectedDay?: 'friday' | 'saturday';
+  selectedDay?: PartyDay;
   message?: string;
   /**
    * Leaderboards CTA href. Defaults to `/leaderboards`.
@@ -18,7 +20,7 @@ export default function EmptyState({
   leaderboardsHref,
 }: EmptyStateProps) {
   const displayMessage = message
-    ?? `No parties yet for ${selectedDay === 'friday' ? 'Friday' : 'Saturday'}`;
+    ?? (selectedDay ? `No parties yet for ${getDayName(selectedDay)}` : 'No parties yet');
   const href = leaderboardsHref === undefined ? '/leaderboards' : leaderboardsHref;
 
   return (

@@ -15,13 +15,13 @@ def _strip_optional(v: Optional[str]) -> Optional[str]:
     return stripped or None
 
 
-def _validate_friday_or_saturday(v: str) -> str:
+def _validate_party_night(v: str) -> str:
     try:
         parsed = date_type.fromisoformat(v)
     except ValueError:
         raise ValueError("Invalid date format. Use YYYY-MM-DD.")
-    if parsed.weekday() not in (4, 5):  # 4 = Friday, 5 = Saturday
-        raise ValueError("Date must be a Friday or Saturday.")
+    if parsed.weekday() not in (3, 4, 5):  # Thu, Fri, Sat
+        raise ValueError("Date must be a Thursday, Friday, or Saturday.")
     return v
 
 
@@ -64,7 +64,7 @@ class PartyCreate(BaseModel):
     host: str = Field(..., min_length=1, max_length=30)
     pin_label: str = Field(..., min_length=1, max_length=5)
     category: str = Field(..., min_length=1, max_length=50)
-    date: str = Field(..., description="ISO format date (YYYY-MM-DD), must be a Friday or Saturday")
+    date: str = Field(..., description="ISO format date (YYYY-MM-DD), must be a Thursday, Friday, or Saturday")
     doors_open: str = Field(..., min_length=1, max_length=20)
     address: str = Field(..., min_length=1, max_length=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
@@ -106,8 +106,8 @@ class PartyCreate(BaseModel):
 
     @field_validator("date")
     @classmethod
-    def validate_date_is_friday_or_saturday(cls, v: str) -> str:
-        return _validate_friday_or_saturday(v)
+    def validate_date_is_party_night(cls, v: str) -> str:
+        return _validate_party_night(v)
 
     @model_validator(mode="after")
     def promo_label_required_with_code(self):
@@ -123,7 +123,7 @@ class PartyUpdate(BaseModel):
     host: Optional[str] = Field(None, min_length=1, max_length=30)
     pin_label: Optional[str] = Field(None, min_length=1, max_length=5)
     category: Optional[str] = Field(None, min_length=1, max_length=50)
-    date: Optional[str] = Field(None, description="ISO format date (YYYY-MM-DD), must be a Friday or Saturday")
+    date: Optional[str] = Field(None, description="ISO format date (YYYY-MM-DD), must be a Thursday, Friday, or Saturday")
     doors_open: Optional[str] = Field(None, min_length=1, max_length=20)
     address: Optional[str] = Field(None, min_length=1, max_length=500)
     latitude: Optional[float] = Field(None, ge=-90, le=90)
@@ -169,10 +169,10 @@ class PartyUpdate(BaseModel):
 
     @field_validator("date")
     @classmethod
-    def validate_date_is_friday_or_saturday(cls, v: Optional[str]) -> Optional[str]:
+    def validate_date_is_party_night(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return None
-        return _validate_friday_or_saturday(v)
+        return _validate_party_night(v)
 
     @model_validator(mode="after")
     def promo_label_required_with_code(self):
@@ -212,7 +212,7 @@ class PartyResponse(BaseModel):
     host: str
     pinLabel: str  # camelCase for frontend compatibility
     category: str
-    day: Literal["friday", "saturday"]
+    day: Literal["thursday", "friday", "saturday"]
     date: str  # ISO format date string
     doorsOpen: str  # camelCase for frontend compatibility
     doorsClose: Optional[str] = None
@@ -251,6 +251,7 @@ class PartiesListResponse(BaseModel):
     """GET /parties envelope with authoritative weekend metadata."""
 
     weekendOf: str
+    thursdayDate: str
     fridayDate: str
     saturdayDate: str
     parties: list[PartyResponse]
@@ -258,6 +259,7 @@ class PartiesListResponse(BaseModel):
 
 class WeekendOption(BaseModel):
     weekendOf: str
+    thursdayDate: str
     fridayDate: str
     saturdayDate: str
 

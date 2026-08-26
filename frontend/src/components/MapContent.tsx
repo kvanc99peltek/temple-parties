@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { getDefaultDay, parseDoorsOpen } from '@/utils/dateHelpers';
+import { Party, PartyDay } from '@/lib/types';
+import { getDefaultDay, parseDoorsOpen, pickSmartDefaultDay } from '@/utils/dateHelpers';
 import { pickFeaturedParty } from '@/utils/mapHelpers';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -16,15 +17,15 @@ import VoteRow from '@/components/ui/VoteRow';
 import { VerifiedSealIcon } from '@/components/ui/VerifiedMark';
 import { voteCounts } from '@/utils/ratingHelpers';
 import { PRIMARY_SPONSOR } from '@/lib/sponsors';
-import type { Party } from '@/lib/types';
 
 interface MapContentProps {
   parties: Party[];
-  topPartyIds: { friday: string | null; saturday: string | null };
+  topPartyIds: Record<PartyDay, string | null>;
   userGoingParties: string[];
   onGoingClick: (partyId: string) => void;
   onNavigateClick: (partyId: string) => void;
   onRateClick: (partyId: string, title: string, host: string, ratingActive: boolean, ratingLocked: boolean) => void;
+  thursdayDate: string;
   fridayDate: string;
   saturdayDate: string;
   /** Deep-link target (/map?party=<id>): pan to this party and open its popup. */
@@ -178,15 +179,15 @@ function PartyFocusHandler({
 
 // onRateClick stays in the props contract (pages still pass it) but the popup
 // votes went read-only with the v2 redesign — rating happens on the party page.
-export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, fridayDate, saturdayDate, focusPartyId }: MapContentProps) {
+export default function MapContent({ parties, topPartyIds, userGoingParties, onGoingClick, onNavigateClick, thursdayDate, fridayDate, saturdayDate, focusPartyId }: MapContentProps) {
   // const sponsorMarkerRef = useRef<L.Marker>(null);
-  const [selectedDay, setSelectedDay] = useState<'friday' | 'saturday'>(getDefaultDay);
+  const [selectedDay, setSelectedDay] = useState<PartyDay>(getDefaultDay);
   const iconCacheRef = useRef<Map<string, L.DivIcon>>(new Map());
   const markerRefs = useRef<Record<string, L.Marker | null>>({});
   const [focusConsumed, setFocusConsumed] = useState(false);
   // One auto-open per night so a realtime going-count flip doesn't steal
   // the popup the user is already reading.
-  const [featuredOpenedForDay, setFeaturedOpenedForDay] = useState<'friday' | 'saturday' | null>(null);
+  const [featuredOpenedForDay, setFeaturedOpenedForDay] = useState<PartyDay | null>(null);
   const [daySettled, setDaySettled] = useState(false);
 
   // Deep-link focus (/map?party=<id>): make sure the focused party's DAY tab
@@ -202,6 +203,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
   // Smart default: switch to the other day if the default day has no parties.
   // Wait to auto-open the featured pin until this has run, or we'd pop Friday
   // then flip the tab to Saturday.
+  const thursdayCount = useMemo(() => parties.filter(p => p.day === 'thursday').length, [parties]);
   const fridayCount = useMemo(() => parties.filter(p => p.day === 'friday').length, [parties]);
   const saturdayCount = useMemo(() => parties.filter(p => p.day === 'saturday').length, [parties]);
   const hasAppliedSmartDefault = useRef(false);
@@ -211,15 +213,14 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
 
     const hasDeepLink = Boolean(focusPartyId && parties.some((p) => p.id === focusPartyId));
     if (!hasDeepLink) {
-      const defaultDay = getDefaultDay();
-      if (defaultDay === 'friday' && fridayCount === 0 && saturdayCount > 0) {
-        setSelectedDay('saturday');
-      } else if (defaultDay === 'saturday' && saturdayCount === 0 && fridayCount > 0) {
-        setSelectedDay('friday');
-      }
+      setSelectedDay(pickSmartDefaultDay(getDefaultDay(), {
+        thursday: thursdayCount,
+        friday: fridayCount,
+        saturday: saturdayCount,
+      }));
     }
     setDaySettled(true);
-  }, [parties, fridayCount, saturdayCount, focusPartyId]);
+  }, [parties, thursdayCount, fridayCount, saturdayCount, focusPartyId]);
 
   const featuredParty = useMemo(
     () => pickFeaturedParty(parties, topPartyIds, selectedDay),
@@ -260,6 +261,7 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
   const sponsor = PRIMARY_SPONSOR;
 
   // Get day numbers for display
+  const thursdayNum = thursdayDate;
   const fridayNum = fridayDate;
   const saturdayNum = saturdayDate;
 
@@ -270,12 +272,13 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
       <div className="absolute top-4 lg:top-8 inset-x-4 z-[1100] max-w-xl mx-auto">
         <SegmentedTabs
           items={[
+            { key: 'thursday', label: `THU ${thursdayNum}` },
             { key: 'friday', label: `FRI ${fridayNum}` },
             { key: 'saturday', label: `SAT ${saturdayNum}` },
           ]}
           activeKey={selectedDay}
           onChange={(key) => {
-            setSelectedDay(key as 'friday' | 'saturday');
+            setSelectedDay(key as PartyDay);
             trackEvent('day_tab_switched', { day: key, source: 'map' });
           }}
         />

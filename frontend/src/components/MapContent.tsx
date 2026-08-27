@@ -35,6 +35,12 @@ interface MapContentProps {
 // Temple University campus center
 const TEMPLE_CENTER: [number, number] = [39.9812, -75.1550];
 
+// CARTO raster tiles watermark without ?key= — set NEXT_PUBLIC_CARTO_API_KEY
+// (free at https://carto.com/basemaps/apikey). Keep dark_all, not voyager.
+const CARTO_TILE_URL = process.env.NEXT_PUBLIC_CARTO_API_KEY
+  ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${process.env.NEXT_PUBLIC_CARTO_API_KEY}`
+  : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
 // Temple University label component
 function TempleLabel() {
   const map = useMap();
@@ -293,8 +299,8 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
         style={{ background: '#1a1a1a' }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url={CARTO_TILE_URL}
         />
         <TempleLabel />
         {(() => {

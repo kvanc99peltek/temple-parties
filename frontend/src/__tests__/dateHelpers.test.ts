@@ -2,7 +2,7 @@
  * Test cases for date helper utility functions.
  * Tests edge cases and boundary conditions for date calculations.
  */
-import { getDefaultDay, getUpcomingDates, getDayName, getAlsoTonightLabel, getPartyDateLabel, pickSmartDefaultDay } from '../utils/dateHelpers';
+import { getDefaultDay, getUpcomingDates, getDayName, getAlsoTonightLabel, getPartyDateLabel, pickSmartDefaultDay, displayDoorTime } from '../utils/dateHelpers';
 
 describe('dateHelpers', () => {
   describe('getDefaultDay', () => {
@@ -192,6 +192,25 @@ describe('dateHelpers', () => {
 
     it('should return Saturday for saturday', () => {
       expect(getDayName('saturday')).toBe('Saturday');
+    });
+  });
+
+  describe('displayDoorTime', () => {
+    it('drops :00 and keeps AM/PM', () => {
+      expect(displayDoorTime('10:00 PM')).toBe('10 PM');
+      expect(displayDoorTime('11:00 PM')).toBe('11 PM');
+      expect(displayDoorTime('2:00 AM')).toBe('2 AM');
+      expect(displayDoorTime('12:00 AM')).toBe('12 AM');
+    });
+
+    it('keeps minutes when they are not :00', () => {
+      expect(displayDoorTime('10:30 PM')).toBe('10:30 PM');
+      expect(displayDoorTime('9:15 PM')).toBe('9:15 PM');
+    });
+
+    it('leaves already-canonical times alone', () => {
+      expect(displayDoorTime('10 PM')).toBe('10 PM');
+      expect(displayDoorTime('11 PM')).toBe('11 PM');
     });
   });
 });

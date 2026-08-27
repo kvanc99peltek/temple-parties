@@ -13,6 +13,7 @@
  */
 
 import IconButton from '@/components/ui/IconButton';
+import { displayDoorTime } from '@/utils/dateHelpers';
 
 /** Same folded-map glyph the bottom nav uses — one map language app-wide. */
 function MapGlyph() {
@@ -48,8 +49,8 @@ export default function WhenWhereCard({
     <div className="w-full bg-temple-surface rounded-[14px] divide-y divide-white/5">
       {/* When: date + door hours. */}
       <p className="px-3.5 py-3 font-montserrat font-medium text-[13px] text-white/70">
-        {dateLabel} · {doorsOpen}
-        {doorsClose && ` — ${doorsClose}`}
+        {dateLabel} · {displayDoorTime(doorsOpen)}
+        {doorsClose && ` — ${displayDoorTime(doorsClose)}`}
       </p>
 
       {/* Where: the address — or the log-in nudge where it would be. */}

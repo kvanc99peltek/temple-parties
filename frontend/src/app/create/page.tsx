@@ -629,11 +629,16 @@ export default function CreatePartyPage() {
               />
             </Field>
 
-            <Field label="Price text" hint="Shows on your listing as-is — it's a label, not a checkout.">
+            {/* Free text on purpose (no checkout behind it), but the listing
+                only ever shows FREE / $N — utils/coverPrice.ts reads the
+                number out of whatever gets typed. The hint says so, so hosts
+                don't write prose that then vanishes. */}
+            <Field label="Cover" hint="Dollars only — shows as $10. Leave blank for FREE.">
               <input
                 value={ticketPrice}
                 onChange={(e) => setTicketPrice(e.target.value.slice(0, 50))}
-                placeholder="e.g., Free · $10 at door"
+                inputMode="decimal"
+                placeholder="e.g., 10"
                 className={inputClass}
                 maxLength={50}
               />

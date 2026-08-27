@@ -21,6 +21,7 @@ export default function DemoMapPage() {
   const demoWeekend = useDemoWeekend();
   const [selectedDay] = useState<PartyDay>(() => getDefaultDay());
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus({ readOnly: true });
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus({ readOnly: true });
@@ -64,12 +65,16 @@ export default function DemoMapPage() {
     trackEvent('party_rated', { partyId: ratingModalParty.id, rating, source: 'map_modal', demo: true });
   }, [ratingModalParty, submitRating]);
 
+  const handleSheetOpenChange = useCallback((open: boolean) => {
+    setSheetOpen(open);
+  }, []);
+
   return (
-    <AppShell mapMode>
+    <AppShell mapMode hideBottomNav={sheetOpen}>
       <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
         <Header title="Party Map" />
         <DemoBanner weekendOf={demoWeekend} />
-        <div className="flex-1 pb-20 lg:pb-0">
+        <div className={`flex-1 lg:pb-0 ${sheetOpen ? '' : 'pb-20'}`}>
           {isLoadingParties ? (
             <div className="flex justify-center items-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
@@ -85,6 +90,7 @@ export default function DemoMapPage() {
               thursdayDate={thursdayDate}
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
+              onSheetOpenChange={handleSheetOpenChange}
             />
           )}
         </div>

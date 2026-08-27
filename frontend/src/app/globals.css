@@ -177,14 +177,44 @@ html {
 
 /* Leaflet Map Custom Styles */
 .leaflet-container {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background: #1a1a1a;
 }
 
-/* Avatar marker styles - minimal circular markers */
+/* Leaflet's default divIcon is a white box; we draw the pin ourselves.
+   overflow:visible so the count badge can hang off the circle without
+   getting clipped — iOS was swallowing the old in-circle count. */
+.leaflet-div-icon.custom-marker,
 .custom-marker {
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+/* Shared going-count pill on both pin types. 11px sits above iOS's
+   text-size floor so Safari can't inflate it into the pin body. */
+.pin-count-badge {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  text-align: center;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  border: 1.5px solid #0a0a0f;
+  z-index: 3;
+  pointer-events: none;
 }
 
 .avatar-marker {
@@ -193,14 +223,49 @@ html {
   justify-content: center;
   border-radius: 50%;
   background: rgba(178, 75, 243, 0.85);
-  backdrop-filter: blur(4px);
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   color: white;
-  font-weight: 600;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 800;
+  font-family: 'Montserrat', sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.disc-pin {
+  position: relative;
+}
+
+.disc-pin.is-dimmed {
+  opacity: 0.5;
+}
+
+.disc-pin.is-muted {
+  opacity: 0.4;
+}
+
+.disc-pin .avatar-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.disc-pin__label {
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+/* Same badge as the ring pin's, tucked half over the circle's SE rim. The
+   left/top come inline from mapPins.discBadgeCenter (they scale with the
+   disc); the translate turns that point into the badge's centre. */
+.disc-pin__badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: var(--purple-primary);
+  color: #ffffff;
 }
 
 .avatar-marker-selected {
@@ -211,6 +276,15 @@ html {
 .avatar-marker-going {
   border: 2px solid #e0d4ff;
   box-shadow: 0 0 10px rgba(224, 212, 255, 0.6), 0 0 20px rgba(224, 212, 255, 0.3);
+}
+
+/* Doors closed 4h+ ago → faded; another pin's sheet is open → faded harder. */
+.avatar-marker.is-dimmed {
+  opacity: 0.5;
+}
+
+.avatar-marker.is-muted {
+  opacity: 0.4;
 }
 
 .avatar-marker-pulse {
@@ -249,53 +323,187 @@ html {
   white-space: nowrap;
 }
 
-/* Dark popup styles */
-/* Popup surface mirrors the feed cards: surface-2 grey + hairline border. */
-.party-popup-dark .leaflet-popup-content-wrapper {
-  background: #252528;
-  border-radius: 14px;
-  padding: 0;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
+/* ------------------------------------------------------------------ */
+/* Ring pin — the branded map pin (Figma §13). Built as raw HTML for      */
+/* Leaflet in utils/mapPins.ts, styled here. The host's three brand slots */
+/* arrive as CSS variables on the root (--pin-primary / --pin-secondary / */
+/* --pin-accent), so the future colour picker changes values, not CSS.    */
+/* Geometry is the Figma 72px "pin cell": glow 64, ring 52, plate 42.     */
+/* ------------------------------------------------------------------ */
+.ring-pin {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  /* Scale about the stem tip (the anchor) so a selected pin grows in place. */
+  transform-origin: 36px 72px;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
-.party-popup-dark .leaflet-popup-content {
-  margin: 0;
-  line-height: 1.4;
+.ring-pin > span {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.party-popup-dark .leaflet-popup-tip {
-  background: #252528;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.ring-pin.is-selected {
+  transform: scale(1.15);
 }
 
-/* Popup content styling */
+.ring-pin.is-dimmed {
+  opacity: 0.5;
+}
+
+.ring-pin.is-muted {
+  opacity: 0.4;
+}
+
+.ring-pin__glow {
+  left: 4px;
+  top: 4px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--pin-glow) 0%, transparent 70%);
+}
+
+/* HEADLINER: a thin halo in the app's one glow colour + a ★ badge. */
+.ring-pin__halo {
+  left: 4px;
+  top: 4px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1.5px solid var(--temple-hyped);
+}
+
+/* Selected: white focus ring just outside the brand ring. */
+.ring-pin__focus {
+  left: 7px;
+  top: 7px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+.ring-pin__ring {
+  left: 10px;
+  top: 10px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--pin-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.ring-pin__plate {
+  left: 15px;
+  top: 15px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--pin-secondary);
+  color: var(--pin-accent);
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.ring-pin__stem {
+  left: 35px;
+  top: 62px;
+  width: 2px;
+  height: 10px;
+  background: var(--pin-primary);
+}
+
+.ring-pin__badge {
+  left: 38px;
+  top: 46px;
+  background: var(--pin-accent);
+  color: var(--pin-accent-ink);
+}
+
+.ring-pin__star {
+  left: 0;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--temple-hyped);
+  color: var(--temple-hyped-ink);
+  font-size: 11px;
+  font-weight: 700;
+  /* Same glow the HEADLINER badge wears — it IS the headliner badge, pin-sized. */
+  box-shadow: 0 0 12px 1px rgba(255, 214, 10, 0.45);
+}
+
+/* Persistent "HOST · 11 PM" chip to the right of the pin (zoom ≥ 16). */
+.ring-pin__chip {
+  left: 80px;
+  top: 25px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 11px;
+  background: rgba(10, 10, 15, 0.88);
+  border: 1px solid var(--pin-primary);
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* Slow pulse while the party is live (doors open → +4h). */
+.ring-pin__pulse {
+  left: -6px;
+  top: -6px;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 2px solid var(--pin-primary);
+  animation: ring-pin-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ring-pin-pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+/* PartySheet slides up from the bottom of the map. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-in {
+  animation: sheet-in 220ms ease-out;
+}
+
+/* Sponsor popup (Leaflet). The PARTY popup is gone — party pins open
+   components/map/PartySheet instead — so these shared popup rules only
+   serve the sponsor pin now (lib/sponsors.ts, currently empty). */
 .popup-content {
   min-width: 200px;
   max-width: 220px;
   padding: 16px 16px 12px 16px;
-}
-
-/* TUP-10: popup body is the party-page tap target. Leaflet's own
-   `.leaflet-container a` paints links blue — override with enough
-   specificity that it still wins after leaflet.css loads. */
-.party-popup-dark a.popup-party-link,
-.party-popup-dark a.popup-party-link:visited,
-.party-popup-dark a.popup-party-link:hover,
-.party-popup-dark a.popup-party-link:active {
-  display: block;
-  color: inherit !important;
-  text-decoration: none !important;
-  cursor: pointer;
-  /* One-tap on iOS Safari — skip the 300ms click delay. */
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: rgba(178, 75, 243, 0.25);
-}
-
-.party-popup-dark a.popup-party-link:active {
-  opacity: 0.88;
 }
 
 .popup-buttons button,
@@ -308,48 +516,6 @@ html {
   align-items: center;
   gap: 3px;
   margin-bottom: 6px !important;
-}
-
-.popup-chevron {
-  margin-left: auto;
-  color: rgba(255, 255, 255, 0.45);
-  display: flex;
-  flex-shrink: 0;
-}
-
-/* Chips match the card chips: square-ish 4px corners, Montserrat, tracked. */
-.popup-category-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 10px;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  background: #b24bf3;
-  color: #ffffff;
-  border-radius: 4px;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.popup-hyped-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 10px;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  /* Same HEADLINER accent the cards use — see the :root vars at the top of this file. */
-  background: var(--temple-hyped);
-  color: var(--temple-hyped-ink);
-  border-radius: 4px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  box-shadow: 0 0 12px 1px rgba(255, 214, 10, 0.45);
 }
 
 .popup-title {
@@ -370,83 +536,6 @@ html {
   line-height: 18px;
   display: flex;
   align-items: center;
-}
-
-.popup-host-by {
-  font-weight: 500;
-}
-
-.popup-host-name {
-  font-weight: 600;
-}
-
-/* The verified seal (ui/VerifiedMark's VerifiedSealIcon) after the host
-   name. 4px of air, same as the card host rows' gap-1. */
-.popup-verified-icon {
-  margin-left: 4px;
-  flex-shrink: 0;
-}
-
-.popup-details-row {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 12px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.75);
-  margin: 0 0 3px 0 !important;
-}
-
-.popup-time {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.popup-ratings {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px !important;
-  margin-bottom: 0 !important;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.popup-rating-group {
-  display: flex;
-  align-items: center;
-  gap: 3.8px;
-}
-
-.popup-rating-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.popup-rating-flip {
-  transform: rotate(180deg);
-}
-
-.popup-rating-group span {
-  font-family: 'Montserrat', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  color: white;
-  text-transform: uppercase;
-}
-
-.popup-rating-divider {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 14px;
-}
-
-.popup-time-icon {
-  width: 15px;
-  height: 15px;
 }
 
 .popup-buttons {
@@ -479,19 +568,6 @@ html {
 
 .popup-going-btn:active {
   transform: scale(0.98);
-}
-
-.popup-going-btn.going {
-  background: linear-gradient(to right, #b24bf380, #b24bf3);
-}
-
-.popup-going-btn.going:hover {
-  opacity: 0.9;
-}
-
-.popup-check-icon {
-  width: 14px;
-  height: 14px;
 }
 
 .popup-navigate-btn {

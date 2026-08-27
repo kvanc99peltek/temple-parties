@@ -22,7 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/api';
 import { AdminParty, HostApplication } from '@/lib/types';
 import { trackEvent } from '@/utils/analytics';
-import { getPartyDateLabel } from '@/utils/dateHelpers';
+import { displayDoorTime, getPartyDateLabel } from '@/utils/dateHelpers';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import Pill from '@/components/ui/Pill';
 import DashedCard from '@/components/ui/DashedCard';
@@ -348,8 +348,8 @@ function AdminPartyCard({
         </div>
 
         <p className="text-temple-muted text-[13px] font-montserrat leading-relaxed">
-          {party.doorsOpen}
-          {party.doorsClose ? ` – ${party.doorsClose}` : ''} · {party.address} · pin &ldquo;{party.pinLabel}&rdquo;
+          {displayDoorTime(party.doorsOpen)}
+          {party.doorsClose ? ` – ${displayDoorTime(party.doorsClose)}` : ''} · {party.address} · pin &ldquo;{party.pinLabel}&rdquo;
           {party.ticketPrice ? ` · ${party.ticketPrice}` : ''}
         </p>
 

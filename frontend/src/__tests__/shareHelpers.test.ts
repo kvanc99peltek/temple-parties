@@ -31,6 +31,12 @@ describe('formatPartyShareCaption', () => {
       'pulling up to Perreo Welcome Back! by Latin Heat\nSaturday @ 10 PM',
     );
   });
+
+  it('never prints 10:00 PM', () => {
+    const caption = formatPartyShareCaption({ ...party, doorsOpen: '10:00 PM' });
+    expect(caption).toContain('Saturday @ 10 PM');
+    expect(caption).not.toContain('10:00');
+  });
 });
 
 describe('formatPartyShareText', () => {

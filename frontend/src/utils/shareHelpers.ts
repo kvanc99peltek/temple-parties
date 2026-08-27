@@ -1,4 +1,4 @@
-import { getDayName } from './dateHelpers';
+import { displayDoorTime, getDayName } from './dateHelpers';
 
 import { Party } from '@/lib/types';
 import { APP_URL } from '@/lib/constants';
@@ -14,7 +14,7 @@ export function formatPartyShareCaption(party: Party): string {
   const dayName = getDayName(party.day);
   const lines = [
     `pulling up to ${party.title}! by ${party.host}`,
-    `${dayName} @ ${party.doorsOpen}`,
+    `${dayName} @ ${displayDoorTime(party.doorsOpen)}`,
   ];
   if (party.goingCount != null) {
     lines.push(`${party.goingCount}+ going`);

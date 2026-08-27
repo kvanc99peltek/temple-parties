@@ -195,6 +195,23 @@ export function pickSmartDefaultDay(
 }
 
 /**
+ * Door time for display: keep AM/PM, never ":00".
+ * "10:00 PM" / "10 PM" → "10 PM"; "10:30 PM" stays "10:30 PM".
+ * Unparseable strings pass through.
+ */
+export function displayDoorTime(doorsOpen: string): string {
+  const trimmed = doorsOpen.trim();
+  if (!trimmed) return trimmed;
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return trimmed;
+  const hour = String(parseInt(match[1], 10));
+  const minutes = match[2] ? parseInt(match[2], 10) : 0;
+  const period = match[3].toUpperCase();
+  if (!minutes) return `${hour} ${period}`;
+  return `${hour}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+/**
  * Parse a doors_open string (e.g., "10 PM", "9:30 PM") and a date string
  * into a Date object.
  */

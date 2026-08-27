@@ -31,6 +31,7 @@ import AddressGate from '@/components/ui/AddressGate';
 import LastSemesterChampBadge from './LastSemesterChampBadge';
 import { isLastSemesterChampion } from '@/lib/lastSemesterChampions';
 import { voteCounts } from '@/utils/ratingHelpers';
+import { displayDoorTime } from '@/utils/dateHelpers';
 import { openMapsDirections } from '../utils/shareHelpers';
 
 function HeadlinerCard({
@@ -116,7 +117,7 @@ function HeadlinerCard({
 
         <div className="flex items-center justify-between gap-2 font-montserrat text-[12px]">
           <p className="text-temple-muted min-w-0 truncate">
-            {doorsOpen}
+            {displayDoorTime(doorsOpen)}
             {' · '}
             <AddressGate
               address={address}

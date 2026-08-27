@@ -59,7 +59,31 @@ it opens `LastSemesterChampModal`: `CrownIllustration` on a surface disc,
 section label, the host's name, one explainer sentence, Ranks CTA, and a ✕.
 
 Party-page pieces in `components/party/`: `PartyHero`, `HostRow`,
-`WhenWhereCard`, `PromoCard`, `RatingPanel`. Also in the kit:
+`WhenWhereCard`, `PromoCard`, `RatingPanel`.
+
+Map pieces (Figma §13): pins are raw HTML for Leaflet, built in
+`utils/mapPins.ts` and styled in `globals.css`. Two pins — the full-purple
+`disc` (unverified hosts) and the branded `ring` pin (verified hosts, the
+stand-in for the paid layer): white plate, purple ring, stem, hanging count
+badge. Both pins show going count as the same pill badge. Headliner yellow
+halo + ★ layers on the ring. States layer on: selected
+(white focus ring, 1.15×), going (✓ on the badge), headliner (thin hyped halo
++ ★), live (slow pulse, doors → +4h), over (dimmed), muted (another sheet is
+open). A host brand is three CSS vars — `--pin-primary` (ring / chip / pulse),
+`--pin-secondary` (plate), `--pin-accent` (badge / LIVE tag / initials) — set
+per pin; `DEFAULT_HOST_BRAND` is the app palette until the colour picker
+ships. Zoom ladder: pins at 15–16, pins + "HOST · 11 PM" chip at ≥ 16; the
+lit-house layer is designed but not built (needs parcel footprints). Tapping
+a pin opens `components/map/PartySheet` — the bottom drawer that replaced
+the Leaflet popup: poster thumb ringed in the brand colour, HEADLINER /
+category + LIVE NOW tags, title, host line with "N parties hosted", STARTS /
+COVER / STARTS / SHARE row (the party page's stat row with the door time in
+the middle seat), address + read-only votes on one row, then GOING + navigate
+(the sticky-bar pair; the count lives on the GOING button). Drag down closes,
+drag up or tap the header pushes the party page.
+While it's open the map dims under the pins and the map is locked to the
+party zone (York → Girard, 5th → 19th — `PARTY_ZONE` in `utils/mapHelpers.ts`).
+Also in the kit:
 `AddressAutocomplete` (shared by create-party + become-host) and the
 rankings pieces `RankChampionCard` / `RankingRow` / `HostRankingRow`.
 
@@ -104,8 +128,10 @@ server-side, surfaced as toast, never preached in copy) → sticky bar.
    seam documented in the component if perf ever complains).
 4. **Chips are square-ish.** 4px corners on all badge chips; full-round is
    reserved for the compact GOING pill and avatars.
-5. **Map popups mirror cards.** Their CSS in `globals.css` consumes the same
-   `--temple-*` vars; change colors once.
+5. **Map pins and the sheet mirror cards.** Pin CSS in `globals.css`
+   consumes the same `--temple-*` vars (the headliner ★ is the HEADLINER
+   badge, pin-sized); the party sheet is plain kit components. Only the
+   sponsor pin still uses a Leaflet popup.
 6. **Forms mirror server validation, in friendlier words.** The server 422 is
    the backstop, never the UX: rules a host can hit get checked client-side
    with a human sentence under the field (ticket link https rule in
@@ -140,3 +166,7 @@ server-side, surfaced as toast, never preached in copy) → sticky bar.
 | 2026-08-17 | Ticketed party with no price text reads `ONLINE / TICKETS` on the stat tile — `FREE / TICKETS` next to a BUY TICKETS bar would lie |
 | 2026-08-22 | Host-line marks redrawn (owner: old pair "sucks"): VerifiedMark is one inline SVG seal (12 scallops, secondary fill, black check, 15px) replacing two pixel-nudged `<img>`s; last-semester `#1` is a bare 16px gold crown glyph after the seal (a filled gold chip was tried and rejected by the owner as too button-like); cards/HostRow/map popup all use 4px gaps, marks carry no margin |
 | 2026-08-21 | Party-page SHARE is the loudest secondary (TUP-9): a SHARE tile in the COVER / GOING row (iOS tray icon). Native share falls back to execCommand copy so Mobile Safari / Instagram WebView actually get the URL. |
+| 2026-08-27 | Map locked to the party zone (owner): W York St → Girard Ave, 5th → 19th, as the smallest lat/lng box holding the four corner intersections; rubber-band edges; zoom-out floored at "zone fills the screen" per viewport (≈15.2 phone / ≈16 desktop); start view unchanged |
+| 2026-08-27 | Cover tiles show data, not prose (owner: "$10 at the door" on a tile is wrong): `utils/coverPrice.ts` reads the amount out of the host's free text → tiles are only `FREE` / `$N` / `—` (party page keeps `ONLINE` for ticketed-with-no-price). Admin queue still shows the raw text |
+| 2026-08-27 | Map pins + sheet from Figma §13 (owner): ring pin for **verified hosts only** (`isVerified` stands in for the paid tier — no backend gate yet), free hosts keep the disc; default brand = app palette via CSS vars until the picker ships. Leaflet popup → `PartySheet` bottom drawer. Sheet stats are STARTS / ENDS / COVER (WALK dropped — no location permission). House footprint glow and pin clustering deferred (no parcel data; zoom lock makes clusters rare) |
+| 2026-08-27 | Map pin going-count is always a hanging pill badge (owner: phone couldn't read the in-circle number): same `pin-count-badge` on disc + ring, 11px above iOS text-size floor, Leaflet cell overflow visible |

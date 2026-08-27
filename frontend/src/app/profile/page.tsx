@@ -21,7 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { GRAD_YEARS, schoolYearLabel } from '@/lib/onboarding';
 import { partiesApi, hostsApi } from '@/services/api';
 import { resizeAvatarFile } from '@/utils/avatarImage';
-import { getDayShort } from '@/utils/dateHelpers';
+import { displayDoorTime, getDayShort } from '@/utils/dateHelpers';
 import type { Party, HostApplication } from '@/lib/types';
 
 export default function ProfilePage() {
@@ -436,7 +436,7 @@ function MyPartyRow({ party }: { party: Party }) {
       <div className="min-w-0">
         <p className="text-white font-montserrat font-bold text-[14.5px] truncate">{party.title}</p>
         <p className="text-temple-muted text-[12px] font-montserrat mt-1">
-          {getDayShort(party.day)} · {party.doorsOpen}
+          {getDayShort(party.day)} · {displayDoorTime(party.doorsOpen)}
         </p>
       </div>
       <span

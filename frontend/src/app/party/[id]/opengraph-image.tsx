@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og';
-import { getPartyDateLabel } from '@/utils/dateHelpers';
+import { displayDoorTime, getPartyDateLabel } from '@/utils/dateHelpers';
 import { fetchPublicParty } from '@/lib/og';
 
 export const alt = 'Party on Temple Parties';
@@ -54,7 +54,7 @@ export default async function Image({ params }: Props) {
     ),
   ]);
 
-  const dateLine = `${getPartyDateLabel(party.date)}  ·  ${party.doorsOpen}`;
+  const dateLine = `${getPartyDateLabel(party.date)}  ·  ${displayDoorTime(party.doorsOpen)}`;
 
   return new ImageResponse(
     (

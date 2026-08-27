@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import MapView from '@/components/MapView';
 import RatingModal from '@/components/RatingModal';
@@ -21,13 +22,15 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function MapPage() {
   const { isAuthenticated, isLoading: authLoading, needsOnboarding } = useAuth();
+  const pathname = usePathname();
   const [selectedDay] = useState<PartyDay>(() => getDefaultDay());
   const [isHydrated, setIsHydrated] = useState(false);
   const [ratingModalParty, setRatingModalParty] = useState<{ id: string; title: string; host: string } | null>(null);
-  // Deep-link focus from the party page's map button (/map?party=<id>).
+  // Deep-link pan from the party page's map button (/map?party=<id>).
   // Read from window.location after hydration instead of useSearchParams()
   // so this statically-rendered page doesn't need a Suspense boundary.
   const [focusPartyId, setFocusPartyId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const { goingParties, isGoing, getCount, toggleGoing, ensureGoing } = useGoingStatus();
   const { getUserRating, getLikePercentage, getRatingCount, submitRating } = useRatingStatus();
@@ -47,7 +50,8 @@ export default function MapPage() {
   useEffect(() => {
     setFocusPartyId(new URLSearchParams(window.location.search).get('party'));
     setIsHydrated(true);
-  }, []);
+    setSheetOpen(false);
+  }, [pathname]);
 
   const handleGoingClick = useCallback(async (partyId: string) => {
     if (requireAuthForGoing(partyId)) return;
@@ -83,6 +87,10 @@ export default function MapPage() {
     trackEvent('party_rated', { partyId: ratingModalParty.id, rating, source: 'map_modal' });
   }, [ratingModalParty, submitRating]);
 
+  const handleSheetOpenChange = useCallback((open: boolean) => {
+    setSheetOpen(open);
+  }, []);
+
   if (!isHydrated) {
     return (
       <AppShell mapMode>
@@ -92,11 +100,11 @@ export default function MapPage() {
   }
 
   return (
-    <AppShell mapMode>
+    <AppShell mapMode hideBottomNav={sheetOpen}>
       <RequireOnboarding>
       <div className="h-screen lg:h-[calc(100vh-4rem)] flex flex-col">
         <Header title="Party Map" />
-        <div className="flex-1 pb-20 lg:pb-0">
+        <div className={`flex-1 lg:pb-0 ${sheetOpen ? '' : 'pb-20'}`}>
           {isLoadingParties ? (
             <div className="flex justify-center items-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500" />
@@ -113,6 +121,7 @@ export default function MapPage() {
               fridayDate={fridayDate}
               saturdayDate={saturdayDate}
               focusPartyId={focusPartyId}
+              onSheetOpenChange={handleSheetOpenChange}
             />
           )}
         </div>

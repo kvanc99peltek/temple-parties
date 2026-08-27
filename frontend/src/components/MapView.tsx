@@ -14,8 +14,10 @@ interface MapViewProps {
   thursdayDate: string;
   fridayDate: string;
   saturdayDate: string;
-  /** Deep-link target (/map?party=<id>): pan to this party and open its popup. */
+  /** Deep-link target (/map?party=<id>): pan to this pin without opening the drawer. */
   focusPartyId?: string | null;
+  /** Fires when the pin drawer opens or closes so the page can hide the tab bar. */
+  onSheetOpenChange?: (open: boolean) => void;
 }
 
 // Loading placeholder
@@ -34,5 +36,5 @@ const MapContent = dynamic(() => import('./MapContent'), {
 });
 
 export default function MapView(props: MapViewProps) {
-  return <MapContent {...props} />;
+  return <MapContent key={props.focusPartyId ?? 'browse'} {...props} />;
 }

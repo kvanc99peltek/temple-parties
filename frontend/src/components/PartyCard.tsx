@@ -31,6 +31,7 @@ import VoteRow, { type RatingWindowState } from '@/components/ui/VoteRow';
 import LastSemesterChampBadge from './LastSemesterChampBadge';
 import { isLastSemesterChampion } from '@/lib/lastSemesterChampions';
 import { voteCounts } from '@/utils/ratingHelpers';
+import { displayDoorTime } from '@/utils/dateHelpers';
 import { openMapsDirections } from '../utils/shareHelpers';
 
 /**
@@ -175,7 +176,7 @@ function PartyCard({
               The votes are read-only here — tapping them (like anywhere
               else) opens the detail page. */}
           <div className="flex items-center gap-3 mt-1">
-            <p className="font-montserrat text-[14px] text-white/70 whitespace-nowrap">{doorsOpen}</p>
+            <p className="font-montserrat text-[14px] text-white/70 whitespace-nowrap">{displayDoorTime(doorsOpen)}</p>
             <VoteRow
               likeCount={votes?.likeCount ?? null}
               dislikeCount={votes?.dislikeCount ?? null}

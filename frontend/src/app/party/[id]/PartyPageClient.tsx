@@ -47,7 +47,8 @@ import useModalState from '@/hooks/useModalState';
 import useToast from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
 import { openMapsDirections, shareContent } from '@/utils/shareHelpers';
-import { getPartyDateLabel } from '@/utils/dateHelpers';
+import { coverTileValue } from '@/utils/coverPrice';
+import { displayDoorTime, getPartyDateLabel } from '@/utils/dateHelpers';
 import { voteCounts } from '@/utils/ratingHelpers';
 import { trackEvent } from '@/utils/analytics';
 
@@ -255,7 +256,7 @@ export default function PartyPage() {
     windowState === 'locked'
       ? 'Ratings are closed'
       : windowState === 'inactive'
-        ? `Unlocks at ${party.doorsOpen}`
+        ? `Unlocks at ${displayDoorTime(party.doorsOpen)}`
         : null;
 
   const hostSubtitle = party.hostStats
@@ -303,11 +304,13 @@ export default function PartyPage() {
             />
 
             <div className="flex gap-2.5">
-              {/* No price text: a ticketed party says ONLINE (the link knows
-                  the price), a plain one says FREE. "FREE / TICKETS" next to
-                  a BUY TICKETS bar would be a lie. */}
+              {/* Always FREE / $N / — / ONLINE, never the host's prose
+                  (utils/coverPrice.ts reads the amount out of "$10 at the
+                  door"). No readable price: a ticketed party says ONLINE (the
+                  link knows the price), a plain one says FREE. "FREE /
+                  TICKETS" next to a BUY TICKETS bar would be a lie. */}
               <StatTile
-                value={party.ticketPrice || (ticketed ? 'ONLINE' : 'FREE')}
+                value={coverTileValue(party.ticketPrice, ticketed)}
                 label={ticketed ? 'TICKETS' : 'COVER'}
               />
               <StatTile value={goingCount === null ? '—' : String(goingCount)} label="GOING" />

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getPartyDateLabel } from '@/utils/dateHelpers';
+import { displayDoorTime, getPartyDateLabel } from '@/utils/dateHelpers';
 import { fetchPublicParty } from '@/lib/og';
 import PartyPageClient from './PartyPageClient';
 
@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Party not found · Temple Parties' };
   }
 
-  const description = `${party.host} · ${getPartyDateLabel(party.date)} · ${party.doorsOpen}`;
+  const description = `${party.host} · ${getPartyDateLabel(party.date)} · ${displayDoorTime(party.doorsOpen)}`;
   // Poster URL first so iMessage's compact square isn't the site favicon.
   // No-poster parties keep the generated 1200×630 card.
   const images = party.posterImage

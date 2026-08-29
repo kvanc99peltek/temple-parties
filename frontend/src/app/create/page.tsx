@@ -433,8 +433,8 @@ export default function CreatePartyPage() {
               />
             </Field>
 
-            <Field label="Address" required error={errors.address}>
-              {/* Shared with the become-host form — one autocomplete, no drift. */}
+            <Field label="Location" required error={errors.address}>
+              {/* Shared with the become-host form — street addresses + campus landmarks. */}
               <AddressAutocomplete
                 value={address}
                 onChange={(v) => {
@@ -446,6 +446,7 @@ export default function CreatePartyPage() {
                   setAddress(addr);
                   setCoords(picked);
                 }}
+                placeholder="Street address or campus spot…"
                 inputClassName={inputClass}
               />
             </Field>

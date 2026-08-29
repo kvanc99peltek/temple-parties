@@ -2,7 +2,17 @@
  * Test cases for date helper utility functions.
  * Tests edge cases and boundary conditions for date calculations.
  */
-import { getDefaultDay, getUpcomingDates, getDayName, getAlsoTonightLabel, getPartyDateLabel, pickSmartDefaultDay, displayDoorTime } from '../utils/dateHelpers';
+import {
+  getDefaultDay,
+  getUpcomingDates,
+  getDayName,
+  getAlsoTonightLabel,
+  getPartyDateLabel,
+  pickSmartDefaultDay,
+  displayDoorTime,
+  parseDoorTimeParts,
+  formatDoorTimeParts,
+} from '../utils/dateHelpers';
 
 describe('dateHelpers', () => {
   describe('getDefaultDay', () => {
@@ -211,6 +221,26 @@ describe('dateHelpers', () => {
     it('leaves already-canonical times alone', () => {
       expect(displayDoorTime('10 PM')).toBe('10 PM');
       expect(displayDoorTime('11 PM')).toBe('11 PM');
+    });
+  });
+
+  describe('parseDoorTimeParts / formatDoorTimeParts', () => {
+    it('parses hour-only and with minutes', () => {
+      expect(parseDoorTimeParts('10 PM')).toEqual({ hour: 10, minute: 0, period: 'PM' });
+      expect(parseDoorTimeParts('9:30 AM')).toEqual({ hour: 9, minute: 30, period: 'AM' });
+      expect(parseDoorTimeParts('12:05 AM')).toEqual({ hour: 12, minute: 5, period: 'AM' });
+    });
+
+    it('returns null for garbage', () => {
+      expect(parseDoorTimeParts('')).toBeNull();
+      expect(parseDoorTimeParts('whenever')).toBeNull();
+      expect(parseDoorTimeParts('25 PM')).toBeNull();
+    });
+
+    it('round-trips through the canonical display format', () => {
+      expect(formatDoorTimeParts({ hour: 10, minute: 0, period: 'PM' })).toBe('10 PM');
+      expect(formatDoorTimeParts({ hour: 8, minute: 15, period: 'PM' })).toBe('8:15 PM');
+      expect(formatDoorTimeParts({ hour: 12, minute: 0, period: 'AM' })).toBe('12 AM');
     });
   });
 });

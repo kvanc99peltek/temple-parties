@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 import DashedCard from '@/components/ui/DashedCard';
+import DoorTimePicker from '@/components/ui/DoorTimePicker';
 import WeekendCalendarPicker, {
   formatWeekendRange,
   type WeekendOption,
@@ -22,7 +23,7 @@ import { resizePosterFile } from '@/utils/posterImage';
 import { normalizeTicketUrl } from '@/utils/ticketUrl';
 import { trackEvent } from '@/utils/analytics';
 
-const DOOR_TIMES = ['9 PM', '10 PM', '11 PM', '12 AM'];
+const DEFAULT_DOORS_OPEN = '10 PM';
 const CATEGORIES = ['Frat Party', 'House Party', 'House Show', 'Rooftop Party', 'Other'];
 
 type Step = 'basics' | 'poster' | 'description' | 'ticket' | 'done';
@@ -41,7 +42,7 @@ export default function CreatePartyPage() {
   const [host, setHost] = useState('');
   const [pinLabel, setPinLabel] = useState('');
   const [address, setAddress] = useState('');
-  const [doorsOpen, setDoorsOpen] = useState(DOOR_TIMES[1]);
+  const [doorsOpen, setDoorsOpen] = useState(DEFAULT_DOORS_OPEN);
   const [category, setCategory] = useState(CATEGORIES[1]);
   const [date, setDate] = useState('');
   const [todayIso, setTodayIso] = useState('');
@@ -469,17 +470,11 @@ export default function CreatePartyPage() {
             </Field>
 
             <Field label="Doors open">
-              <select
+              <DoorTimePicker
                 value={doorsOpen}
-                onChange={(e) => setDoorsOpen(e.target.value)}
-                className={inputClass}
-              >
-                {DOOR_TIMES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+                onChange={setDoorsOpen}
+                selectClassName={`${inputClass} flex-1 min-w-0`}
+              />
             </Field>
 
             <Field label="Category">

@@ -194,6 +194,14 @@ export function pickSmartDefaultDay(
   return PARTY_DAYS.find((d) => (counts[d] ?? 0) > 0) ?? defaultDay;
 }
 
+export type DoorTimePeriod = 'AM' | 'PM';
+
+export type DoorTimeParts = {
+  hour: number; // 1–12
+  minute: number; // 0–59
+  period: DoorTimePeriod;
+};
+
 /**
  * Door time for display: keep AM/PM, never ":00".
  * "10:00 PM" / "10 PM" → "10 PM"; "10:30 PM" stays "10:30 PM".
@@ -209,6 +217,23 @@ export function displayDoorTime(doorsOpen: string): string {
   const period = match[3].toUpperCase();
   if (!minutes) return `${hour} ${period}`;
   return `${hour}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
+/** Split a doors_open string into hour / minute / AM|PM. Null if unparseable. */
+export function parseDoorTimeParts(doorsOpen: string): DoorTimeParts | null {
+  const match = doorsOpen.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return null;
+  const hour = parseInt(match[1], 10);
+  const minute = match[2] ? parseInt(match[2], 10) : 0;
+  if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+  return { hour, minute, period: match[3].toUpperCase() as DoorTimePeriod };
+}
+
+/** Canonical doors_open string from picker parts ("10 PM", "10:30 PM"). */
+export function formatDoorTimeParts(parts: DoorTimeParts): string {
+  return displayDoorTime(
+    `${parts.hour}:${String(parts.minute).padStart(2, '0')} ${parts.period}`,
+  );
 }
 
 /**

@@ -6,11 +6,12 @@
  * so the two forms can never drift).
  *
  * Typing (3+ chars, debounced 300ms) queries our backend's address-suggest
- * proxy — the browser can't call Nominatim directly (403s without a proper
- * User-Agent), so the API does it for us. Picking a suggestion hands the
- * caller the full label AND its lat/lng; plain typing just updates the text
- * (callers that care about coordinates should invalidate them on type —
- * the text no longer matches a verified pin).
+ * proxy — street addresses via Nominatim, plus curated Temple campus
+ * landmarks (Bell Tower, Liacouras, etc.). The browser can't call Nominatim
+ * directly (403s without a proper User-Agent), so the API does it for us.
+ * Picking a suggestion hands the caller the full label AND its lat/lng;
+ * plain typing just updates the text (callers that care about coordinates
+ * should invalidate them on type — the text no longer matches a verified pin).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -37,7 +38,7 @@ export default function AddressAutocomplete({
   value,
   onChange,
   onSelect,
-  placeholder = 'Start typing address…',
+  placeholder = 'Street address or campus spot…',
   inputClassName = '',
 }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);

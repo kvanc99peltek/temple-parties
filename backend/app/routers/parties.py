@@ -540,7 +540,7 @@ async def insert_party(
         if geocoded is None:
             raise HTTPException(
                 status_code=422,
-                detail="We couldn't find that address. Check the street and try again.",
+                detail="We couldn't find that location. Try a street address or campus spot (e.g. Bell Tower).",
             )
         lat, lng = geocoded
 
@@ -691,7 +691,7 @@ async def update_party(
         if geocoded is None:
             raise HTTPException(
                 status_code=422,
-                detail="We couldn't find that address. Check the street and try again.",
+                detail="We couldn't find that location. Try a street address or campus spot (e.g. Bell Tower).",
             )
         updates["latitude"], updates["longitude"] = geocoded
 

@@ -1,5 +1,5 @@
 /**
- * TUP-18: login CTA stays "Temple Email" and unlocks if the student
+ * TUP-18: login CTA stays "Sign in" and unlocks if the student
  * comes back from TU Portal (pageshow / Back).
  */
 
@@ -20,17 +20,17 @@ jest.mock('@/contexts/AuthContext', () => ({
 jest.mock('@/utils/analytics', () => ({ trackEvent: jest.fn() }));
 
 describe('Login page CTA (TUP-18)', () => {
-  it('always says Temple Email and re-enables after pageshow', async () => {
+  it('always says Sign in and re-enables after pageshow', async () => {
     render(<LoginPage />);
 
-    const button = await screen.findByRole('button', { name: 'Temple Email' });
+    const button = await screen.findByRole('button', { name: 'Sign in' });
     expect(screen.queryByText(/Microsoft/i)).toBeNull();
     expect(screen.queryByText(/Redirecting/i)).toBeNull();
 
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: 'Temple Email' }) as HTMLButtonElement).disabled).toBe(
+      expect((screen.getByRole('button', { name: 'Sign in' }) as HTMLButtonElement).disabled).toBe(
         true
       );
     });
@@ -40,7 +40,7 @@ describe('Login page CTA (TUP-18)', () => {
       window.dispatchEvent(new Event('pageshow'));
     });
 
-    expect((screen.getByRole('button', { name: 'Temple Email' }) as HTMLButtonElement).disabled).toBe(
+    expect((screen.getByRole('button', { name: 'Sign in' }) as HTMLButtonElement).disabled).toBe(
       false
     );
   });

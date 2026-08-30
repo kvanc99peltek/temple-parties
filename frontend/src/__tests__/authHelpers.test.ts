@@ -1,5 +1,7 @@
 import {
+  bindPageShow,
   isTempleEmail,
+  loginButtonLabel,
   loginErrorFromQuery,
   loginPitch,
   microsoftCallbackUrl,
@@ -79,7 +81,7 @@ describe('loginPitch', () => {
 
 describe('loginErrorFromQuery', () => {
   it('explains temple-only and admin-consent failures', () => {
-    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).toMatch(/Temple Microsoft/);
+    expect(loginErrorFromQuery(new URLSearchParams('error=temple'))).toMatch(/Temple email/);
     expect(
       loginErrorFromQuery(new URLSearchParams('error_description=AADSTS65001+admin+consent'))
     ).toMatch(/approve this app/);
@@ -94,7 +96,7 @@ describe('loginErrorFromQuery', () => {
 
   it('falls back to a generic message for unrecognized provider errors', () => {
     expect(loginErrorFromQuery(new URLSearchParams('error=access_denied'))).toMatch(
-      /Microsoft sign-in failed/
+      /Sign-in failed/
     );
   });
 
@@ -102,7 +104,27 @@ describe('loginErrorFromQuery', () => {
   // destination must not change which message we show.
   it('ignores next when deciding the message', () => {
     expect(loginErrorFromQuery(new URLSearchParams('error=temple&next=%2Fparty%2Fabc'))).toMatch(
-      /Temple Microsoft/
+      /Temple email/
     );
+  });
+});
+
+describe('loginButtonLabel', () => {
+  it('always says Temple Email, including while SSO is in flight', () => {
+    expect(loginButtonLabel(false)).toBe('Temple Email');
+    expect(loginButtonLabel(true)).toBe('Temple Email');
+    expect(loginButtonLabel(true)).not.toMatch(/Microsoft|Redirecting/i);
+  });
+});
+
+describe('bindPageShow', () => {
+  it('runs the reset when the student comes back to the page', () => {
+    const onShow = jest.fn();
+    const unbind = bindPageShow(onShow);
+    window.dispatchEvent(new Event('pageshow'));
+    expect(onShow).toHaveBeenCalledTimes(1);
+    unbind();
+    window.dispatchEvent(new Event('pageshow'));
+    expect(onShow).toHaveBeenCalledTimes(1);
   });
 });

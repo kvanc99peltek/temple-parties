@@ -4,7 +4,14 @@ import { Suspense, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { loginErrorFromQuery, loginPitch, onboardingPath, sanitizeNextPath } from '@/lib/authHelpers';
+import {
+  bindPageShow,
+  loginButtonLabel,
+  loginErrorFromQuery,
+  loginPitch,
+  onboardingPath,
+  sanitizeNextPath,
+} from '@/lib/authHelpers';
 import { peekPendingAuthAction, saveAuthNextPath } from '@/lib/pendingAuthAction';
 import {
   appDisplayName,
@@ -77,6 +84,10 @@ function LoginForm() {
     router.replace(needsOnboarding ? onboardingPath(nextPath) : nextPath);
   }, [isAuthenticated, isLoading, needsOnboarding, nextPath, router]);
 
+  // Back from TU Portal restores this page from memory with submitting still
+  // true. Unlock so they can tap Temple Email again (TUP-18).
+  useEffect(() => bindPageShow(() => setSubmitting(false)), []);
+
   // `selectAccount` is for shared computers: it makes Microsoft show its
   // account picker instead of silently reusing whoever is already signed in.
   const startMicrosoft = async (selectAccount = false) => {
@@ -87,12 +98,12 @@ function LoginForm() {
 
     const result = await signInWithMicrosoft(nextPath, { selectAccount });
 
-    // On success the browser is already navigating to Microsoft, so we leave
-    // `submitting` true — re-enabling the button would just invite a second
-    // click during the redirect. Only a failure returns us to an idle screen.
+    // On success the browser is leaving for TU Portal, so we leave
+    // `submitting` true to block a second tap. pageshow clears it if they
+    // come back. Only a failure returns us to an idle screen immediately.
     if (!result.success) {
       setSubmitting(false);
-      setError(result.error || 'Microsoft sign-in failed. Try again.');
+      setError(result.error || 'Sign-in failed. Try again.');
     }
   };
 
@@ -144,7 +155,7 @@ function LoginForm() {
             disabled={submitting}
             className="w-full flex items-center justify-center py-3.5 rounded-xl font-montserrat font-semibold text-white bg-[#b24bf3] hover:bg-[#c46eff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
           >
-            {submitting ? 'Redirecting…' : 'Sign in with Microsoft'}
+            {loginButtonLabel(submitting)}
           </button>
 
           {/* Escape hatch for a friend's computer: forces the Microsoft account
@@ -160,9 +171,9 @@ function LoginForm() {
           </button>
 
           <p className="mt-6 text-center text-white/40 font-montserrat text-xs leading-relaxed">
-            You sign in on Microsoft&apos;s page — we never see your password.
+            You sign in with your Temple email — we never see your password.
             <br />
-            First time? Microsoft will ask you to allow access.
+            First time? You&apos;ll be asked to allow access.
           </p>
         </>
       )}
@@ -182,7 +193,7 @@ function InAppEscape({ gate }: { gate: InAppGate }) {
         {appDisplayName(gate.app)} can&apos;t sign you in
       </h1>
       <p className="text-white/60 font-montserrat text-sm mt-2 leading-relaxed">
-        Microsoft login has to happen in {browser}. Do this:
+        Temple Email login has to happen in {browser}. Do this:
       </p>
       <ol className="mt-4 text-left text-white font-montserrat text-sm leading-relaxed space-y-2">
         {steps.map((step, i) => (

@@ -38,7 +38,22 @@ export function partyPath(partyId: string): string {
 export type LoginPitch = { title: string; body: string };
 
 /**
- * Login headline + subcopy. One screen, Microsoft button visible immediately —
+ * Primary login CTA. Same label idle and in-flight so a Back-from-TU-Portal
+ * restore never shows a stuck "Redirecting…" (TUP-18).
+ */
+export function loginButtonLabel(submitting = false): string {
+  if (submitting) return 'Temple Email';
+  return 'Temple Email';
+}
+
+/** Re-enable the login CTA when the student returns via Back (bfcache). */
+export function bindPageShow(onShow: () => void): () => void {
+  window.addEventListener('pageshow', onShow);
+  return () => window.removeEventListener('pageshow', onShow);
+}
+
+/**
+ * Login headline + subcopy. One screen, Temple Email button visible immediately —
  * the two-step Continue gate hid SSO and bounced half of /login visitors.
  */
 export function loginPitch(
@@ -68,7 +83,7 @@ export function loginErrorFromQuery(params: URLSearchParams): string {
   const description = (params.get('error_description') || params.get('error') || '').toLowerCase();
 
   if (code === 'temple' || description.includes('temple.edu')) {
-    return 'Use your Temple Microsoft account (@temple.edu)';
+    return 'Use your Temple email (@temple.edu)';
   }
   if (
     description.includes('admin') ||
@@ -78,7 +93,7 @@ export function loginErrorFromQuery(params: URLSearchParams): string {
     return 'Temple has to approve this app before students can sign in. Ask IT, or try again after admin consent.';
   }
   if (code || params.get('error_description')) {
-    return 'Microsoft sign-in failed. Try again.';
+    return 'Sign-in failed. Try again.';
   }
   return '';
 }

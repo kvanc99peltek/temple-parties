@@ -85,7 +85,7 @@ function LoginForm() {
   }, [isAuthenticated, isLoading, needsOnboarding, nextPath, router]);
 
   // Back from TU Portal restores this page from memory with submitting still
-  // true. Unlock so they can tap Temple Email again (TUP-18).
+  // true. Unlock so they can tap Sign in again (TUP-18).
   useEffect(() => bindPageShow(() => setSubmitting(false)), []);
 
   // `selectAccount` is for shared computers: it makes Microsoft show its
@@ -193,7 +193,7 @@ function InAppEscape({ gate }: { gate: InAppGate }) {
         {appDisplayName(gate.app)} can&apos;t sign you in
       </h1>
       <p className="text-white/60 font-montserrat text-sm mt-2 leading-relaxed">
-        Temple Email login has to happen in {browser}. Do this:
+        Sign in has to happen in {browser}. Do this:
       </p>
       <ol className="mt-4 text-left text-white font-montserrat text-sm leading-relaxed space-y-2">
         {steps.map((step, i) => (

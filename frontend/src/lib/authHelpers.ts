@@ -42,8 +42,8 @@ export type LoginPitch = { title: string; body: string };
  * restore never shows a stuck "Redirecting…" (TUP-18).
  */
 export function loginButtonLabel(submitting = false): string {
-  if (submitting) return 'Temple Email';
-  return 'Temple Email';
+  if (submitting) return 'Sign in';
+  return 'Sign in';
 }
 
 /** Re-enable the login CTA when the student returns via Back (bfcache). */
@@ -53,7 +53,7 @@ export function bindPageShow(onShow: () => void): () => void {
 }
 
 /**
- * Login headline + subcopy. One screen, Temple Email button visible immediately —
+ * Login headline + subcopy. One screen, Sign in button visible immediately —
  * the two-step Continue gate hid SSO and bounced half of /login visitors.
  */
 export function loginPitch(

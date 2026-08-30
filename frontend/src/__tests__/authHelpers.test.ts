@@ -110,10 +110,10 @@ describe('loginErrorFromQuery', () => {
 });
 
 describe('loginButtonLabel', () => {
-  it('always says Temple Email, including while SSO is in flight', () => {
-    expect(loginButtonLabel(false)).toBe('Temple Email');
-    expect(loginButtonLabel(true)).toBe('Temple Email');
-    expect(loginButtonLabel(true)).not.toMatch(/Microsoft|Redirecting/i);
+  it('always says Sign in, including while SSO is in flight', () => {
+    expect(loginButtonLabel(false)).toBe('Sign in');
+    expect(loginButtonLabel(true)).toBe('Sign in');
+    expect(loginButtonLabel(true)).not.toMatch(/Microsoft|Redirecting|Temple Email/i);
   });
 });
 

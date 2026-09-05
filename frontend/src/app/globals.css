@@ -499,7 +499,8 @@ html {
 
 /* Sponsor popup (Leaflet). The PARTY popup is gone — party pins open
    components/map/PartySheet instead — so these shared popup rules only
-   serve the sponsor pin now (lib/sponsors.ts, currently empty). */
+   serve location sponsors (lib/sponsors.ts; directories like TU Eats
+   have no pin). */
 .popup-content {
   min-width: 200px;
   max-width: 220px;
@@ -593,7 +594,7 @@ html {
   transform: scale(0.98);
 }
 
-/* Sponsored marker + popup — driven by lib/sponsors.ts (empty = off).
+/* Sponsored marker + popup — driven by lib/sponsors.ts (no lat/lng = off).
    Same design language as the party popups: surface-2 card, square chips. */
 .sponsor-marker {
   display: flex;

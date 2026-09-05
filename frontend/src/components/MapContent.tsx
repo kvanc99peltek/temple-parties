@@ -10,8 +10,8 @@
  *   2. `SheetScrim` dims the tiles under the pins,
  *   3. `SelectionCamera` pans the pin into the strip of map above the sheet,
  * and the sheet renders as a plain React overlay beside the map. No Leaflet
- * popups are involved any more (the sponsor pin still has one — sponsors
- * are off right now, see lib/sponsors.ts).
+ * popups are involved any more (location sponsors still have one — see
+ * lib/sponsors.ts; directory sponsors like TU Eats don't drop a pin).
  */
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
@@ -37,7 +37,7 @@ import { partiesApi } from '@/services/api';
 import SegmentedTabs from '@/components/ui/SegmentedTabs';
 import NavigateIcon from '@/components/ui/NavigateIcon';
 import PartySheet from '@/components/map/PartySheet';
-import { PRIMARY_SPONSOR } from '@/lib/sponsors';
+import { PRIMARY_SPONSOR, isMappableSponsor } from '@/lib/sponsors';
 
 interface MapContentProps {
   parties: Party[];
@@ -418,7 +418,11 @@ export default function MapContent({ parties, topPartyIds, userGoingParties, onG
 
   // Local const so TS narrowing (sponsor && ...) survives into the marker's
   // event-handler closures — imported bindings don't narrow across closures.
-  const sponsor = PRIMARY_SPONSOR;
+  // Directories like TU Eats have no lat/lng, so they never drop a pin.
+  const sponsor =
+    PRIMARY_SPONSOR && isMappableSponsor(PRIMARY_SPONSOR)
+      ? PRIMARY_SPONSOR
+      : undefined;
 
   // Get day numbers for display
   const thursdayNum = thursdayDate;

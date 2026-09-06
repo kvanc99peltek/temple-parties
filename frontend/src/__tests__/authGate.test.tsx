@@ -27,7 +27,7 @@ describe('AuthGate', () => {
       </AuthGate>
     );
 
-    expect(await screen.findByRole('dialog', { name: /lineup/i })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /party's inside/i })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByText('feed content')).toBeInTheDocument();
   });

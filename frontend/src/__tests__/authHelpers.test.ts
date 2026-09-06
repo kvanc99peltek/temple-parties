@@ -1,5 +1,6 @@
 import {
   bindPageShow,
+  isAuthPublicPath,
   isTempleEmail,
   loginButtonLabel,
   loginErrorFromQuery,
@@ -61,21 +62,41 @@ describe('onboardingPath', () => {
 });
 
 describe('loginPitch', () => {
-  it('explains .edu, time, and GOING/ratings on a cold visit', () => {
+  it('invites a cold visit without the old GOING-only soft-gate copy', () => {
     const pitch = loginPitch('/');
-    expect(pitch.title).toMatch(/GOING/i);
-    expect(pitch.body).toMatch(/\.edu/i);
+    expect(pitch.title).toMatch(/lineup/i);
+    expect(pitch.body).toMatch(/school email only/i);
     expect(pitch.body).toMatch(/10 seconds/);
-    expect(pitch.body).toMatch(/ratings/i);
+    expect(pitch.body).not.toMatch(/Temple/i);
+    expect(pitch.title).not.toMatch(/GOING/i);
   });
 
-  it('promises a return to the party when they came from GOING', () => {
+  it('promises a return to the party when they came from a party page', () => {
     const pitch = loginPitch('/party/abc', 'going');
-    expect(pitch.body).toMatch(/land back on the party/i);
+    expect(pitch.title).toMatch(/lineup/i);
+    expect(pitch.body).toMatch(/land back here/i);
   });
 
   it('switches copy for create-party', () => {
     expect(loginPitch('/create', 'addParty').title).toMatch(/post a party/i);
+  });
+});
+
+describe('isAuthPublicPath', () => {
+  it('keeps sign-in, callback, onboarding, and demo reachable logged out', () => {
+    expect(isAuthPublicPath('/login')).toBe(true);
+    expect(isAuthPublicPath('/auth/callback')).toBe(true);
+    expect(isAuthPublicPath('/onboarding')).toBe(true);
+    expect(isAuthPublicPath('/demo')).toBe(true);
+    expect(isAuthPublicPath('/demo/map')).toBe(true);
+  });
+
+  it('walls the live app', () => {
+    expect(isAuthPublicPath('/')).toBe(false);
+    expect(isAuthPublicPath('/map')).toBe(false);
+    expect(isAuthPublicPath('/party/abc')).toBe(false);
+    expect(isAuthPublicPath('/leaderboards')).toBe(false);
+    expect(isAuthPublicPath('/profile')).toBe(false);
   });
 });
 

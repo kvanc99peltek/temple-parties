@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AuthProvider } from "@/contexts/AuthContext";
+import AuthGate from "@/components/AuthGate";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
@@ -48,7 +49,7 @@ export default function RootLayout({
       <body className="antialiased">
         <PostHogProvider>
           <AuthProvider>
-            {children}
+            <AuthGate>{children}</AuthGate>
           </AuthProvider>
         </PostHogProvider>
         <Analytics />

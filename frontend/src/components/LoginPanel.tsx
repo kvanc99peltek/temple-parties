@@ -113,6 +113,9 @@ export default function LoginPanel({
         You sign in through your school&apos;s system, we never see your password.
         First time? You&apos;ll be asked to allow access.
       </p>
+      <p className="mt-2 text-center text-temple-purple-light font-montserrat text-xs font-bold leading-relaxed text-balance">
+        Private/incognito tabs forget you. Use a regular tab to stay logged in.
+      </p>
     </>
   );
 }

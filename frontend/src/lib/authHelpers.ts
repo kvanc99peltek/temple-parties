@@ -35,6 +35,18 @@ export function partyPath(partyId: string): string {
   return `/party/${partyId}`;
 }
 
+/**
+ * Routes that must stay reachable without an account: sign-in, the Azure
+ * callback, unfinished onboarding, and the recruiter demo snapshot.
+ */
+export function isAuthPublicPath(pathname: string): boolean {
+  if (pathname === '/login' || pathname.startsWith('/login/')) return true;
+  if (pathname === '/auth/callback' || pathname.startsWith('/auth/')) return true;
+  if (pathname === '/onboarding' || pathname.startsWith('/onboarding')) return true;
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true;
+  return false;
+}
+
 export type LoginPitch = { title: string; body: string };
 
 /**
@@ -63,18 +75,18 @@ export function loginPitch(
   if (pendingType === 'addParty' || nextPath.startsWith('/create')) {
     return {
       title: 'Sign in to post a party',
-      body: 'Temple .edu only · about 10 seconds.',
+      body: 'school email only · about 10 seconds.',
     };
   }
   if (pendingType === 'going' || nextPath.startsWith('/party/')) {
     return {
-      title: 'Sign in to tap GOING',
-      body: 'Temple .edu only · about 10 seconds. You’ll land back on the party.',
+      title: "This one's on the lineup",
+      body: 'school email only · about 10 seconds. You’ll land back here.',
     };
   }
   return {
-    title: 'Sign in to tap GOING',
-    body: 'Temple .edu only · about 10 seconds. You need an account for GOING and ratings.',
+    title: 'The lineup is inside',
+    body: 'school email only · about 10 seconds.',
   };
 }
 

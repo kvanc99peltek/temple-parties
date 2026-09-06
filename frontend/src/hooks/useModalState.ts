@@ -9,7 +9,9 @@ import {
   type PendingAuthAction,
 } from '@/lib/pendingAuthAction';
 
-/** Soft-gate: Going / Navigate / Add Party / Rate require login. */
+/** Soft-gate: Going / Navigate / Add Party / Rate require login.
+ *  The hard account wall (AuthGate) sits in front of the live app; these
+ *  remain as a safety net if an action is reached while logged out. */
 export const AUTH_GATE_ENABLED = true;
 
 /**

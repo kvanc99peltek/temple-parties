@@ -85,7 +85,7 @@ export function loginPitch(
     };
   }
   return {
-    title: 'The lineup is inside',
+    title: "The party's inside",
     body: 'school email only · about 10 seconds.',
   };
 }

@@ -64,7 +64,7 @@ describe('onboardingPath', () => {
 describe('loginPitch', () => {
   it('invites a cold visit without the old GOING-only soft-gate copy', () => {
     const pitch = loginPitch('/');
-    expect(pitch.title).toMatch(/lineup/i);
+    expect(pitch.title).toMatch(/party's inside/i);
     expect(pitch.body).toMatch(/school email only/i);
     expect(pitch.body).toMatch(/10 seconds/);
     expect(pitch.body).not.toMatch(/Temple/i);
